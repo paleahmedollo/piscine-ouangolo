@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation Configuration - Complexe Ouangolo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        header h1 { font-size: 2rem; margin-bottom: 8px; }
+        header p { opacity: 0.85; font-size: 1rem; }
+        header .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            margin-top: 12px;
+        }
+        nav {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+            padding: 16px 40px;
+        }
+        nav h3 { color: #1a237e; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+        nav ul li a {
+            background: #1a237e;
+            color: white;
+            text-decoration: none;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            transition: background 0.2s;
+        }
+        nav ul li a:hover { background: #283593; }
+        .content { padding: 40px; }
+        section { margin-bottom: 50px; }
+        h2 {
+            color: #1a237e;
+            font-size: 1.4rem;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #1a237e;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2 .icon { font-size: 1.6rem; }
+        h3 { color: #283593; font-size: 1.1rem; margin: 20px 0 10px; }
+        p { color: #444; margin-bottom: 10px; }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
+        }
+        .info-card {
+            background: #f5f7ff;
+            border: 1px solid #c5cae9;
+            border-left: 4px solid #1a237e;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .info-card .label { font-size: 0.78rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .info-card .value { font-size: 1rem; font-weight: bold; color: #1a237e; margin-top: 4px; word-break: break-all; }
+        .info-card .value.mono { font-family: monospace; font-size: 0.9rem; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #1a237e;
+            color: white;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td { padding: 9px 14px; border-bottom: 1px solid #e0e0e0; color: #333; }
+        tr:nth-child(even) td { background: #f5f7ff; }
+        tr:hover td { background: #e8eaf6; }
+        .badge-ok {
+            background: #e8f5e9; color: #2e7d32;
+            padding: 2px 10px; border-radius: 12px;
+            font-size: 0.8rem; font-weight: bold;
+        }
+        .badge-warn {
+            background: #fff3e0; color: #e65100;
+            padding: 2px 10px; border-radius: 12px;
+            font-size: 0.8rem; font-weight: bold;
+        }
+        .badge-info {
+            background: #e3f2fd; color: #0277bd;
+            padding: 2px 10px; border-radius: 12px;
+            font-size: 0.8rem; font-weight: bold;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.88rem;
+            color: #c62828;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            margin: 12px 0;
+        }
+        pre .comment { color: #6a9955; }
+        pre .key { color: #9cdcfe; }
+        pre .value { color: #ce9178; }
+        .alert {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin: 12px 0;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        .alert-info { background: #e3f2fd; border-left: 4px solid #1976d2; color: #0d47a1; }
+        .alert-warn { background: #fff8e1; border-left: 4px solid #f9a825; color: #e65100; }
+        .alert-success { background: #e8f5e9; border-left: 4px solid #388e3c; color: #1b5e20; }
+        .alert-danger { background: #ffebee; border-left: 4px solid #c62828; color: #b71c1c; }
+        .timeline { position: relative; padding-left: 30px; }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px; top: 0; bottom: 0;
+            width: 2px; background: #c5cae9;
+        }
+        .timeline-item { position: relative; margin-bottom: 24px; }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px; top: 6px;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #1a237e;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #1a237e;
+        }
+        .timeline-item .date {
+            font-size: 0.78rem; color: #666; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .timeline-item h4 { color: #1a237e; margin: 4px 0; }
+        .timeline-item p { color: #555; font-size: 0.9rem; margin: 0; }
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
+        }
+        .module-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 18px;
+            background: #fafafa;
+        }
+        .module-card h4 { color: #1a237e; margin-bottom: 8px; font-size: 1rem; }
+        .module-card ul { list-style: none; }
+        .module-card ul li { padding: 3px 0; color: #555; font-size: 0.88rem; }
+        .module-card ul li::before { content: '✓ '; color: #388e3c; font-weight: bold; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+        footer {
+            background: #1a237e;
+            color: rgba(255,255,255,0.7);
+            text-align: center;
+            padding: 20px;
+            font-size: 0.85rem;
+        }
+        footer strong { color: white; }
+        .toc-number {
+            background: #1a237e; color: white;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: bold;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- HEADER -->
+    <header>
+        <div style="font-size:3rem; margin-bottom:12px;">🏊</div>
+        <h1>Documentation Technique — Complexe Ouangolo</h1>
+        <p>Système de gestion : Piscine · Restaurant · Hôtel · Événements · Caisse</p>
+        <div class="badge">📅 Mise à jour : Février 2026 &nbsp;|&nbsp; Version 2.0</div>
+    </header>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <h3>Table des matières</h3>
+        <ul>
+            <li><a href="#architecture">1. Architecture</a></li>
+            <li><a href="#services">2. Services en ligne</a></li>
+            <li><a href="#base-de-donnees">3. Base de données</a></li>
+            <li><a href="#comptes">4. Comptes utilisateurs</a></li>
+            <li><a href="#modules">5. Modules</a></li>
+            <li><a href="#fonctionnalites">6. Nouvelles fonctionnalités</a></li>
+            <li><a href="#migrations">7. Migrations DB</a></li>
+            <li><a href="#corrections">8. Corrections effectuées</a></li>
+            <li><a href="#render">9. Render.com</a></li>
+            <li><a href="#roles">10. Rôles & Permissions</a></li>
+        </ul>
+    </nav>
+
+    <div class="content">
+
+        <!-- SECTION 1 : ARCHITECTURE -->
+        <section id="architecture">
+            <h2><span class="icon">🏗️</span> 1. Architecture du Système</h2>
+            <p>Le système repose sur une architecture <strong>3 couches</strong> entièrement dans le cloud :</p>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="label">Frontend</div>
+                    <div class="value">React 18 + TypeScript</div>
+                    <div style="font-size:0.8rem; color:#666; margin-top:4px;">Material UI · Axios · React Router</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Backend</div>
+                    <div class="value">Node.js + Express</div>
+                    <div style="font-size:0.8rem; color:#666; margin-top:4px;">Sequelize ORM · JWT Auth · Bcrypt</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Base de données</div>
+                    <div class="value">PostgreSQL</div>
+                    <div style="font-size:0.8rem; color:#666; margin-top:4px;">Hébergé sur Supabase</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Hébergement</div>
+                    <div class="value">Render.com</div>
+                    <div style="font-size:0.8rem; color:#666; margin-top:4px;">Plan gratuit · Auto-deploy GitHub</div>
+                </div>
+            </div>
+
+            <pre><code><span class="comment">## Schéma de communication</span>
+
+Téléphone / PC
+      │
+      ▼
+<span class="key">Frontend</span> (Render Static Site)
+https://piscine-ouangolo-frontend.onrender.com
+      │
+      │  API REST (HTTPS + JWT)
+      ▼
+<span class="key">Backend</span> (Render Web Service)
+https://piscine-ouangolo.onrender.com/api
+      │
+      │  Sequelize + SSL
+      ▼
+<span class="key">PostgreSQL</span> (Supabase)
+aws-1-eu-west-3.pooler.supabase.com:5432</code></pre>
+        </section>
+
+        <!-- SECTION 2 : SERVICES EN LIGNE -->
+        <section id="services">
+            <h2><span class="icon">🌐</span> 2. Services en Ligne</h2>
+
+            <table>
+                <tr>
+                    <th>Service</th>
+                    <th>URL</th>
+                    <th>Plateforme</th>
+                    <th>Statut</th>
+                </tr>
+                <tr>
+                    <td><strong>Application web</strong></td>
+                    <td><code>piscine-ouangolo-frontend.onrender.com</code></td>
+                    <td>Render Static Site</td>
+                    <td><span class="badge-ok">✓ Actif</span></td>
+                </tr>
+                <tr>
+                    <td><strong>API Backend</strong></td>
+                    <td><code>piscine-ouangolo.onrender.com/api</code></td>
+                    <td>Render Web Service</td>
+                    <td><span class="badge-warn">⚠ Mise en veille</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Base de données</strong></td>
+                    <td><code>aws-1-eu-west-3.pooler.supabase.com</code></td>
+                    <td>Supabase PostgreSQL</td>
+                    <td><span class="badge-ok">✓ Actif</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Code source</strong></td>
+                    <td><code>github.com/paleahmedollo/piscine-ouangolo</code></td>
+                    <td>GitHub</td>
+                    <td><span class="badge-ok">✓ Actif</span></td>
+                </tr>
+            </table>
+
+            <div class="alert alert-warn">
+                <span>⚠️</span>
+                <div><strong>Mise en veille backend :</strong> Sur le plan gratuit Render, le backend s'endort après 15 minutes sans activité. Au premier accès après une pause, le chargement peut prendre 30 à 60 secondes. C'est normal.</div>
+            </div>
+        </section>
+
+        <!-- SECTION 3 : BASE DE DONNÉES -->
+        <section id="base-de-donnees">
+            <h2><span class="icon">🗄️</span> 3. Base de Données Supabase</h2>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="label">Projet Supabase</div>
+                    <div class="value mono">dqjmwgeohjmjjnvfzvyt</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Région</div>
+                    <div class="value">EU West 3 (Paris)</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Utilisateur DB</div>
+                    <div class="value mono">postgres.dqjmwgeohjmjjnvfzvyt</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Mot de passe DB</div>
+                    <div class="value mono">Ouangolo@2024</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Host (Pooler)</div>
+                    <div class="value mono">aws-1-eu-west-3.pooler.supabase.com</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Port</div>
+                    <div class="value mono">5432</div>
+                </div>
+            </div>
+
+            <h3>Tables créées</h3>
+            <table>
+                <tr>
+                    <th>Table</th>
+                    <th>Description</th>
+                    <th>Colonnes importantes</th>
+                </tr>
+                <tr><td><code>users</code></td><td>Comptes utilisateurs</td><td>id, username, password_hash, role, full_name</td></tr>
+                <tr><td><code>tickets</code></td><td>Ventes tickets piscine</td><td>type, quantity, unit_price, total, payment_method, payment_operator, payment_reference</td></tr>
+                <tr><td><code>subscriptions</code></td><td>Abonnements piscine</td><td>client_name, client_phone, type, start_date, end_date, price, is_active</td></tr>
+                <tr><td><code>incidents</code></td><td>Incidents piscine</td><td>title, description, severity, incident_date, location, status, photo_url</td></tr>
+                <tr><td><code>menu_items</code></td><td>Menu restaurant</td><td>name, category, price, is_available</td></tr>
+                <tr><td><code>sales</code></td><td>Ventes restaurant</td><td>items_json, subtotal, total, payment_method, payment_operator, payment_reference</td></tr>
+                <tr><td><code>rooms</code></td><td>Chambres hôtel</td><td>number, type, capacity, price_per_night, status</td></tr>
+                <tr><td><code>reservations</code></td><td>Réservations hôtel</td><td>client_name, cni_number, origin_city, destination_city, check_in, check_out, deposit_paid</td></tr>
+                <tr><td><code>events</code></td><td>Événements / salles</td><td>name, client_name, event_date, space, price, deposit_paid, status</td></tr>
+                <tr><td><code>expenses</code></td><td>Dépenses</td><td>category, description, amount, date, reference</td></tr>
+                <tr><td><code>employees</code></td><td>Employés</td><td>full_name, position, salary, hire_date, status</td></tr>
+                <tr><td><code>payrolls</code></td><td>Fiches de paie</td><td>employee_id, month, year, gross_salary, net_salary, paid_by</td></tr>
+                <tr><td><code>audit_logs</code></td><td>Journal d'audit</td><td>user_id, action, module, entity_type, entity_id</td></tr>
+                <tr><td><code>user_layouts</code></td><td>Préférences affichage</td><td>user_id, layout_type, layout_data</td></tr>
+            </table>
+        </section>
+
+        <!-- SECTION 4 : COMPTES UTILISATEURS -->
+        <section id="comptes">
+            <h2><span class="icon">👥</span> 4. Comptes Utilisateurs</h2>
+
+            <h3>Compte Administrateur Principal</h3>
+            <table>
+                <tr><th>Champ</th><th>Valeur</th></tr>
+                <tr><td>Identifiant</td><td><code>admin</code></td></tr>
+                <tr><td>Mot de passe</td><td><code>Admin@2024</code></td></tr>
+                <tr><td>Rôle</td><td><span class="badge-info">directeur</span></td></tr>
+                <tr><td>Accès</td><td>Tous les modules, toutes les fonctions</td></tr>
+            </table>
+
+            <h3>Comptes de Test (créés pour l'équipe)</h3>
+            <table>
+                <tr>
+                    <th>Nom</th>
+                    <th>Identifiant</th>
+                    <th>Mot de passe</th>
+                    <th>Rôle</th>
+                </tr>
+                <tr><td>Mohamed</td><td><code>mohamed</code></td><td><code>Mohamed@2024</code></td><td><span class="badge-info">admin</span></td></tr>
+                <tr><td>Romaric</td><td><code>romaric</code></td><td><code>Romaric@2024</code></td><td><span class="badge-info">admin</span></td></tr>
+                <tr><td>Satigui</td><td><code>satigui</code></td><td><code>Satigui@2024</code></td><td><span class="badge-info">admin</span></td></tr>
+                <tr><td>Athossa</td><td><code>athossa</code></td><td><code>Athossa@2024</code></td><td><span class="badge-info">admin</span></td></tr>
+                <tr><td>Ibrahim</td><td><code>ibrahim</code></td><td><code>Ibrahim@2024</code></td><td><span class="badge-info">admin</span></td></tr>
+            </table>
+
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <div>Les mots de passe suivent le format <strong>Prénom@2024</strong>. Ils peuvent être changés depuis l'interface Admin → Utilisateurs.</div>
+            </div>
+        </section>
+
+        <!-- SECTION 5 : MODULES -->
+        <section id="modules">
+            <h2><span class="icon">📦</span> 5. Modules de l'Application</h2>
+
+            <div class="module-grid">
+                <div class="module-card">
+                    <h4>🏊 Piscine</h4>
+                    <ul>
+                        <li>Vente de tickets (adulte / enfant)</li>
+                        <li>Gestion des abonnements</li>
+                        <li>Signalement d'incidents + photo</li>
+                        <li>Statistiques du jour</li>
+                        <li>Paiement Mobile Money + QR</li>
+                    </ul>
+                </div>
+                <div class="module-card">
+                    <h4>🍽️ Restaurant</h4>
+                    <ul>
+                        <li>Menu par catégorie</li>
+                        <li>Prise de commande par table</li>
+                        <li>Remise (% ou montant fixe)</li>
+                        <li>Paiement Mobile Money + QR</li>
+                        <li>Historique des ventes</li>
+                    </ul>
+                </div>
+                <div class="module-card">
+                    <h4>🏨 Hôtel</h4>
+                    <ul>
+                        <li>Gestion des chambres</li>
+                        <li>Réservations + check-in/out</li>
+                        <li>CNI client + ville d'origine/destination</li>
+                        <li>Acompte + paiement Mobile Money</li>
+                        <li>Taux d'occupation en temps réel</li>
+                    </ul>
+                </div>
+                <div class="module-card">
+                    <h4>🎪 Événements</h4>
+                    <ul>
+                        <li>Réservation de salles / espaces</li>
+                        <li>Suivi des acomptes</li>
+                        <li>Statuts (confirmé / annulé / terminé)</li>
+                    </ul>
+                </div>
+                <div class="module-card">
+                    <h4>💰 Caisse</h4>
+                    <ul>
+                        <li>Vue consolidée de tous les encaissements</li>
+                        <li>Rapports par module</li>
+                        <li>Filtrage par date</li>
+                    </ul>
+                </div>
+                <div class="module-card">
+                    <h4>👔 Administration</h4>
+                    <ul>
+                        <li>Gestion des utilisateurs & rôles</li>
+                        <li>Employés & fiches de paie</li>
+                        <li>Dépenses & charges</li>
+                        <li>Tableau de bord direction</li>
+                        <li>Journal d'audit complet</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 6 : NOUVELLES FONCTIONNALITÉS -->
+        <section id="fonctionnalites">
+            <h2><span class="icon">✨</span> 6. Nouvelles Fonctionnalités Ajoutées</h2>
+
+            <!-- Mobile Money -->
+            <h3>📱 Mobile Money avec sélection d'opérateur</h3>
+            <p>Quand l'agent sélectionne <strong>"Mobile Money"</strong> comme mode de paiement, 4 boutons d'opérateur apparaissent :</p>
+            <table>
+                <tr><th>Opérateur</th><th>Couleur</th><th>Stocké en DB</th></tr>
+                <tr><td>🟠 Orange Money</td><td>#FF6600</td><td><code>payment_operator = 'orange'</code></td></tr>
+                <tr><td>🔵 Moov Money</td><td>#0057A8</td><td><code>payment_operator = 'moov'</code></td></tr>
+                <tr><td>🟦 Wave</td><td>#1BC5BD</td><td><code>payment_operator = 'wave'</code></td></tr>
+                <tr><td>🟡 MTN MoMo</td><td>#FFCC00</td><td><code>payment_operator = 'mtn'</code></td></tr>
+            </table>
+            <p><strong>Disponible dans :</strong> Piscine (tickets), Restaurant (commandes), Hôtel (réservations)</p>
+
+            <!-- QR Scanner -->
+            <h3>📷 Scanner QR code pour paiement</h3>
+            <p>Après avoir sélectionné un opérateur Mobile Money, la caméra du téléphone s'ouvre automatiquement pour scanner le QR code du client.</p>
+            <ul style="margin: 10px 0 10px 20px; color: #555;">
+                <li>Utilise la bibliothèque <strong>jsQR</strong> (lecture en temps réel)</li>
+                <li>Fonctionne avec la caméra arrière du téléphone</li>
+                <li>La référence de paiement scannée est enregistrée dans le champ <code>payment_reference</code></li>
+                <li>Affiche une confirmation visuelle avec la référence tronquée</li>
+            </ul>
+
+            <!-- Photo incidents -->
+            <h3>📸 Photo de scène pour incidents (Piscine)</h3>
+            <p>Lors du signalement d'un incident, l'agent peut prendre une photo directement depuis son téléphone.</p>
+            <ul style="margin: 10px 0 10px 20px; color: #555;">
+                <li>La photo est <strong>compressée automatiquement</strong> (max 1024×768px, qualité 75%)</li>
+                <li>Stockée en base de données sous forme <code>base64</code> dans le champ <code>photo_url</code></li>
+                <li>Prévisualisation avec zoom et option de suppression</li>
+                <li>Champ <strong>optionnel</strong> — ne bloque pas la saisie si pas de photo</li>
+            </ul>
+
+            <!-- CNI Hôtel -->
+            <h3>🪪 Informations d'identité client (Hôtel)</h3>
+            <p>Le formulaire de réservation hôtel comporte maintenant 3 nouveaux champs :</p>
+            <table>
+                <tr><th>Champ</th><th>Colonne DB</th><th>Exemple</th></tr>
+                <tr><td>N° CNI / Pièce d'identité</td><td><code>cni_number</code></td><td>B1234567</td></tr>
+                <tr><td>Vient de (ville / pays)</td><td><code>origin_city</code></td><td>Abidjan</td></tr>
+                <tr><td>Va à (ville / pays)</td><td><code>destination_city</code></td><td>Bouaké</td></tr>
+            </table>
+            <p>Ces informations s'affichent dans le tableau des réservations sous le nom du client : <code>Abidjan → Bouaké</code></p>
+        </section>
+
+        <!-- SECTION 7 : MIGRATIONS DB -->
+        <section id="migrations">
+            <h2><span class="icon">🔧</span> 7. Migrations Base de Données</h2>
+            <p>Toutes ces modifications ont été appliquées directement sur Supabase :</p>
+
+            <h3>Colonnes ajoutées à la table <code>tickets</code></h3>
+            <pre><code>ALTER TABLE tickets
+  ADD COLUMN IF NOT EXISTS payment_operator VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(200);</code></pre>
+
+            <h3>Colonnes ajoutées à la table <code>sales</code> (restaurant)</h3>
+            <pre><code>ALTER TABLE sales
+  ADD COLUMN IF NOT EXISTS payment_operator VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(200);</code></pre>
+
+            <h3>Colonnes ajoutées à la table <code>reservations</code> (hôtel)</h3>
+            <pre><code>ALTER TABLE reservations
+  ADD COLUMN IF NOT EXISTS payment_operator VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS cni_number VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS origin_city VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS destination_city VARCHAR(100);</code></pre>
+
+            <h3>Colonnes ajoutées à la table <code>incidents</code></h3>
+            <pre><code>ALTER TABLE incidents
+  ADD COLUMN IF NOT EXISTS photo_url TEXT;</code></pre>
+
+            <h3>Colonnes ajoutées à la table <code>events</code></h3>
+            <pre><code>ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS price DECIMAL(12,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS deposit_paid DECIMAL(12,2) DEFAULT 0;</code></pre>
+
+            <h3>Corrections sur d'autres tables</h3>
+            <pre><code><span class="comment">-- payrolls : colonne manquante</span>
+ALTER TABLE payrolls ADD COLUMN IF NOT EXISTS paid_by INTEGER;
+
+<span class="comment">-- expenses : colonnes manquantes</span>
+ALTER TABLE expenses
+  ADD COLUMN IF NOT EXISTS reference VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS payroll_id INTEGER;
+
+<span class="comment">-- user_layouts : colonne manquante</span>
+ALTER TABLE user_layouts
+  ADD COLUMN IF NOT EXISTS layout_type VARCHAR(50) NOT NULL DEFAULT 'reports';</code></pre>
+        </section>
+
+        <!-- SECTION 8 : CORRECTIONS -->
+        <section id="corrections">
+            <h2><span class="icon">🐛</span> 8. Corrections Effectuées</h2>
+
+            <div class="timeline">
+
+                <div class="timeline-item">
+                    <div class="date">Correction critique</div>
+                    <h4>Tableau de bord ne se chargeait pas</h4>
+                    <p>La table <code>events</code> n'avait pas les colonnes <code>price</code> et <code>deposit_paid</code>. Sequelize générait un SELECT avec toutes les colonnes du modèle, causant une erreur PostgreSQL "column does not exist" → erreur 500 → le tableau de bord affichait "Erreur lors du chargement". <strong>Résolu</strong> en ajoutant les colonnes manquantes.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="date">Correction modèles</div>
+                    <h4>ENUM → STRING dans tous les modèles Sequelize</h4>
+                    <p>17 fichiers de modèles utilisaient <code>DataTypes.ENUM</code> incompatible avec PostgreSQL sur Supabase. Tous remplacés par <code>DataTypes.STRING</code>. Cela corrigeait des erreurs de démarrage du backend.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="date">Correction mobile</div>
+                    <h4>Header trop chargé sur téléphone</h4>
+                    <p>Sur mobile, la barre du haut affichait simultanément : hamburger, titre, badge sync, chip "En ligne", nom complet, rôle, avatar — causant un débordement. <strong>Résolu</strong> : nom/rôle et chip masqués sur petit écran, seule l'icône wifi s'affiche.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="date">Correction build</div>
+                    <h4>Erreurs TypeScript bloquant le déploiement</h4>
+                    <p>Les nouveaux composants <code>PaymentSelector.tsx</code> et <code>QRScanner.tsx</code> avaient des imports inutilisés (Dialog, Chip, FlipIcon…). TypeScript les traitait comme erreurs <code>TS6133</code>, faisant échouer le build sur Render. <strong>Résolu</strong> en supprimant les imports non utilisés.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="date">Correction tables manquantes</div>
+                    <h4>Colonnes absentes dans payrolls, expenses, incidents</h4>
+                    <p>Plusieurs tables n'avaient pas toutes les colonnes définies dans les modèles Sequelize. Un script de migration a été exécuté pour aligner la DB avec les modèles.</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- SECTION 9 : RENDER -->
+        <section id="render">
+            <h2><span class="icon">☁️</span> 9. Configuration Render.com</h2>
+
+            <div class="two-col">
+                <div>
+                    <h3>Service Frontend (Static Site)</h3>
+                    <table>
+                        <tr><td><strong>Type</strong></td><td>Static Site</td></tr>
+                        <tr><td><strong>Répertoire build</strong></td><td><code>frontend</code></td></tr>
+                        <tr><td><strong>Commande build</strong></td><td><code>npm run build</code></td></tr>
+                        <tr><td><strong>Dossier publish</strong></td><td><code>build</code></td></tr>
+                        <tr><td><strong>Plan</strong></td><td>Gratuit illimité</td></tr>
+                    </table>
+                </div>
+                <div>
+                    <h3>Service Backend (Web Service)</h3>
+                    <table>
+                        <tr><td><strong>Type</strong></td><td>Web Service</td></tr>
+                        <tr><td><strong>Répertoire</strong></td><td><code>backend</code></td></tr>
+                        <tr><td><strong>Commande start</strong></td><td><code>node src/server.js</code></td></tr>
+                        <tr><td><strong>Runtime</strong></td><td>Node 18</td></tr>
+                        <tr><td><strong>Plan</strong></td><td>Gratuit (mise en veille)</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <h3>Variables d'environnement Backend (Render)</h3>
+            <pre><code><span class="key">NODE_ENV</span>=<span class="value">production</span>
+<span class="key">PORT</span>=<span class="value">10000</span>
+<span class="key">DB_HOST</span>=<span class="value">aws-1-eu-west-3.pooler.supabase.com</span>
+<span class="key">DB_PORT</span>=<span class="value">5432</span>
+<span class="key">DB_NAME</span>=<span class="value">postgres</span>
+<span class="key">DB_USER</span>=<span class="value">postgres.dqjmwgeohjmjjnvfzvyt</span>
+<span class="key">DB_PASSWORD</span>=<span class="value">Ouangolo@2024</span>
+<span class="key">JWT_SECRET</span>=<span class="value">[clé secrète longue]</span>
+<span class="key">CORS_ORIGIN</span>=<span class="value">https://piscine-ouangolo-frontend.onrender.com</span></code></pre>
+
+            <h3>Déploiement automatique</h3>
+            <p>Chaque <code>git push</code> sur la branche <code>main</code> du dépôt GitHub déclenche automatiquement un redéploiement des deux services sur Render. Délai habituel : <strong>3 à 5 minutes</strong>.</p>
+
+            <h3>Plan Gratuit — Limites à connaître</h3>
+            <table>
+                <tr><th>Limite</th><th>Détail</th><th>Impact</th></tr>
+                <tr>
+                    <td>Mise en veille backend</td>
+                    <td>Après 15 min d'inactivité</td>
+                    <td><span class="badge-warn">Lent au 1er accès</span></td>
+                </tr>
+                <tr>
+                    <td>RAM backend</td>
+                    <td>512 MB maximum</td>
+                    <td><span class="badge-ok">Suffisant</span></td>
+                </tr>
+                <tr>
+                    <td>Static site frontend</td>
+                    <td>Gratuit sans limite</td>
+                    <td><span class="badge-ok">Aucun</span></td>
+                </tr>
+                <tr>
+                    <td>Supabase DB</td>
+                    <td>500 MB de stockage</td>
+                    <td><span class="badge-ok">Suffisant</span></td>
+                </tr>
+            </table>
+
+            <div class="alert alert-info">
+                <span>💡</span>
+                <div><strong>Passage en production officielle :</strong> Prévoir le plan Render Starter à <strong>7 $/mois</strong> pour le backend (pas de mise en veille, RAM dédiée, domaine personnalisé).</div>
+            </div>
+        </section>
+
+        <!-- SECTION 10 : RÔLES -->
+        <section id="roles">
+            <h2><span class="icon">🔐</span> 10. Rôles & Permissions</h2>
+
+            <table>
+                <tr>
+                    <th>Rôle</th>
+                    <th>Modules accessibles</th>
+                    <th>Niveau d'accès</th>
+                </tr>
+                <tr>
+                    <td><strong>directeur</strong></td>
+                    <td>Tous les modules</td>
+                    <td><span class="badge-ok">Complet</span></td>
+                </tr>
+                <tr>
+                    <td><strong>admin</strong></td>
+                    <td>Tous les modules</td>
+                    <td><span class="badge-ok">Complet</span></td>
+                </tr>
+                <tr>
+                    <td><strong>maire</strong></td>
+                    <td>Tableau de bord, Rapports, vue globale</td>
+                    <td><span class="badge-info">Lecture seule</span></td>
+                </tr>
+                <tr>
+                    <td><strong>maitre_nageur</strong></td>
+                    <td>Piscine (tickets, abonnements, incidents)</td>
+                    <td><span class="badge-info">Module Piscine</span></td>
+                </tr>
+                <tr>
+                    <td><strong>serveuse</strong></td>
+                    <td>Restaurant (commandes, menu)</td>
+                    <td><span class="badge-info">Module Restaurant</span></td>
+                </tr>
+                <tr>
+                    <td><strong>receptionniste</strong></td>
+                    <td>Hôtel (réservations, chambres)</td>
+                    <td><span class="badge-info">Module Hôtel</span></td>
+                </tr>
+                <tr>
+                    <td><strong>gestionnaire_events</strong></td>
+                    <td>Événements</td>
+                    <td><span class="badge-info">Module Événements</span></td>
+                </tr>
+            </table>
+
+            <div class="alert alert-success">
+                <span>✅</span>
+                <div>La gestion des comptes et des rôles se fait depuis l'interface <strong>Admin → Utilisateurs</strong>. Seul le directeur ou un admin peut créer, modifier ou désactiver des comptes.</div>
+            </div>
+        </section>
+
+    </div><!-- /content -->
+
+    <footer>
+        <p>📋 Documentation Technique — <strong>Complexe de la Piscine de Ouangolo</strong></p>
+        <p style="margin-top:6px;">Généré le <strong>Février 2026</strong> · Version 2.0 · Système développé et configuré avec Claude Code (Anthropic)</p>
+    </footer>
+
+</div>
+</body>
+</html>
