@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+
+# Fichiers documents personnels
+*.docx
+Infos.docx
+generer_word.js
+GUIDE_INSTALLATION_LOCAL.html
+nul
+
+# Scripts Windows locaux
+diagnostic.bat
+install.bat
+reset-admin.bat
+start.bat
+stop.bat
+
+# Fichiers texte personnels
+les acces.txt
+Nouveau Document texte.txt

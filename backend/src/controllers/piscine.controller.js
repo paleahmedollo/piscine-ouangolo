@@ -1,0 +1,581 @@
+const { Op } = require('sequelize');
+const { Ticket, Subscription, User, Incident } = require('../models');
+const { logAction } = require('../middlewares/audit.middleware');
+
+// Prix des tickets (configurables)
+const TICKET_PRICES = {
+  adulte: 2000,
+  enfant: 1000
+};
+
+// Prix des abonnements
+const SUBSCRIPTION_PRICES = {
+  mensuel: 25000,
+  trimestriel: 60000,
+  annuel: 200000
+};
+
+// =====================================================
+// TICKETS
+// =====================================================
+
+/**
+ * POST /api/piscine/tickets
+ * Créer une vente de tickets
+ */
+const createTicket = async (req, res) => {
+  try {
+    const { type, quantity, payment_method } = req.body;
+
+    if (!type || !quantity) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type et quantité requis'
+      });
+    }
+
+    if (!['adulte', 'enfant'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type de ticket invalide'
+      });
+    }
+
+    const unit_price = TICKET_PRICES[type];
+    const total = unit_price * quantity;
+
+    const ticket = await Ticket.create({
+      user_id: req.user.id,
+      type,
+      quantity,
+      unit_price,
+      total,
+      payment_method: payment_method || 'especes'
+    });
+
+    await logAction(req, 'CREATE_TICKET', 'piscine', 'ticket', ticket.id, { type, quantity, total });
+
+    res.status(201).json({
+      success: true,
+      message: 'Vente enregistrée',
+      data: ticket
+    });
+  } catch (error) {
+    console.error('Create ticket error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la création du ticket'
+    });
+  }
+};
+
+/**
+ * GET /api/piscine/tickets
+ * Lister les tickets (du jour par défaut)
+ */
+const getTickets = async (req, res) => {
+  try {
+    const { date, start_date, end_date, page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = {};
+
+    if (date) {
+      whereClause.created_at = {
+        [Op.gte]: new Date(date),
+        [Op.lt]: new Date(new Date(date).setDate(new Date(date).getDate() + 1))
+      };
+    } else if (start_date && end_date) {
+      whereClause.created_at = {
+        [Op.between]: [new Date(start_date), new Date(end_date)]
+      };
+    } else {
+      // Par défaut: tickets du jour
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      whereClause.created_at = {
+        [Op.gte]: today,
+        [Op.lt]: tomorrow
+      };
+    }
+
+    // Si ce n'est pas le directeur ou le maire, filtrer par utilisateur
+    if (!['directeur', 'maire'].includes(req.user.role)) {
+      whereClause.user_id = req.user.id;
+    }
+
+    const { count, rows: tickets } = await Ticket.findAndCountAll({
+      where: whereClause,
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }],
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      data: {
+        tickets,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get tickets error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des tickets'
+    });
+  }
+};
+
+/**
+ * GET /api/piscine/tickets/stats
+ * Statistiques des tickets
+ */
+const getTicketStats = async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    const targetDate = date ? new Date(date) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    let whereClause = {
+      created_at: {
+        [Op.gte]: targetDate,
+        [Op.lt]: nextDay
+      }
+    };
+
+    if (!['directeur', 'maire'].includes(req.user.role)) {
+      whereClause.user_id = req.user.id;
+    }
+
+    const tickets = await Ticket.findAll({ where: whereClause });
+
+    const stats = {
+      total_ventes: tickets.length,
+      total_tickets_adulte: 0,
+      total_tickets_enfant: 0,
+      total_montant: 0,
+      par_mode_paiement: {
+        especes: 0,
+        carte: 0,
+        mobile_money: 0
+      }
+    };
+
+    tickets.forEach(ticket => {
+      if (ticket.type === 'adulte') {
+        stats.total_tickets_adulte += ticket.quantity;
+      } else {
+        stats.total_tickets_enfant += ticket.quantity;
+      }
+      stats.total_montant += parseFloat(ticket.total);
+      stats.par_mode_paiement[ticket.payment_method] += parseFloat(ticket.total);
+    });
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Get ticket stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des statistiques'
+    });
+  }
+};
+
+/**
+ * GET /api/piscine/prices
+ * Récupérer les prix des tickets
+ */
+const getPrices = async (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      tickets: TICKET_PRICES,
+      subscriptions: SUBSCRIPTION_PRICES
+    }
+  });
+};
+
+// =====================================================
+// ABONNEMENTS
+// =====================================================
+
+/**
+ * POST /api/piscine/subscriptions
+ * Créer un abonnement
+ */
+const createSubscription = async (req, res) => {
+  try {
+    const { client_name, client_phone, type, start_date } = req.body;
+
+    if (!client_name || !type || !start_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nom du client, type et date de début requis'
+      });
+    }
+
+    if (!['mensuel', 'trimestriel', 'annuel'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type d\'abonnement invalide'
+      });
+    }
+
+    // Calculer la date de fin
+    const startDateObj = new Date(start_date);
+    const endDateObj = new Date(startDateObj);
+
+    switch (type) {
+      case 'mensuel':
+        endDateObj.setMonth(endDateObj.getMonth() + 1);
+        break;
+      case 'trimestriel':
+        endDateObj.setMonth(endDateObj.getMonth() + 3);
+        break;
+      case 'annuel':
+        endDateObj.setFullYear(endDateObj.getFullYear() + 1);
+        break;
+    }
+
+    const subscription = await Subscription.create({
+      client_name,
+      client_phone,
+      type,
+      start_date: startDateObj,
+      end_date: endDateObj,
+      price: SUBSCRIPTION_PRICES[type],
+      user_id: req.user.id
+    });
+
+    await logAction(req, 'CREATE_SUBSCRIPTION', 'piscine', 'subscription', subscription.id, {
+      client_name,
+      type,
+      price: SUBSCRIPTION_PRICES[type]
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Abonnement créé',
+      data: subscription
+    });
+  } catch (error) {
+    console.error('Create subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la création de l\'abonnement'
+    });
+  }
+};
+
+/**
+ * GET /api/piscine/subscriptions
+ * Lister les abonnements
+ */
+const getSubscriptions = async (req, res) => {
+  try {
+    const { active_only, search, page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = {};
+
+    if (active_only === 'true') {
+      const today = new Date();
+      whereClause.is_active = true;
+      whereClause.end_date = { [Op.gte]: today };
+    }
+
+    if (search) {
+      whereClause[Op.or] = [
+        { client_name: { [Op.like]: `%${search}%` } },
+        { client_phone: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    const { count, rows: subscriptions } = await Subscription.findAndCountAll({
+      where: whereClause,
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }],
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      data: {
+        subscriptions,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des abonnements'
+    });
+  }
+};
+
+/**
+ * GET /api/piscine/subscriptions/:id
+ * Détails d'un abonnement
+ */
+const getSubscriptionById = async (req, res) => {
+  try {
+    const subscription = await Subscription.findByPk(req.params.id, {
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }]
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Abonnement non trouvé'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: subscription
+    });
+  } catch (error) {
+    console.error('Get subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération de l\'abonnement'
+    });
+  }
+};
+
+/**
+ * PUT /api/piscine/subscriptions/:id/cancel
+ * Annuler un abonnement
+ */
+const cancelSubscription = async (req, res) => {
+  try {
+    const subscription = await Subscription.findByPk(req.params.id);
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Abonnement non trouvé'
+      });
+    }
+
+    subscription.is_active = false;
+    await subscription.save();
+
+    await logAction(req, 'CANCEL_SUBSCRIPTION', 'piscine', 'subscription', subscription.id);
+
+    res.json({
+      success: true,
+      message: 'Abonnement annulé',
+      data: subscription
+    });
+  } catch (error) {
+    console.error('Cancel subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'annulation de l\'abonnement'
+    });
+  }
+};
+
+/**
+ * GET /api/piscine/subscriptions/check/:phone
+ * Vérifier si un client a un abonnement valide
+ */
+const checkSubscription = async (req, res) => {
+  try {
+    const { phone } = req.params;
+    const today = new Date();
+
+    const subscription = await Subscription.findOne({
+      where: {
+        client_phone: phone,
+        is_active: true,
+        end_date: { [Op.gte]: today }
+      },
+      order: [['end_date', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        has_valid_subscription: !!subscription,
+        subscription: subscription || null
+      }
+    });
+  } catch (error) {
+    console.error('Check subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification de l\'abonnement'
+    });
+  }
+};
+
+// =====================================================
+// INCIDENTS
+// =====================================================
+
+/**
+ * POST /api/piscine/incidents
+ * Signaler un incident
+ */
+const createIncident = async (req, res) => {
+  try {
+    const { title, description, severity, incident_date, incident_time, location, persons_involved, actions_taken } = req.body;
+
+    if (!title || !description || !incident_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Titre, description et date de l\'incident requis'
+      });
+    }
+
+    const incident = await Incident.create({
+      title,
+      description,
+      severity: severity || 'mineur',
+      incident_date,
+      incident_time,
+      location: location || 'piscine',
+      persons_involved,
+      actions_taken,
+      user_id: req.user.id
+    });
+
+    await logAction(req, 'CREATE_INCIDENT', 'piscine', 'incident', incident.id, { title, severity });
+
+    res.status(201).json({
+      success: true,
+      message: 'Incident signale',
+      data: incident
+    });
+  } catch (error) {
+    console.error('Create incident error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la creation de l\'incident'
+    });
+  }
+};
+
+/**
+ * GET /api/piscine/incidents
+ * Lister les incidents
+ */
+const getIncidents = async (req, res) => {
+  try {
+    const { status, severity, start_date, end_date, page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = {};
+
+    if (status) whereClause.status = status;
+    if (severity) whereClause.severity = severity;
+
+    if (start_date && end_date) {
+      whereClause.incident_date = { [Op.between]: [start_date, end_date] };
+    }
+
+    const { count, rows: incidents } = await Incident.findAndCountAll({
+      where: whereClause,
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }],
+      order: [['incident_date', 'DESC'], ['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      data: {
+        incidents,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get incidents error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la recuperation des incidents'
+    });
+  }
+};
+
+/**
+ * PUT /api/piscine/incidents/:id
+ * Mettre a jour un incident
+ */
+const updateIncident = async (req, res) => {
+  try {
+    const incident = await Incident.findByPk(req.params.id);
+
+    if (!incident) {
+      return res.status(404).json({
+        success: false,
+        message: 'Incident non trouve'
+      });
+    }
+
+    const { status, actions_taken } = req.body;
+
+    if (status) incident.status = status;
+    if (actions_taken) incident.actions_taken = actions_taken;
+
+    await incident.save();
+
+    await logAction(req, 'UPDATE_INCIDENT', 'piscine', 'incident', incident.id, { status });
+
+    res.json({
+      success: true,
+      message: 'Incident mis a jour',
+      data: incident
+    });
+  } catch (error) {
+    console.error('Update incident error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la mise a jour'
+    });
+  }
+};
+
+module.exports = {
+  createTicket,
+  getTickets,
+  getTicketStats,
+  getPrices,
+  createSubscription,
+  getSubscriptions,
+  getSubscriptionById,
+  cancelSubscription,
+  checkSubscription,
+  createIncident,
+  getIncidents,
+  updateIncident
+};

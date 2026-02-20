@@ -1,0 +1,895 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Chip,
+  Alert,
+  CircularProgress,
+  Tooltip,
+  Tabs,
+  Tab
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Payment as PaymentIcon,
+  CheckCircle,
+  Cancel,
+  People,
+  AttachMoney
+} from '@mui/icons-material';
+import Layout from '../components/layout/Layout';
+import { employeesApi } from '../services/api';
+
+interface Employee {
+  id: number;
+  full_name: string;
+  position: string;
+  phone: string;
+  hire_date: string;
+  base_salary: number;
+  is_active: boolean;
+}
+
+interface Payroll {
+  id: number;
+  employee_id: number;
+  period_month: number;
+  period_year: number;
+  base_salary: number;
+  bonus: number;
+  deductions: number;
+  net_salary: number;
+  payment_date: string | null;
+  payment_method: string;
+  status: string;
+  notes: string;
+  employee?: Employee;
+}
+
+interface PayrollStats {
+  period: { month: number; year: number };
+  employees_count: number;
+  payrolls_count: number;
+  total_base_salary: number;
+  total_bonus: number;
+  total_deductions: number;
+  total_net_salary: number;
+  total_paid: number;
+  total_pending: number;
+}
+
+const positionLabels: Record<string, string> = {
+  vigile: 'Vigile',
+  agent_entretien: 'Agent d\'entretien',
+  maitre_nageur: 'Maitre-nageur',
+  serveuse: 'Serveuse',
+  cuisinier: 'Cuisinier',
+  receptionniste: 'Receptionniste',
+  gestionnaire_events: 'Gestionnaire Events',
+  comptable: 'Comptable',
+  gerant: 'Gerant'
+};
+
+const monthNames = [
+  'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+];
+
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
+};
+
+const Employees: React.FC = () => {
+  const [tabValue, setTabValue] = useState(0);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [payrolls, setPayrolls] = useState<Payroll[]>([]);
+  const [stats, setStats] = useState<PayrollStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Dialog states
+  const [openEmployeeDialog, setOpenEmployeeDialog] = useState(false);
+  const [openPayrollDialog, setOpenPayrollDialog] = useState(false);
+  const [openPayDialog, setOpenPayDialog] = useState(false);
+  const [openMassPayrollDialog, setOpenMassPayrollDialog] = useState(false);
+  const [openMassPayDialog, setOpenMassPayDialog] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [selectedPayroll, setSelectedPayroll] = useState<Payroll | null>(null);
+  const [massPayrollLoading, setMassPayrollLoading] = useState(false);
+
+  // Form states
+  const [employeeForm, setEmployeeForm] = useState({
+    full_name: '',
+    position: 'vigile',
+    phone: '',
+    hire_date: new Date().toISOString().split('T')[0],
+    base_salary: 0
+  });
+
+  const [payrollForm, setPayrollForm] = useState({
+    employee_id: 0,
+    period_month: new Date().getMonth() + 1,
+    period_year: new Date().getFullYear(),
+    bonus: 0,
+    deductions: 0,
+    notes: ''
+  });
+
+  const [payForm, setPayForm] = useState({
+    payment_method: 'especes',
+    payment_date: new Date().toISOString().split('T')[0],
+    notes: ''
+  });
+
+  const [massPayrollForm, setMassPayrollForm] = useState({
+    period_month: new Date().getMonth() + 1,
+    period_year: new Date().getFullYear()
+  });
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await employeesApi.getEmployees();
+      setEmployees(response.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchPayrolls = async () => {
+    try {
+      const response = await employeesApi.getPayrolls();
+      setPayrolls(response.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await employeesApi.getPayrollStats();
+      setStats(response.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      await Promise.all([fetchEmployees(), fetchPayrolls(), fetchStats()]);
+      setLoading(false);
+    };
+    fetchAll();
+  }, []);
+
+  // Employee handlers
+  const handleOpenEmployeeDialog = (employee?: Employee) => {
+    if (employee) {
+      setEditingEmployee(employee);
+      setEmployeeForm({
+        full_name: employee.full_name,
+        position: employee.position,
+        phone: employee.phone || '',
+        hire_date: employee.hire_date,
+        base_salary: employee.base_salary
+      });
+    } else {
+      setEditingEmployee(null);
+      setEmployeeForm({
+        full_name: '',
+        position: 'vigile',
+        phone: '',
+        hire_date: new Date().toISOString().split('T')[0],
+        base_salary: 0
+      });
+    }
+    setOpenEmployeeDialog(true);
+  };
+
+  const handleSaveEmployee = async () => {
+    try {
+      setError('');
+      if (editingEmployee) {
+        await employeesApi.updateEmployee(editingEmployee.id, employeeForm);
+        setSuccess('Employe modifie avec succes');
+      } else {
+        await employeesApi.createEmployee(employeeForm);
+        setSuccess('Employe cree avec succes');
+      }
+      setOpenEmployeeDialog(false);
+      fetchEmployees();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Erreur lors de l\'operation');
+    }
+  };
+
+  // Payroll handlers
+  const handleOpenPayrollDialog = () => {
+    setPayrollForm({
+      employee_id: employees[0]?.id || 0,
+      period_month: new Date().getMonth() + 1,
+      period_year: new Date().getFullYear(),
+      bonus: 0,
+      deductions: 0,
+      notes: ''
+    });
+    setOpenPayrollDialog(true);
+  };
+
+  const handleSavePayroll = async () => {
+    try {
+      setError('');
+      await employeesApi.createPayroll(payrollForm);
+      setSuccess('Fiche de paie creee avec succes');
+      setOpenPayrollDialog(false);
+      fetchPayrolls();
+      fetchStats();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Erreur lors de la creation');
+    }
+  };
+
+  const handleOpenPayDialog = (payroll: Payroll) => {
+    setSelectedPayroll(payroll);
+    setPayForm({
+      payment_method: 'especes',
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: ''
+    });
+    setOpenPayDialog(true);
+  };
+
+  const handlePay = async () => {
+    if (!selectedPayroll) return;
+    try {
+      setError('');
+      await employeesApi.payPayroll(selectedPayroll.id, payForm);
+      setSuccess('Paiement effectue avec succes');
+      setOpenPayDialog(false);
+      fetchPayrolls();
+      fetchStats();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Erreur lors du paiement');
+    }
+  };
+
+  const handleCancelPayroll = async (id: number) => {
+    if (!window.confirm('Etes-vous sur de vouloir annuler cette paie ?')) return;
+    try {
+      await employeesApi.cancelPayroll(id);
+      setSuccess('Paie annulee');
+      fetchPayrolls();
+      fetchStats();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Erreur lors de l\'annulation');
+    }
+  };
+
+  // Mass payroll handlers
+  const handleOpenMassPayrollDialog = () => {
+    setMassPayrollForm({
+      period_month: new Date().getMonth() + 1,
+      period_year: new Date().getFullYear()
+    });
+    setOpenMassPayrollDialog(true);
+  };
+
+  const handleMassPayroll = async () => {
+    try {
+      setMassPayrollLoading(true);
+      setError('');
+      const activeEmployees = employees.filter(e => e.is_active);
+
+      if (activeEmployees.length === 0) {
+        setError('Aucun employe actif');
+        return;
+      }
+
+      let created = 0;
+      let skipped = 0;
+
+      for (const employee of activeEmployees) {
+        try {
+          await employeesApi.createPayroll({
+            employee_id: employee.id,
+            period_month: massPayrollForm.period_month,
+            period_year: massPayrollForm.period_year,
+            bonus: 0,
+            deductions: 0,
+            notes: 'Creation en masse'
+          });
+          created++;
+        } catch {
+          skipped++; // Fiche deja existante ou erreur
+        }
+      }
+
+      setSuccess(`${created} fiches de paie creees, ${skipped} ignorees (deja existantes)`);
+      setOpenMassPayrollDialog(false);
+      fetchPayrolls();
+      fetchStats();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Erreur lors de la creation en masse');
+    } finally {
+      setMassPayrollLoading(false);
+    }
+  };
+
+  // Obtenir les paies en attente pour la periode
+  const getPendingPayrolls = () => {
+    return payrolls.filter(p => p.status === 'en_attente');
+  };
+
+  const handleOpenMassPayDialog = () => {
+    setPayForm({
+      payment_method: 'especes',
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: 'Paiement en masse'
+    });
+    setOpenMassPayDialog(true);
+  };
+
+  const handleMassPay = async () => {
+    try {
+      setMassPayrollLoading(true);
+      setError('');
+      const pendingPayrolls = getPendingPayrolls();
+
+      if (pendingPayrolls.length === 0) {
+        setError('Aucune paie en attente');
+        return;
+      }
+
+      let paid = 0;
+      for (const payroll of pendingPayrolls) {
+        try {
+          await employeesApi.payPayroll(payroll.id, payForm);
+          paid++;
+        } catch {
+          // Ignorer les erreurs individuelles
+        }
+      }
+
+      setSuccess(`${paid} paies effectuees`);
+      setOpenMassPayDialog(false);
+      fetchPayrolls();
+      fetchStats();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Erreur lors du paiement en masse');
+    } finally {
+      setMassPayrollLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout title="Gestion des Employes">
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress />
+        </Box>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout title="Gestion des Employes">
+      {error && (
+        <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
+
+      {/* Stats Cards */}
+      {stats && (
+        <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#2196f315', color: '#2196f3', mr: 2 }}>
+                    <People />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Employes actifs</Typography>
+                    <Typography variant="h5" fontWeight="bold">{stats.employees_count}</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#4caf5015', color: '#4caf50', mr: 2 }}>
+                    <AttachMoney />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Total Salaires</Typography>
+                    <Typography variant="h5" fontWeight="bold">{formatCurrency(stats.total_net_salary)}</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#ff980015', color: '#ff9800', mr: 2 }}>
+                    <PaymentIcon />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">En attente</Typography>
+                    <Typography variant="h5" fontWeight="bold">{formatCurrency(stats.total_pending)}</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#9c27b015', color: '#9c27b0', mr: 2 }}>
+                    <CheckCircle />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Deja paye</Typography>
+                    <Typography variant="h5" fontWeight="bold">{formatCurrency(stats.total_paid)}</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Tabs */}
+      <Card>
+        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tab label="Employes" />
+          <Tab label="Fiches de Paie" />
+        </Tabs>
+
+        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+          {/* Tab Employes */}
+          {tabValue === 0 && (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Typography variant="h6" fontWeight="bold">Liste des Employes</Typography>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenEmployeeDialog()}>
+                  Nouvel Employe
+                </Button>
+              </Box>
+
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableCell><strong>Nom complet</strong></TableCell>
+                      <TableCell><strong>Poste</strong></TableCell>
+                      <TableCell><strong>Telephone</strong></TableCell>
+                      <TableCell><strong>Date embauche</strong></TableCell>
+                      <TableCell align="right"><strong>Salaire de base</strong></TableCell>
+                      <TableCell><strong>Statut</strong></TableCell>
+                      <TableCell align="center"><strong>Actions</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {employees.map((employee) => (
+                      <TableRow key={employee.id} hover>
+                        <TableCell>{employee.full_name}</TableCell>
+                        <TableCell>
+                          <Chip label={positionLabels[employee.position] || employee.position} size="small" />
+                        </TableCell>
+                        <TableCell>{employee.phone || '-'}</TableCell>
+                        <TableCell>{new Date(employee.hire_date).toLocaleDateString('fr-FR')}</TableCell>
+                        <TableCell align="right">{formatCurrency(employee.base_salary)}</TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={employee.is_active ? <CheckCircle /> : <Cancel />}
+                            label={employee.is_active ? 'Actif' : 'Inactif'}
+                            color={employee.is_active ? 'success' : 'default'}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Modifier">
+                            <IconButton size="small" color="primary" onClick={() => handleOpenEmployeeDialog(employee)}>
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+
+          {/* Tab Fiches de Paie */}
+          {tabValue === 1 && (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 2 }}>
+                <Typography variant="h6" fontWeight="bold">Fiches de Paie</Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button variant="outlined" color="primary" onClick={handleOpenMassPayrollDialog}>
+                    Creer Fiches en Masse
+                  </Button>
+                  {getPendingPayrolls().length > 0 && (
+                    <Button variant="outlined" color="success" onClick={handleOpenMassPayDialog}>
+                      Payer Tout ({getPendingPayrolls().length})
+                    </Button>
+                  )}
+                  <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenPayrollDialog}>
+                    Nouvelle Fiche
+                  </Button>
+                </Box>
+              </Box>
+
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableCell><strong>Employe</strong></TableCell>
+                      <TableCell><strong>Periode</strong></TableCell>
+                      <TableCell align="right"><strong>Salaire base</strong></TableCell>
+                      <TableCell align="right"><strong>Bonus</strong></TableCell>
+                      <TableCell align="right"><strong>Retenues</strong></TableCell>
+                      <TableCell align="right"><strong>Net a payer</strong></TableCell>
+                      <TableCell><strong>Statut</strong></TableCell>
+                      <TableCell align="center"><strong>Actions</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {payrolls.map((payroll) => (
+                      <TableRow key={payroll.id} hover>
+                        <TableCell>{payroll.employee?.full_name}</TableCell>
+                        <TableCell>{monthNames[payroll.period_month - 1]} {payroll.period_year}</TableCell>
+                        <TableCell align="right">{formatCurrency(payroll.base_salary)}</TableCell>
+                        <TableCell align="right" sx={{ color: 'green' }}>+{formatCurrency(payroll.bonus)}</TableCell>
+                        <TableCell align="right" sx={{ color: 'red' }}>-{formatCurrency(payroll.deductions)}</TableCell>
+                        <TableCell align="right"><strong>{formatCurrency(payroll.net_salary)}</strong></TableCell>
+                        <TableCell>
+                          <Chip
+                            label={payroll.status === 'paye' ? 'Paye' : payroll.status === 'annule' ? 'Annule' : 'En attente'}
+                            color={payroll.status === 'paye' ? 'success' : payroll.status === 'annule' ? 'error' : 'warning'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          {payroll.status === 'en_attente' && (
+                            <>
+                              <Tooltip title="Payer">
+                                <IconButton size="small" color="success" onClick={() => handleOpenPayDialog(payroll)}>
+                                  <PaymentIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Annuler">
+                                <IconButton size="small" color="error" onClick={() => handleCancelPayroll(payroll.id)}>
+                                  <Cancel />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                          {payroll.status === 'paye' && (
+                            <Typography variant="body2" color="text.secondary">
+                              {payroll.payment_date ? new Date(payroll.payment_date).toLocaleDateString('fr-FR') : ''}
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog Employe */}
+      <Dialog open={openEmployeeDialog} onClose={() => setOpenEmployeeDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingEmployee ? 'Modifier l\'employe' : 'Nouvel employe'}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Nom complet"
+              value={employeeForm.full_name}
+              onChange={(e) => setEmployeeForm({ ...employeeForm, full_name: e.target.value })}
+              fullWidth
+              required
+            />
+            <TextField
+              select
+              label="Poste"
+              value={employeeForm.position}
+              onChange={(e) => setEmployeeForm({ ...employeeForm, position: e.target.value })}
+              fullWidth
+            >
+              {Object.entries(positionLabels).map(([value, label]) => (
+                <MenuItem key={value} value={value}>{label}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Telephone"
+              value={employeeForm.phone}
+              onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Date d'embauche"
+              type="date"
+              value={employeeForm.hire_date}
+              onChange={(e) => setEmployeeForm({ ...employeeForm, hire_date: e.target.value })}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              label="Salaire de base (FCFA)"
+              type="number"
+              value={employeeForm.base_salary}
+              onChange={(e) => setEmployeeForm({ ...employeeForm, base_salary: parseFloat(e.target.value) || 0 })}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenEmployeeDialog(false)}>Annuler</Button>
+          <Button variant="contained" onClick={handleSaveEmployee}>
+            {editingEmployee ? 'Modifier' : 'Creer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Nouvelle Paie */}
+      <Dialog open={openPayrollDialog} onClose={() => setOpenPayrollDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Nouvelle fiche de paie</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              select
+              label="Employe"
+              value={payrollForm.employee_id}
+              onChange={(e) => setPayrollForm({ ...payrollForm, employee_id: parseInt(e.target.value) })}
+              fullWidth
+            >
+              {employees.filter(e => e.is_active).map((employee) => (
+                <MenuItem key={employee.id} value={employee.id}>
+                  {employee.full_name} - {positionLabels[employee.position]}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  select
+                  label="Mois"
+                  value={payrollForm.period_month}
+                  onChange={(e) => setPayrollForm({ ...payrollForm, period_month: parseInt(e.target.value) })}
+                  fullWidth
+                >
+                  {monthNames.map((month, index) => (
+                    <MenuItem key={index} value={index + 1}>{month}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  label="Annee"
+                  type="number"
+                  value={payrollForm.period_year}
+                  onChange={(e) => setPayrollForm({ ...payrollForm, period_year: parseInt(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+            <TextField
+              label="Bonus (FCFA)"
+              type="number"
+              value={payrollForm.bonus}
+              onChange={(e) => setPayrollForm({ ...payrollForm, bonus: parseFloat(e.target.value) || 0 })}
+              fullWidth
+            />
+            <TextField
+              label="Retenues (FCFA)"
+              type="number"
+              value={payrollForm.deductions}
+              onChange={(e) => setPayrollForm({ ...payrollForm, deductions: parseFloat(e.target.value) || 0 })}
+              fullWidth
+            />
+            <TextField
+              label="Notes"
+              value={payrollForm.notes}
+              onChange={(e) => setPayrollForm({ ...payrollForm, notes: e.target.value })}
+              fullWidth
+              multiline
+              rows={2}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPayrollDialog(false)}>Annuler</Button>
+          <Button variant="contained" onClick={handleSavePayroll}>Creer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Payer */}
+      <Dialog open={openPayDialog} onClose={() => setOpenPayDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Effectuer le paiement</DialogTitle>
+        <DialogContent>
+          {selectedPayroll && (
+            <Box sx={{ pt: 2 }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <strong>{selectedPayroll.employee?.full_name}</strong><br />
+                Montant: <strong>{formatCurrency(selectedPayroll.net_salary)}</strong>
+              </Alert>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  select
+                  label="Mode de paiement"
+                  value={payForm.payment_method}
+                  onChange={(e) => setPayForm({ ...payForm, payment_method: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value="especes">Especes</MenuItem>
+                  <MenuItem value="virement">Virement</MenuItem>
+                  <MenuItem value="cheque">Cheque</MenuItem>
+                </TextField>
+                <TextField
+                  label="Date de paiement"
+                  type="date"
+                  value={payForm.payment_date}
+                  onChange={(e) => setPayForm({ ...payForm, payment_date: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="Notes"
+                  value={payForm.notes}
+                  onChange={(e) => setPayForm({ ...payForm, notes: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPayDialog(false)}>Annuler</Button>
+          <Button variant="contained" color="success" onClick={handlePay}>
+            Confirmer le Paiement
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Creation en Masse */}
+      <Dialog open={openMassPayrollDialog} onClose={() => setOpenMassPayrollDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Creer les fiches de paie en masse</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Cette action va creer une fiche de paie pour tous les <strong>{employees.filter(e => e.is_active).length} employes actifs</strong> pour la periode selectionnee.
+            </Alert>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  select
+                  label="Mois"
+                  value={massPayrollForm.period_month}
+                  onChange={(e) => setMassPayrollForm({ ...massPayrollForm, period_month: parseInt(e.target.value) })}
+                  fullWidth
+                >
+                  {monthNames.map((month, index) => (
+                    <MenuItem key={index} value={index + 1}>{month}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  label="Annee"
+                  type="number"
+                  value={massPayrollForm.period_year}
+                  onChange={(e) => setMassPayrollForm({ ...massPayrollForm, period_year: parseInt(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenMassPayrollDialog(false)}>Annuler</Button>
+          <Button
+            variant="contained"
+            onClick={handleMassPayroll}
+            disabled={massPayrollLoading}
+          >
+            {massPayrollLoading ? <CircularProgress size={20} /> : 'Creer les Fiches'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Paiement en Masse */}
+      <Dialog open={openMassPayDialog} onClose={() => setOpenMassPayDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Payer toutes les fiches en attente</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Cette action va payer <strong>{getPendingPayrolls().length} fiches de paie</strong> en attente
+              pour un total de <strong>{formatCurrency(getPendingPayrolls().reduce((sum, p) => sum + p.net_salary, 0))}</strong>.
+            </Alert>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                select
+                label="Mode de paiement"
+                value={payForm.payment_method}
+                onChange={(e) => setPayForm({ ...payForm, payment_method: e.target.value })}
+                fullWidth
+              >
+                <MenuItem value="especes">Especes</MenuItem>
+                <MenuItem value="virement">Virement</MenuItem>
+                <MenuItem value="cheque">Cheque</MenuItem>
+              </TextField>
+              <TextField
+                label="Date de paiement"
+                type="date"
+                value={payForm.payment_date}
+                onChange={(e) => setPayForm({ ...payForm, payment_date: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenMassPayDialog(false)}>Annuler</Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleMassPay}
+            disabled={massPayrollLoading}
+          >
+            {massPayrollLoading ? <CircularProgress size={20} /> : 'Payer Tout'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Layout>
+  );
+};
+
+export default Employees;

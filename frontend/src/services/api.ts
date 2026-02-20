@@ -1,0 +1,350 @@
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Request interceptor - Add auth token
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem('token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor - Handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Auth API
+export const authApi = {
+  login: (username: string, password: string) =>
+    api.post('/auth/login', { username, password }),
+  logout: () => api.post('/auth/logout'),
+  getProfile: () => api.get('/auth/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.put('/auth/password', { currentPassword, newPassword }),
+  refreshToken: () => api.post('/auth/refresh')
+};
+
+// Piscine API
+export const piscineApi = {
+  getPrices: () => api.get('/piscine/prices'),
+  createTicket: (data: { type: string; quantity: number; payment_method: string }) =>
+    api.post('/piscine/tickets', data),
+  getTickets: (params?: Record<string, string>) =>
+    api.get('/piscine/tickets', { params }),
+  getTicketStats: (date?: string) =>
+    api.get('/piscine/tickets/stats', { params: { date } }),
+  createSubscription: (data: {
+    client_name: string;
+    client_phone?: string;
+    type: string;
+    start_date: string;
+  }) => api.post('/piscine/subscriptions', data),
+  getSubscriptions: (params?: Record<string, string>) =>
+    api.get('/piscine/subscriptions', { params }),
+  getSubscription: (id: number) => api.get(`/piscine/subscriptions/${id}`),
+  cancelSubscription: (id: number) => api.put(`/piscine/subscriptions/${id}/cancel`),
+  checkSubscription: (phone: string) => api.get(`/piscine/subscriptions/check/${phone}`),
+  // Incidents
+  createIncident: (data: {
+    title: string;
+    description: string;
+    severity?: string;
+    incident_date: string;
+    incident_time?: string;
+    location?: string;
+    persons_involved?: string;
+    actions_taken?: string;
+  }) => api.post('/piscine/incidents', data),
+  getIncidents: (params?: Record<string, string>) => api.get('/piscine/incidents', { params }),
+  updateIncident: (id: number, data: { status?: string; actions_taken?: string }) =>
+    api.put(`/piscine/incidents/${id}`, data)
+};
+
+// Restaurant API
+export const restaurantApi = {
+  getMenu: (params?: { category?: string; available_only?: string }) =>
+    api.get('/restaurant/menu', { params }),
+  createMenuItem: (data: {
+    name: string;
+    category: string;
+    price: number;
+    description?: string;
+  }) => api.post('/restaurant/menu', data),
+  updateMenuItem: (id: number, data: Partial<{
+    name: string;
+    category: string;
+    price: number;
+    description: string;
+    is_available: boolean;
+  }>) => api.put(`/restaurant/menu/${id}`, data),
+  deleteMenuItem: (id: number) => api.delete(`/restaurant/menu/${id}`),
+  toggleAvailability: (id: number) => api.put(`/restaurant/menu/${id}/availability`),
+  createSale: (data: {
+    items: Array<{ menu_item_id: number; quantity: number }>;
+    payment_method: string;
+    table_number?: string;
+  }) => api.post('/restaurant/sales', data),
+  getSales: (params?: Record<string, string>) =>
+    api.get('/restaurant/sales', { params }),
+  getSale: (id: number) => api.get(`/restaurant/sales/${id}`),
+  getSaleStats: (date?: string) =>
+    api.get('/restaurant/sales/stats', { params: { date } })
+};
+
+// Hotel API
+export const hotelApi = {
+  getRooms: (params?: { status?: string; type?: string }) =>
+    api.get('/hotel/rooms', { params }),
+  getRoom: (id: number) => api.get(`/hotel/rooms/${id}`),
+  createRoom: (data: {
+    number: string;
+    type: string;
+    capacity?: number;
+    price_per_night: number;
+  }) => api.post('/hotel/rooms', data),
+  updateRoom: (id: number, data: {
+    number?: string;
+    price_per_night?: number;
+    capacity?: number;
+    type?: string;
+  }) => api.put(`/hotel/rooms/${id}`, data),
+  updateRoomStatus: (id: number, status: string) =>
+    api.put(`/hotel/rooms/${id}/status`, { status }),
+  getAvailableRooms: (checkIn: string, checkOut: string, type?: string) =>
+    api.get('/hotel/rooms/available', { params: { check_in: checkIn, check_out: checkOut, type } }),
+  createReservation: (data: {
+    room_id: number;
+    client_name: string;
+    client_phone?: string;
+    client_email?: string;
+    check_in: string;
+    check_out: string;
+    deposit_paid?: number;
+    notes?: string;
+  }) => api.post('/hotel/reservations', data),
+  getReservations: (params?: Record<string, string>) =>
+    api.get('/hotel/reservations', { params }),
+  getReservation: (id: number) => api.get(`/hotel/reservations/${id}`),
+  updateReservation: (id: number, data: Record<string, unknown>) =>
+    api.put(`/hotel/reservations/${id}`, data),
+  checkIn: (id: number) => api.put(`/hotel/reservations/${id}/checkin`),
+  checkOut: (id: number) => api.put(`/hotel/reservations/${id}/checkout`),
+  cancelReservation: (id: number) => api.put(`/hotel/reservations/${id}/cancel`),
+  getStats: () => api.get('/hotel/stats')
+};
+
+// Events API
+export const eventsApi = {
+  getSpaces: () => api.get('/events/spaces'),
+  createEvent: (data: {
+    name: string;
+    client_name: string;
+    client_phone?: string;
+    client_email?: string;
+    event_date: string;
+    event_time?: string;
+    end_date?: string;
+    space: string;
+    guest_count?: number;
+    description?: string;
+    price?: number;
+    deposit_paid?: number;
+  }) => api.post('/events', data),
+  getEvents: (params?: Record<string, string>) =>
+    api.get('/events', { params }),
+  getCalendar: (month?: number, year?: number) =>
+    api.get('/events/calendar', { params: { month, year } }),
+  getEvent: (id: number) => api.get(`/events/${id}`),
+  updateEvent: (id: number, data: Record<string, unknown>) =>
+    api.put(`/events/${id}`, data),
+  updateEventStatus: (id: number, status: string) =>
+    api.put(`/events/${id}/status`, { status }),
+  createQuote: (eventId: number, data: {
+    items: Array<{ description: string; quantity: number; unit_price: number }>;
+    deposit_required?: number;
+    valid_until?: string;
+    notes?: string;
+  }) => api.post(`/events/${eventId}/quotes`, data),
+  getQuotes: (eventId: number) => api.get(`/events/${eventId}/quotes`),
+  updateQuote: (id: number, data: Record<string, unknown>) =>
+    api.put(`/events/quotes/${id}`, data),
+  recordPayment: (id: number, amount: number) =>
+    api.put(`/events/quotes/${id}/payment`, { amount })
+};
+
+// Caisse API
+export const caisseApi = {
+  closeCashRegister: (data: {
+    module: string;
+    actual_amount: number;
+    opening_amount?: number;
+    notes?: string;
+    employee_id?: number;
+  }) => api.post('/caisse/close', data),
+  getCashRegisters: (params?: Record<string, string>) =>
+    api.get('/caisse', { params }),
+  getCashRegister: (id: number) => api.get(`/caisse/${id}`),
+  validateCashRegister: (id: number, status: string, notes?: string) =>
+    api.put(`/caisse/${id}/validate`, { status, notes }),
+  getPendingCashRegisters: () => api.get('/caisse/pending'),
+  getExpectedAmount: (module: string, employeeId?: number) =>
+    api.get('/caisse/expected', { params: { module, employee_id: employeeId } }),
+  getCaisseStats: (params?: { start_date?: string; end_date?: string }) =>
+    api.get('/caisse/stats', { params }),
+  getEmployeesByModule: (module: string) =>
+    api.get(`/caisse/employees/${module}`)
+};
+
+// Receipts API
+export const receiptsApi = {
+  getReceipts: (params?: Record<string, string>) =>
+    api.get('/receipts', { params }),
+  getReceipt: (id: number) => api.get(`/receipts/${id}`),
+  getReceiptByCashRegister: (cashRegisterId: number) =>
+    api.get(`/receipts/by-cash-register/${cashRegisterId}`),
+  getReceiptForPrint: (id: number) => api.get(`/receipts/${id}/print`)
+};
+
+// Dashboard API
+export const dashboardApi = {
+  getDashboard: () => api.get('/dashboard'),
+  getReports: (startDate: string, endDate: string, module?: string) =>
+    api.get('/dashboard/reports', { params: { start_date: startDate, end_date: endDate, module } }),
+  getAuditLogs: (params?: Record<string, string>) =>
+    api.get('/dashboard/audit', { params })
+};
+
+// Users API
+export const usersApi = {
+  getUsers: (params?: Record<string, string>) =>
+    api.get('/users', { params }),
+  getUser: (id: number) => api.get(`/users/${id}`),
+  createUser: (data: {
+    username: string;
+    password: string;
+    full_name: string;
+    role: string;
+  }) => api.post('/users', data),
+  updateUser: (id: number, data: { full_name?: string; role?: string; is_active?: boolean }) =>
+    api.put(`/users/${id}`, data),
+  resetPassword: (id: number, newPassword: string) =>
+    api.put(`/users/${id}/password`, { new_password: newPassword }),
+  toggleActive: (id: number) => api.put(`/users/${id}/toggle-active`),
+  getRoles: () => api.get('/users/roles')
+};
+
+// Expenses API
+export const expensesApi = {
+  getExpenses: (params?: Record<string, string>) =>
+    api.get('/expenses', { params }),
+  getCategories: () => api.get('/expenses/categories'),
+  getExpenseStats: (month?: number, year?: number) =>
+    api.get('/expenses/stats', { params: { month, year } }),
+  createExpense: (data: {
+    category: string;
+    description: string;
+    amount: number;
+    payment_method?: string;
+    reference?: string;
+    expense_date?: string;
+    notes?: string;
+  }) => api.post('/expenses', data),
+  updateExpense: (id: number, data: Record<string, unknown>) =>
+    api.put(`/expenses/${id}`, data)
+};
+
+// Reports API
+export const reportsApi = {
+  getTransactions: (params?: {
+    start_date?: string;
+    end_date?: string;
+    module?: string;
+    user_id?: number;
+    payment_method?: string;
+    min_amount?: number;
+    max_amount?: number;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    limit?: number;
+  }) => api.get('/reports/transactions', { params }),
+  getSummary: (params?: {
+    start_date?: string;
+    end_date?: string;
+    group_by?: string;
+  }) => api.get('/reports/summary', { params }),
+  getUsers: () => api.get('/reports/users'),
+  // Layouts
+  getLayouts: () => api.get('/reports/layouts'),
+  createLayout: (data: {
+    layout_name: string;
+    columns: string[];
+    filters?: Record<string, unknown>;
+    sort_by?: string;
+    sort_order?: string;
+    rows_per_page?: number;
+    is_default?: boolean;
+  }) => api.post('/reports/layouts', data),
+  updateLayout: (id: number, data: Record<string, unknown>) =>
+    api.put(`/reports/layouts/${id}`, data),
+  deleteLayout: (id: number) => api.delete(`/reports/layouts/${id}`)
+};
+
+// Employees API
+export const employeesApi = {
+  getEmployees: (params?: Record<string, string>) =>
+    api.get('/employees', { params }),
+  getEmployee: (id: number) => api.get(`/employees/${id}`),
+  getPositions: () => api.get('/employees/positions'),
+  createEmployee: (data: {
+    full_name: string;
+    position: string;
+    phone?: string;
+    hire_date?: string;
+    base_salary?: number;
+  }) => api.post('/employees', data),
+  updateEmployee: (id: number, data: Record<string, unknown>) =>
+    api.put(`/employees/${id}`, data),
+  // Payroll
+  getPayrolls: (params?: Record<string, string>) =>
+    api.get('/employees/payroll', { params }),
+  getPayrollStats: (month?: number, year?: number) =>
+    api.get('/employees/payroll/stats', { params: { month, year } }),
+  createPayroll: (data: {
+    employee_id: number;
+    period_month: number;
+    period_year: number;
+    bonus?: number;
+    deductions?: number;
+    notes?: string;
+  }) => api.post('/employees/payroll', data),
+  payPayroll: (id: number, data: {
+    payment_method?: string;
+    payment_date?: string;
+    notes?: string;
+  }) => api.put(`/employees/payroll/${id}/pay`, data),
+  cancelPayroll: (id: number) => api.delete(`/employees/payroll/${id}`)
+};
+
+export default api;
