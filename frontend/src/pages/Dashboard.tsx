@@ -144,9 +144,11 @@ const Dashboard: React.FC = () => {
       try {
         const response = await dashboardApi.getDashboard();
         setDashboard(response.data.data);
-      } catch (err) {
-        setError('Erreur lors du chargement du tableau de bord');
-        console.error(err);
+      } catch (err: any) {
+        const status = err?.response?.status;
+        const msg = err?.response?.data?.message || err?.message || 'Erreur inconnue';
+        setError(`Erreur ${status || 'réseau'}: ${msg}`);
+        console.error('Dashboard error:', err);
       } finally {
         setLoading(false);
       }
