@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guide UAT - Piscine de Ouangolo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; }
+    .header { background: linear-gradient(135deg, #1565c0, #0288d1); color: white; padding: 32px; text-align: center; }
+    .header h1 { font-size: 2rem; margin-bottom: 8px; }
+    .header p { font-size: 1.1rem; opacity: 0.9; }
+    .container { max-width: 960px; margin: 0 auto; padding: 32px 16px; }
+    .intro-box { background: #e3f2fd; border-left: 5px solid #1565c0; padding: 20px; border-radius: 8px; margin-bottom: 32px; }
+    .intro-box h2 { color: #1565c0; margin-bottom: 10px; }
+
+    .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 20px 0; }
+    .flow-box { background: white; border: 2px solid #1565c0; border-radius: 8px; padding: 12px 20px; text-align: center; font-weight: bold; }
+    .flow-box.staging { border-color: #f57c00; color: #f57c00; }
+    .flow-box.prod { border-color: #2e7d32; color: #2e7d32; }
+    .flow-arrow { font-size: 1.5rem; color: #888; }
+
+    .step-card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .step-number { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; color: white; flex-shrink: 0; }
+    .step-number.blue { background: #1565c0; }
+    .step-number.orange { background: #f57c00; }
+    .step-number.green { background: #2e7d32; }
+    .step-number.purple { background: #6a1b9a; }
+    .step-number.teal { background: #00695c; }
+    .step-title { font-size: 1.15rem; font-weight: bold; color: #1a1a1a; }
+    .step-subtitle { color: #666; font-size: 0.9rem; margin-top: 2px; }
+
+    .step-body { padding-left: 56px; }
+    .step-body p { margin-bottom: 10px; line-height: 1.6; }
+    .step-body ol, .step-body ul { margin: 10px 0 10px 20px; line-height: 2; }
+    .step-body li { margin-bottom: 4px; }
+
+    .code-block { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.88rem; margin: 12px 0; overflow-x: auto; white-space: pre; }
+    .code-block .comment { color: #6a9955; }
+    .code-block .highlight { color: #ce9178; }
+
+    .env-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; }
+    .env-table th { background: #1565c0; color: white; padding: 10px 14px; text-align: left; }
+    .env-table td { padding: 10px 14px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+    .env-table tr:nth-child(even) { background: #f5f5f5; }
+    .env-table .key { font-family: monospace; font-weight: bold; color: #c62828; }
+    .env-table .value { font-family: monospace; color: #1565c0; }
+    .env-table .note { color: #666; font-size: 0.82rem; }
+
+    .alert { padding: 14px 18px; border-radius: 8px; margin: 12px 0; }
+    .alert.info { background: #e3f2fd; border-left: 4px solid #1565c0; color: #0d47a1; }
+    .alert.warning { background: #fff8e1; border-left: 4px solid #f9a825; color: #e65100; }
+    .alert.success { background: #e8f5e9; border-left: 4px solid #2e7d32; color: #1b5e20; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+    .badge.staging { background: #fff3e0; color: #f57c00; border: 1px solid #f57c00; }
+    .badge.prod { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; }
+    .badge.github { background: #e8eaf6; color: #283593; border: 1px solid #283593; }
+
+    .workflow { background: #f9fbe7; border: 1px solid #c5e1a5; border-radius: 10px; padding: 20px; margin: 16px 0; }
+    .workflow h4 { color: #33691e; margin-bottom: 12px; }
+    .workflow ol { margin-left: 20px; line-height: 2.2; }
+    .workflow li { color: #33691e; }
+    .workflow .cmd { display: inline-block; background: #1e1e1e; color: #d4d4d4; font-family: monospace; font-size: 0.85rem; padding: 2px 8px; border-radius: 4px; }
+
+    .compare-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    .compare-table th { background: #37474f; color: white; padding: 10px 14px; text-align: left; }
+    .compare-table td { padding: 10px 14px; border-bottom: 1px solid #e0e0e0; }
+    .compare-table .col-uat { background: #fff8e1; }
+    .compare-table .col-prod { background: #e8f5e9; }
+
+    .section-title { font-size: 1.4rem; font-weight: bold; color: #1565c0; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e3f2fd; }
+    footer { text-align: center; padding: 24px; color: #888; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧪 Guide UAT — Environnement de Test</h1>
+  <p>Piscine de Ouangolo · Configuration Staging / Production</p>
+</div>
+
+<div class="container">
+
+  <div class="intro-box">
+    <h2>Qu'est-ce que l'UAT ?</h2>
+    <p>L'UAT (User Acceptance Testing) est un environnement identique à la production où tu peux tester toutes les nouvelles fonctionnalités <strong>sans risquer d'affecter les données réelles</strong>. Quand les tests sont validés, on fusionne vers la production.</p>
+  </div>
+
+  <div class="flow">
+    <div class="flow-box">💻 Ton PC<br><small>Développement</small></div>
+    <div class="flow-arrow">→ push →</div>
+    <div class="flow-box staging">🧪 Branche staging<br><small>GitHub</small></div>
+    <div class="flow-arrow">→ auto-deploy →</div>
+    <div class="flow-box staging">🧪 Render UAT<br><small>piscine-uat.onrender.com</small></div>
+    <div class="flow-arrow">→ si OK →</div>
+    <div class="flow-arrow">merge →</div>
+    <div class="flow-box prod">✅ Render PROD<br><small>piscine.onrender.com</small></div>
+  </div>
+
+  <!-- ==================== PARTIE 1 : GITHUB ==================== -->
+  <div class="section-title">Partie 1 — GitHub (déjà fait ✅)</div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number blue">1</div>
+      <div>
+        <div class="step-title">Branche staging créée sur GitHub</div>
+        <div class="step-subtitle">La branche de test est déjà poussée sur le dépôt</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <p>La branche <code>staging</code> a été créée automatiquement et est visible sur GitHub. Toute modification poussée sur cette branche déclenche le déploiement UAT.</p>
+      <div class="alert success">✅ Branche <code>staging</code> déjà créée et poussée sur GitHub/paleahmedollo/piscine-ouangolo</div>
+    </div>
+  </div>
+
+  <!-- ==================== PARTIE 2 : SUPABASE ==================== -->
+  <div class="section-title">Partie 2 — Supabase (base de données UAT)</div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number orange">2</div>
+      <div>
+        <div class="step-title">Créer un nouveau projet Supabase pour le staging</div>
+        <div class="step-subtitle">supabase.com → New Project</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>Aller sur <strong>supabase.com</strong> et se connecter</li>
+        <li>Cliquer <strong>"New project"</strong></li>
+        <li>Remplir :
+          <ul>
+            <li><strong>Name :</strong> <code>piscine-ouangolo-staging</code></li>
+            <li><strong>Database Password :</strong> Générer un mot de passe fort (le noter !)</li>
+            <li><strong>Region :</strong> West EU (Paris) — même région que la prod</li>
+          </ul>
+        </li>
+        <li>Cliquer <strong>"Create new project"</strong> et attendre ~2 minutes</li>
+      </ol>
+      <div class="alert warning">⚠️ Note bien le mot de passe de la base — il ne s'affiche qu'une seule fois !</div>
+    </div>
+  </div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number orange">3</div>
+      <div>
+        <div class="step-title">Créer les tables dans la base UAT</div>
+        <div class="step-subtitle">Supabase → SQL Editor → Nouveau script</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>Dans le projet staging Supabase, aller dans <strong>SQL Editor</strong></li>
+        <li>Cliquer <strong>"+ New query"</strong></li>
+        <li>Ouvrir le fichier <code>database/schema_complet_v2.sql</code> de ce projet</li>
+        <li>Copier tout le contenu et le coller dans l'éditeur SQL</li>
+        <li>Cliquer <strong>"Run"</strong></li>
+      </ol>
+      <div class="alert success">✅ Toutes les tables et données initiales seront créées automatiquement</div>
+      <p style="margin-top:10px;">Récupérer ensuite les paramètres de connexion :</p>
+      <ol>
+        <li>Aller dans <strong>Project Settings → Database</strong></li>
+        <li>Copier les valeurs : <strong>Host, Port, Database, User, Password</strong></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ==================== PARTIE 3 : RENDER ==================== -->
+  <div class="section-title">Partie 3 — Render (service web UAT)</div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number purple">4</div>
+      <div>
+        <div class="step-title">Créer le service Backend UAT sur Render</div>
+        <div class="step-subtitle">render.com → New Web Service (pour le backend)</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>Aller sur <strong>render.com</strong> et se connecter</li>
+        <li>Cliquer <strong>"New +"</strong> → <strong>"Web Service"</strong></li>
+        <li>Choisir le repo GitHub <code>piscine-ouangolo</code></li>
+        <li>Configurer :
+          <table class="env-table" style="margin-top:10px">
+            <tr><th>Champ</th><th>Valeur à mettre</th></tr>
+            <tr><td><strong>Name</strong></td><td><span class="value">piscine-ouangolo-backend-uat</span></td></tr>
+            <tr><td><strong>Branch</strong></td><td><span class="value">staging</span> <span class="badge staging">⚠️ important</span></td></tr>
+            <tr><td><strong>Root Directory</strong></td><td><span class="value">backend</span></td></tr>
+            <tr><td><strong>Build Command</strong></td><td><span class="value">npm install</span></td></tr>
+            <tr><td><strong>Start Command</strong></td><td><span class="value">node src/server.js</span></td></tr>
+            <tr><td><strong>Plan</strong></td><td><span class="value">Free</span></td></tr>
+          </table>
+        </li>
+        <li>Dans <strong>"Environment Variables"</strong>, ajouter :</li>
+      </ol>
+      <table class="env-table">
+        <tr><th>Clé</th><th>Valeur</th><th>Note</th></tr>
+        <tr>
+          <td class="key">NODE_ENV</td>
+          <td class="value">production</td>
+          <td class="note"></td>
+        </tr>
+        <tr>
+          <td class="key">PORT</td>
+          <td class="value">3001</td>
+          <td class="note"></td>
+        </tr>
+        <tr>
+          <td class="key">DB_HOST</td>
+          <td class="value">[Host Supabase staging]</td>
+          <td class="note">Depuis Project Settings → Database</td>
+        </tr>
+        <tr>
+          <td class="key">DB_PORT</td>
+          <td class="value">5432</td>
+          <td class="note"></td>
+        </tr>
+        <tr>
+          <td class="key">DB_NAME</td>
+          <td class="value">postgres</td>
+          <td class="note"></td>
+        </tr>
+        <tr>
+          <td class="key">DB_USER</td>
+          <td class="value">postgres</td>
+          <td class="note"></td>
+        </tr>
+        <tr>
+          <td class="key">DB_PASSWORD</td>
+          <td class="value">[Mot de passe Supabase staging]</td>
+          <td class="note">Celui noté à l'étape 2</td>
+        </tr>
+        <tr>
+          <td class="key">JWT_SECRET</td>
+          <td class="value">[Nouvelle clé aléatoire]</td>
+          <td class="note">Ex: uat_secret_piscine_2026_xyz</td>
+        </tr>
+        <tr>
+          <td class="key">FRONTEND_URL</td>
+          <td class="value">https://piscine-ouangolo-frontend-uat.onrender.com</td>
+          <td class="note">L'URL du frontend UAT (étape 5)</td>
+        </tr>
+      </table>
+      <ol start="6">
+        <li>Cliquer <strong>"Create Web Service"</strong></li>
+        <li>Attendre le déploiement (~3 minutes)</li>
+        <li>Noter l'URL : <code>https://piscine-ouangolo-backend-uat.onrender.com</code></li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number purple">5</div>
+      <div>
+        <div class="step-title">Créer le service Frontend UAT sur Render</div>
+        <div class="step-subtitle">render.com → New Static Site (pour le frontend)</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>Cliquer <strong>"New +"</strong> → <strong>"Static Site"</strong></li>
+        <li>Choisir le même repo GitHub <code>piscine-ouangolo</code></li>
+        <li>Configurer :
+          <table class="env-table" style="margin-top:10px">
+            <tr><th>Champ</th><th>Valeur à mettre</th></tr>
+            <tr><td><strong>Name</strong></td><td><span class="value">piscine-ouangolo-frontend-uat</span></td></tr>
+            <tr><td><strong>Branch</strong></td><td><span class="value">staging</span> <span class="badge staging">⚠️ important</span></td></tr>
+            <tr><td><strong>Root Directory</strong></td><td><span class="value">frontend</span></td></tr>
+            <tr><td><strong>Build Command</strong></td><td><span class="value">npm install && npm run build</span></td></tr>
+            <tr><td><strong>Publish Directory</strong></td><td><span class="value">dist</span></td></tr>
+          </table>
+        </li>
+        <li>Dans <strong>"Environment Variables"</strong>, ajouter :</li>
+      </ol>
+      <table class="env-table">
+        <tr><th>Clé</th><th>Valeur</th></tr>
+        <tr>
+          <td class="key">VITE_API_URL</td>
+          <td class="value">https://piscine-ouangolo-backend-uat.onrender.com/api</td>
+        </tr>
+      </table>
+      <ol start="5">
+        <li>Cliquer <strong>"Create Static Site"</strong></li>
+        <li>Attendre le build (~5 minutes)</li>
+        <li>Ton UAT sera accessible sur : <code>https://piscine-ouangolo-frontend-uat.onrender.com</code></li>
+      </ol>
+      <div class="alert info">ℹ️ Va ensuite dans le backend UAT et mets à jour <strong>FRONTEND_URL</strong> avec l'URL exacte du frontend UAT.</div>
+    </div>
+  </div>
+
+  <!-- ==================== PARTIE 4 : WORKFLOW ==================== -->
+  <div class="section-title">Partie 4 — Workflow quotidien</div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number teal">6</div>
+      <div>
+        <div class="step-title">Comment travailler au quotidien</div>
+        <div class="step-subtitle">Développer sur staging → Tester → Merger en production</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="workflow">
+        <h4>🧪 Étape 1 — Développer et tester sur staging</h4>
+        <ol>
+          <li>Basculer sur la branche staging : <span class="cmd">git checkout staging</span></li>
+          <li>Faire les modifications dans le code</li>
+          <li>Pousser : <span class="cmd">git add . && git commit -m "..." && git push origin staging</span></li>
+          <li>Render UAT se redéploie automatiquement (~3 min)</li>
+          <li>Tester sur <strong>piscine-ouangolo-frontend-uat.onrender.com</strong></li>
+        </ol>
+      </div>
+
+      <div class="workflow">
+        <h4>✅ Étape 2 — Valider et envoyer en production</h4>
+        <ol>
+          <li>Si les tests sont OK, basculer sur main : <span class="cmd">git checkout main</span></li>
+          <li>Fusionner staging dans main : <span class="cmd">git merge staging</span></li>
+          <li>Pousser en production : <span class="cmd">git push origin main</span></li>
+          <li>Render PROD se redéploie automatiquement (~3 min)</li>
+          <li>Vérifier sur la prod que tout fonctionne ✅</li>
+        </ol>
+      </div>
+
+      <div class="alert warning">
+        ⚠️ <strong>Important :</strong> Les données de l'UAT sont <strong>indépendantes</strong> de la production.
+        Tu peux créer/supprimer des données de test librement sans aucun impact sur les vrais clients.
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== COMPARAISON ==================== -->
+  <div class="section-title">Récapitulatif — UAT vs Production</div>
+
+  <table class="compare-table">
+    <tr>
+      <th>Élément</th>
+      <th style="background:#e65100">🧪 UAT (Staging)</th>
+      <th style="background:#2e7d32">✅ Production</th>
+    </tr>
+    <tr>
+      <td><strong>Branche GitHub</strong></td>
+      <td class="col-uat"><code>staging</code></td>
+      <td class="col-prod"><code>main</code></td>
+    </tr>
+    <tr>
+      <td><strong>Backend Render</strong></td>
+      <td class="col-uat">piscine-ouangolo-backend-uat</td>
+      <td class="col-prod">piscine-ouangolo-backend</td>
+    </tr>
+    <tr>
+      <td><strong>Frontend Render</strong></td>
+      <td class="col-uat">piscine-ouangolo-frontend-uat</td>
+      <td class="col-prod">piscine-ouangolo-frontend</td>
+    </tr>
+    <tr>
+      <td><strong>Base de données</strong></td>
+      <td class="col-uat">Supabase : piscine-ouangolo-staging</td>
+      <td class="col-prod">Supabase : piscine-ouangolo (prod)</td>
+    </tr>
+    <tr>
+      <td><strong>Données</strong></td>
+      <td class="col-uat">Données de test — modifiables librement</td>
+      <td class="col-prod">Données réelles des clients</td>
+    </tr>
+    <tr>
+      <td><strong>Déploiement auto</strong></td>
+      <td class="col-uat">À chaque push sur <code>staging</code></td>
+      <td class="col-prod">À chaque push sur <code>main</code></td>
+    </tr>
+    <tr>
+      <td><strong>URL Frontend</strong></td>
+      <td class="col-uat">...-frontend-uat.onrender.com</td>
+      <td class="col-prod">...-frontend.onrender.com</td>
+    </tr>
+    <tr>
+      <td><strong>Coût</strong></td>
+      <td class="col-uat">Gratuit (plan free Render)</td>
+      <td class="col-prod">Gratuit (plan free Render)</td>
+    </tr>
+  </table>
+
+  <div class="alert info" style="margin-top:24px">
+    ℹ️ <strong>Plan gratuit Render :</strong> Les services dorment après 15 min d'inactivité.
+    Le premier chargement peut prendre ~30 secondes. C'est normal en UAT.
+  </div>
+
+  <div class="alert success" style="margin-top:12px">
+    ✅ <strong>Schéma SQL à utiliser :</strong> Le fichier <code>database/schema_complet_v2.sql</code>
+    contient toutes les tables à jour (incidents, price_settings, CNI, opérateurs Mobile Money, etc.)
+  </div>
+
+</div>
+
+<footer>
+  <p>Piscine de Ouangolo · Guide UAT · Généré le 20/02/2026</p>
+</footer>
+
+</body>
+</html>
