@@ -10,7 +10,7 @@ import {
   Alert,
   IconButton
 } from '@mui/material';
-import { Close as CloseIcon, FlipCameraIos as FlipIcon } from '@mui/icons-material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import jsQR from 'jsqr';
 
 interface QRScannerProps {
