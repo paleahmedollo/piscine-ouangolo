@@ -129,9 +129,13 @@ const startServer = async () => {
     // Test database connection
     await testConnection();
 
-    // Sync models (create tables if they don't exist, don't alter existing)
-    await sequelize.sync({ alter: false });
-    console.log('✅ Database models synchronized');
+    // Tables are managed via setupDb.js script - no auto sync in production
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.sync({ alter: false });
+      console.log('✅ Database models synchronized');
+    } else {
+      console.log('✅ Production mode - skipping sync');
+    }
 
     // Create default accounts
     await createDefaultAdmin();
