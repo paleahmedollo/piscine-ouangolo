@@ -83,10 +83,10 @@ const Events: React.FC = () => {
     event_date: '',
     event_time: '',
     space: '' as EventSpace | '',
-    guest_count: 0,
+    guest_count: '' as number | '',
     description: '',
-    price: 0,
-    deposit_paid: 0
+    price: '' as number | '',
+    deposit_paid: '' as number | ''
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -128,10 +128,10 @@ const Events: React.FC = () => {
         event_date: eventForm.event_date,
         event_time: eventForm.event_time || undefined,
         space: eventForm.space as EventSpace,
-        guest_count: eventForm.guest_count || undefined,
+        guest_count: eventForm.guest_count !== '' ? Number(eventForm.guest_count) : undefined,
         description: eventForm.description || undefined,
-        price: eventForm.price || undefined,
-        deposit_paid: eventForm.deposit_paid || undefined
+        price: eventForm.price !== '' ? Number(eventForm.price) : undefined,
+        deposit_paid: eventForm.deposit_paid !== '' ? Number(eventForm.deposit_paid) : undefined
       });
       setSnackbar({ open: true, message: 'Evenement cree', severity: 'success' });
       setDialogOpen(false);
@@ -168,10 +168,10 @@ const Events: React.FC = () => {
       event_date: '',
       event_time: '',
       space: '',
-      guest_count: 0,
+      guest_count: '',
       description: '',
-      price: 0,
-      deposit_paid: 0
+      price: '',
+      deposit_paid: ''
     });
   };
 
@@ -376,10 +376,11 @@ const Events: React.FC = () => {
           <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
             Le systeme verifie automatiquement les conflits de dates. Si un evenement est deja programme pour le meme espace a la meme date, la creation sera refusee.
           </Alert>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
+                size="small"
                 label="Nom de l'evenement"
                 value={eventForm.name}
                 onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })}
@@ -389,6 +390,7 @@ const Events: React.FC = () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
+                size="small"
                 label="Nom du client"
                 value={eventForm.client_name}
                 onChange={(e) => setEventForm({ ...eventForm, client_name: e.target.value })}
@@ -398,6 +400,7 @@ const Events: React.FC = () => {
             <Grid item xs={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Telephone"
                 value={eventForm.client_phone}
                 onChange={(e) => setEventForm({ ...eventForm, client_phone: e.target.value })}
@@ -406,6 +409,7 @@ const Events: React.FC = () => {
             <Grid item xs={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Email"
                 type="email"
                 value={eventForm.client_email}
@@ -415,6 +419,7 @@ const Events: React.FC = () => {
             <Grid item xs={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Date"
                 type="date"
                 value={eventForm.event_date}
@@ -427,6 +432,7 @@ const Events: React.FC = () => {
             <Grid item xs={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Heure"
                 type="time"
                 value={eventForm.event_time}
@@ -435,7 +441,7 @@ const Events: React.FC = () => {
               />
             </Grid>
             <Grid item xs={6}>
-              <FormControl fullWidth required>
+              <FormControl fullWidth required size="small">
                 <InputLabel>Espace</InputLabel>
                 <Select
                   value={eventForm.space}
@@ -453,36 +459,43 @@ const Events: React.FC = () => {
             <Grid item xs={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Nombre d'invites"
                 type="number"
                 value={eventForm.guest_count}
-                onChange={(e) => setEventForm({ ...eventForm, guest_count: Number(e.target.value) })}
+                placeholder="0"
+                onChange={(e) => setEventForm({ ...eventForm, guest_count: e.target.value === '' ? '' : Number(e.target.value) })}
               />
             </Grid>
             <Grid item xs={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Prix de la reservation (FCFA)"
                 type="number"
                 value={eventForm.price}
-                onChange={(e) => setEventForm({ ...eventForm, price: Number(e.target.value) })}
+                placeholder="0"
+                onChange={(e) => setEventForm({ ...eventForm, price: e.target.value === '' ? '' : Number(e.target.value) })}
               />
             </Grid>
             <Grid item xs={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Acompte verse (FCFA)"
                 type="number"
                 value={eventForm.deposit_paid}
-                onChange={(e) => setEventForm({ ...eventForm, deposit_paid: Number(e.target.value) })}
+                placeholder="0"
+                onChange={(e) => setEventForm({ ...eventForm, deposit_paid: e.target.value === '' ? '' : Number(e.target.value) })}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
+                size="small"
                 label="Description"
                 multiline
-                rows={3}
+                rows={2}
                 value={eventForm.description}
                 onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
               />
