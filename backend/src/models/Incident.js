@@ -16,7 +16,7 @@ const Incident = sequelize.define('Incident', {
     allowNull: false
   },
   severity: {
-    type: DataTypes.ENUM('mineur', 'moyen', 'grave', 'critique'),
+    type: DataTypes.STRING,
     defaultValue: 'mineur'
   },
   incident_date: {
@@ -40,7 +40,7 @@ const Incident = sequelize.define('Incident', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('ouvert', 'en_cours', 'resolu', 'clos'),
+    type: DataTypes.STRING,
     defaultValue: 'ouvert'
   },
   user_id: {

@@ -36,7 +36,7 @@ const Event = sequelize.define('Event', {
     allowNull: true
   },
   space: {
-    type: DataTypes.ENUM('salle_conference', 'terrasse', 'jardin', 'piscine_privee', 'restaurant_prive'),
+    type: DataTypes.STRING,
     allowNull: false
   },
   guest_count: {
@@ -48,7 +48,7 @@ const Event = sequelize.define('Event', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('demande', 'confirme', 'en_cours', 'termine', 'annule'),
+    type: DataTypes.STRING,
     defaultValue: 'demande'
   },
   price: {

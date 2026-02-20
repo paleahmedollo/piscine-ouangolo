@@ -16,7 +16,7 @@ const Ticket = sequelize.define('Ticket', {
     }
   },
   type: {
-    type: DataTypes.ENUM('adulte', 'enfant'),
+    type: DataTypes.STRING,
     allowNull: false
   },
   quantity: {
@@ -36,7 +36,7 @@ const Ticket = sequelize.define('Ticket', {
     allowNull: false
   },
   payment_method: {
-    type: DataTypes.ENUM('especes', 'carte', 'mobile_money'),
+    type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'especes'
   },

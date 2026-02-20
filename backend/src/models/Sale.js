@@ -33,7 +33,7 @@ const Sale = sequelize.define('Sale', {
     allowNull: false
   },
   payment_method: {
-    type: DataTypes.ENUM('especes', 'carte', 'mobile_money'),
+    type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'especes'
   },

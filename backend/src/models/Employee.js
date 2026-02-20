@@ -12,17 +12,7 @@ const Employee = sequelize.define('Employee', {
     allowNull: false
   },
   position: {
-    type: DataTypes.ENUM(
-      'vigile',
-      'agent_entretien',
-      'maitre_nageur',
-      'serveuse',
-      'cuisinier',
-      'receptionniste',
-      'gestionnaire_events',
-      'comptable',
-      'gerant'
-    ),
+    type: DataTypes.STRING,
     allowNull: false
   },
   phone: {

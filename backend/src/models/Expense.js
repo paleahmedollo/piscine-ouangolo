@@ -8,19 +8,7 @@ const Expense = sequelize.define('Expense', {
     autoIncrement: true
   },
   category: {
-    type: DataTypes.ENUM(
-      'salaire',
-      'fournitures',
-      'maintenance',
-      'electricite',
-      'eau',
-      'telephone',
-      'internet',
-      'carburant',
-      'transport',
-      'nourriture',
-      'autre'
-    ),
+    type: DataTypes.STRING,
     allowNull: false
   },
   description: {
@@ -32,7 +20,7 @@ const Expense = sequelize.define('Expense', {
     allowNull: false
   },
   payment_method: {
-    type: DataTypes.ENUM('especes', 'virement', 'cheque', 'mobile_money'),
+    type: DataTypes.STRING,
     defaultValue: 'especes'
   },
   reference: {

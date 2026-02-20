@@ -16,7 +16,7 @@ const CashRegister = sequelize.define('CashRegister', {
     }
   },
   module: {
-    type: DataTypes.ENUM('piscine', 'restaurant', 'hotel', 'events'),
+    type: DataTypes.STRING,
     allowNull: false
   },
   date: {
@@ -40,7 +40,7 @@ const CashRegister = sequelize.define('CashRegister', {
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('en_attente', 'validee', 'rejetee'),
+    type: DataTypes.STRING,
     defaultValue: 'en_attente'
   },
   validated_by: {

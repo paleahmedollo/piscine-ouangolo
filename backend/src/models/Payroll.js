@@ -48,11 +48,11 @@ const Payroll = sequelize.define('Payroll', {
     allowNull: true
   },
   payment_method: {
-    type: DataTypes.ENUM('especes', 'virement', 'cheque'),
+    type: DataTypes.STRING,
     defaultValue: 'especes'
   },
   status: {
-    type: DataTypes.ENUM('en_attente', 'paye', 'annule'),
+    type: DataTypes.STRING,
     defaultValue: 'en_attente'
   },
   notes: {

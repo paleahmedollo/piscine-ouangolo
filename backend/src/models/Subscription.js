@@ -16,7 +16,7 @@ const Subscription = sequelize.define('Subscription', {
     allowNull: true
   },
   type: {
-    type: DataTypes.ENUM('mensuel', 'trimestriel', 'annuel'),
+    type: DataTypes.STRING,
     allowNull: false
   },
   start_date: {

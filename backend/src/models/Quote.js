@@ -45,7 +45,7 @@ const Quote = sequelize.define('Quote', {
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('brouillon', 'envoye', 'accepte', 'refuse', 'paye'),
+    type: DataTypes.STRING,
     defaultValue: 'brouillon'
   },
   valid_until: {

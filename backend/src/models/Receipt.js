@@ -23,7 +23,7 @@ const Receipt = sequelize.define('Receipt', {
   },
   // Données figées au moment de la génération
   module: {
-    type: DataTypes.ENUM('piscine', 'restaurant', 'hotel', 'events'),
+    type: DataTypes.STRING,
     allowNull: false
   },
   closure_date: {

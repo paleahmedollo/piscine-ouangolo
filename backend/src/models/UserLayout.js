@@ -38,7 +38,7 @@ const UserLayout = sequelize.define('UserLayout', {
     defaultValue: 'date'
   },
   sort_order: {
-    type: DataTypes.ENUM('ASC', 'DESC'),
+    type: DataTypes.STRING,
     defaultValue: 'DESC'
   },
   rows_per_page: {
