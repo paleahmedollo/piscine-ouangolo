@@ -120,6 +120,9 @@ export interface Reservation {
   deposit_paid: number;
   status: ReservationStatus;
   notes?: string;
+  cni_number?: string;
+  origin_city?: string;
+  destination_city?: string;
   user_id: number;
   created_at: string;
   room?: Room;

@@ -63,6 +63,18 @@ const Reservation = sequelize.define('Reservation', {
       key: 'id'
     }
   },
+  cni_number: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  origin_city: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  destination_city: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
   payment_operator: {
     type: DataTypes.STRING(20),
     allowNull: true

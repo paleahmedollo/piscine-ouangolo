@@ -203,6 +203,9 @@ const createReservation = async (req, res) => {
       check_out,
       deposit_paid,
       notes,
+      cni_number,
+      origin_city,
+      destination_city,
       payment_operator,
       payment_reference
     } = req.body;
@@ -265,6 +268,9 @@ const createReservation = async (req, res) => {
       total_price,
       deposit_paid: deposit_paid || 0,
       notes,
+      cni_number: cni_number || null,
+      origin_city: origin_city || null,
+      destination_city: destination_city || null,
       payment_operator: payment_operator || null,
       payment_reference: payment_reference || null,
       user_id: req.user.id

@@ -91,7 +91,10 @@ const Hotel: React.FC = () => {
     check_in: '',
     check_out: '',
     deposit_paid: 0,
-    notes: ''
+    notes: '',
+    cni_number: '',
+    origin_city: '',
+    destination_city: ''
   });
   const [resLoading, setResLoading] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
@@ -161,7 +164,10 @@ const Hotel: React.FC = () => {
       check_in: today,
       check_out: tomorrow,
       deposit_paid: 0,
-      notes: ''
+      notes: '',
+      cni_number: '',
+      origin_city: '',
+      destination_city: ''
     });
     setResPaymentInfo({ method: 'especes' });
     try {
@@ -204,6 +210,9 @@ const Hotel: React.FC = () => {
         check_out: resForm.check_out,
         deposit_paid: resForm.deposit_paid || undefined,
         notes: resForm.notes || undefined,
+        cni_number: resForm.cni_number || undefined,
+        origin_city: resForm.origin_city || undefined,
+        destination_city: resForm.destination_city || undefined,
         payment_operator: resPaymentInfo.operator,
         payment_reference: resPaymentInfo.reference
       });
@@ -512,8 +521,14 @@ const Hotel: React.FC = () => {
                           <Typography variant="caption" color="text.secondary">{res.room?.type}</Typography>
                         </TableCell>
                         <TableCell>
-                          {res.client_name}
+                          <Typography fontWeight="medium">{res.client_name}</Typography>
                           {res.client_phone && <Typography variant="caption" display="block">{res.client_phone}</Typography>}
+                          {res.cni_number && <Typography variant="caption" display="block" color="text.secondary">CNI: {res.cni_number}</Typography>}
+                          {(res.origin_city || res.destination_city) && (
+                            <Typography variant="caption" display="block" color="info.main">
+                              {res.origin_city && `${res.origin_city}`}{res.origin_city && res.destination_city && ' → '}{res.destination_city && `${res.destination_city}`}
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell>{new Date(res.check_in).toLocaleDateString('fr-FR')}</TableCell>
                         <TableCell>{new Date(res.check_out).toLocaleDateString('fr-FR')}</TableCell>
@@ -899,6 +914,33 @@ const Hotel: React.FC = () => {
                 type="email"
                 value={resForm.client_email}
                 onChange={(e) => setResForm({ ...resForm, client_email: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="N° CNI / Pièce d'identité"
+                value={resForm.cni_number}
+                onChange={(e) => setResForm({ ...resForm, cni_number: e.target.value })}
+                placeholder="Ex: B1234567"
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Vient de (ville / pays)"
+                value={resForm.origin_city}
+                onChange={(e) => setResForm({ ...resForm, origin_city: e.target.value })}
+                placeholder="Ex: Abidjan"
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Va à (ville / pays)"
+                value={resForm.destination_city}
+                onChange={(e) => setResForm({ ...resForm, destination_city: e.target.value })}
+                placeholder="Ex: Bouaké"
               />
             </Grid>
             <Grid item xs={12}>

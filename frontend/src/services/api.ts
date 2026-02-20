@@ -145,6 +145,9 @@ export const hotelApi = {
     check_out: string;
     deposit_paid?: number;
     notes?: string;
+    cni_number?: string;
+    origin_city?: string;
+    destination_city?: string;
     payment_operator?: string;
     payment_reference?: string;
   }) => api.post('/hotel/reservations', data),
