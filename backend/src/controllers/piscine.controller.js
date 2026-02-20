@@ -1,18 +1,31 @@
 const { Op } = require('sequelize');
-const { Ticket, Subscription, User, Incident } = require('../models');
+const { Ticket, Subscription, User, Incident, PriceSetting } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 
-// Prix des tickets (configurables)
-const TICKET_PRICES = {
-  adulte: 2000,
-  enfant: 1000
-};
+// Prix par défaut (fallback si la DB est indisponible)
+const DEFAULT_TICKET_PRICES = { adulte: 2000, enfant: 1000 };
+const DEFAULT_SUBSCRIPTION_PRICES = { mensuel: 25000, trimestriel: 60000, annuel: 200000 };
 
-// Prix des abonnements
-const SUBSCRIPTION_PRICES = {
-  mensuel: 25000,
-  trimestriel: 60000,
-  annuel: 200000
+// Lecture des prix depuis la DB
+const getPricesFromDB = async () => {
+  try {
+    const settings = await PriceSetting.findAll();
+    const map = {};
+    settings.forEach(s => { map[s.key] = parseFloat(s.value); });
+    return {
+      tickets: {
+        adulte: map['ticket_adulte'] ?? DEFAULT_TICKET_PRICES.adulte,
+        enfant: map['ticket_enfant'] ?? DEFAULT_TICKET_PRICES.enfant
+      },
+      subscriptions: {
+        mensuel: map['abonnement_mensuel'] ?? DEFAULT_SUBSCRIPTION_PRICES.mensuel,
+        trimestriel: map['abonnement_trimestriel'] ?? DEFAULT_SUBSCRIPTION_PRICES.trimestriel,
+        annuel: map['abonnement_annuel'] ?? DEFAULT_SUBSCRIPTION_PRICES.annuel
+      }
+    };
+  } catch {
+    return { tickets: DEFAULT_TICKET_PRICES, subscriptions: DEFAULT_SUBSCRIPTION_PRICES };
+  }
 };
 
 // =====================================================
@@ -41,7 +54,8 @@ const createTicket = async (req, res) => {
       });
     }
 
-    const unit_price = TICKET_PRICES[type];
+    const prices = await getPricesFromDB();
+    const unit_price = prices.tickets[type];
     const total = unit_price * quantity;
 
     const ticket = await Ticket.create({
@@ -203,13 +217,53 @@ const getTicketStats = async (req, res) => {
  * Récupérer les prix des tickets
  */
 const getPrices = async (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      tickets: TICKET_PRICES,
-      subscriptions: SUBSCRIPTION_PRICES
+  try {
+    const data = await getPricesFromDB();
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des prix' });
+  }
+};
+
+/**
+ * PUT /api/piscine/prices
+ * Modifier les prix (admin / directeur uniquement)
+ */
+const updatePrices = async (req, res) => {
+  try {
+    const {
+      ticket_adulte,
+      ticket_enfant,
+      abonnement_mensuel,
+      abonnement_trimestriel,
+      abonnement_annuel
+    } = req.body;
+
+    const updates = [];
+    if (ticket_adulte !== undefined)          updates.push({ key: 'ticket_adulte',          value: parseFloat(ticket_adulte) });
+    if (ticket_enfant !== undefined)          updates.push({ key: 'ticket_enfant',          value: parseFloat(ticket_enfant) });
+    if (abonnement_mensuel !== undefined)     updates.push({ key: 'abonnement_mensuel',     value: parseFloat(abonnement_mensuel) });
+    if (abonnement_trimestriel !== undefined) updates.push({ key: 'abonnement_trimestriel', value: parseFloat(abonnement_trimestriel) });
+    if (abonnement_annuel !== undefined)      updates.push({ key: 'abonnement_annuel',      value: parseFloat(abonnement_annuel) });
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: 'Aucune valeur à modifier' });
     }
-  });
+
+    for (const u of updates) {
+      await PriceSetting.upsert({ key: u.key, value: u.value });
+    }
+
+    await logAction(req, 'UPDATE_PRICES', 'piscine', 'price_settings', null, {
+      updates: updates.map(u => `${u.key}=${u.value}`)
+    });
+
+    const data = await getPricesFromDB();
+    res.json({ success: true, message: 'Tarifs mis à jour', data });
+  } catch (error) {
+    console.error('Update prices error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour des tarifs' });
+  }
 };
 
 // =====================================================
@@ -238,6 +292,8 @@ const createSubscription = async (req, res) => {
       });
     }
 
+    const prices = await getPricesFromDB();
+
     // Calculer la date de fin
     const startDateObj = new Date(start_date);
     const endDateObj = new Date(startDateObj);
@@ -260,14 +316,14 @@ const createSubscription = async (req, res) => {
       type,
       start_date: startDateObj,
       end_date: endDateObj,
-      price: SUBSCRIPTION_PRICES[type],
+      price: prices.subscriptions[type],
       user_id: req.user.id
     });
 
     await logAction(req, 'CREATE_SUBSCRIPTION', 'piscine', 'subscription', subscription.id, {
       client_name,
       type,
-      price: SUBSCRIPTION_PRICES[type]
+      price: prices.subscriptions[type]
     });
 
     res.status(201).json({
@@ -573,6 +629,7 @@ module.exports = {
   getTickets,
   getTicketStats,
   getPrices,
+  updatePrices,
   createSubscription,
   getSubscriptions,
   getSubscriptionById,

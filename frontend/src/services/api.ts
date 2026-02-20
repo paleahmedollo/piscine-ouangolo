@@ -54,6 +54,13 @@ export const piscineApi = {
     api.get('/piscine/tickets', { params }),
   getTicketStats: (date?: string) =>
     api.get('/piscine/tickets/stats', { params: { date } }),
+  updatePrices: (data: {
+    ticket_adulte?: number;
+    ticket_enfant?: number;
+    abonnement_mensuel?: number;
+    abonnement_trimestriel?: number;
+    abonnement_annuel?: number;
+  }) => api.put('/piscine/prices', data),
   createSubscription: (data: {
     client_name: string;
     client_phone?: string;

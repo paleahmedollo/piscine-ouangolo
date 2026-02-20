@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 const piscineController = require('../controllers/piscine.controller');
 const { authenticateToken } = require('../middlewares/auth.middleware');
-const { checkPermission, canAccessModule } = require('../middlewares/rbac.middleware');
+const { checkPermission, canAccessModule, isGerant } = require('../middlewares/rbac.middleware');
 
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 router.use(canAccessModule('piscine'));
 
-// Prix (accessible à tous ceux qui ont accès au module)
+// Prix - lecture pour tous, modification réservée admin/directeur
 router.get('/prices', piscineController.getPrices);
+router.put('/prices', isGerant, piscineController.updatePrices);
 
 // Tickets
 router.post('/tickets', checkPermission('piscine', 'vente_tickets'), piscineController.createTicket);

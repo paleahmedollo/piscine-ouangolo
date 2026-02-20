@@ -32,8 +32,12 @@ import {
   Add as AddIcon,
   Pool as PoolIcon,
   CardMembership as SubscriptionIcon,
-  Warning as IncidentIcon
+  Warning as IncidentIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  PriceChange as PriceChangeIcon
 } from '@mui/icons-material';
+import { InputAdornment, Divider } from '@mui/material';
 import Layout from '../components/layout/Layout';
 import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
 import CameraCapture from '../components/CameraCapture';
@@ -87,7 +91,8 @@ const statusLabels: Record<string, string> = {
 };
 
 const Piscine: React.FC = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isAdmin = ['admin', 'directeur'].includes(user?.role || '');
   const [tabValue, setTabValue] = useState(0);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -129,6 +134,17 @@ const Piscine: React.FC = () => {
   });
   const [incidentLoading, setIncidentLoading] = useState(false);
 
+  // Gestion des tarifs (admin seulement)
+  const [priceEditMode, setPriceEditMode] = useState(false);
+  const [priceForm, setPriceForm] = useState({
+    ticket_adulte: 2000,
+    ticket_enfant: 1000,
+    abonnement_mensuel: 25000,
+    abonnement_trimestriel: 60000,
+    abonnement_annuel: 200000
+  });
+  const [priceSaving, setPriceSaving] = useState(false);
+
   // Stats
   const [stats, setStats] = useState<{
     total_ventes: number;
@@ -151,7 +167,15 @@ const Piscine: React.FC = () => {
         piscineApi.getTicketStats(),
         piscineApi.getIncidents()
       ]);
-      setPrices(pricesRes.data.data);
+      const pricesData = pricesRes.data.data;
+      setPrices(pricesData);
+      setPriceForm({
+        ticket_adulte: pricesData.tickets.adulte,
+        ticket_enfant: pricesData.tickets.enfant,
+        abonnement_mensuel: pricesData.subscriptions.mensuel,
+        abonnement_trimestriel: pricesData.subscriptions.trimestriel,
+        abonnement_annuel: pricesData.subscriptions.annuel
+      });
       setTickets(ticketsRes.data.data.tickets);
       setSubscriptions(subsRes.data.data.subscriptions);
       setStats(statsRes.data.data);
@@ -268,6 +292,20 @@ const Piscine: React.FC = () => {
     }
   };
 
+  const handleSavePrices = async () => {
+    try {
+      setPriceSaving(true);
+      await piscineApi.updatePrices(priceForm);
+      setSnackbar({ open: true, message: 'Tarifs mis à jour avec succès', severity: 'success' });
+      setPriceEditMode(false);
+      fetchData();
+    } catch {
+      setSnackbar({ open: true, message: 'Erreur lors de la mise à jour des tarifs', severity: 'error' });
+    } finally {
+      setPriceSaving(false);
+    }
+  };
+
   const getTicketTotal = () => {
     if (!prices) return 0;
     return (prices.tickets[ticketType] || 0) * ticketQuantity;
@@ -326,6 +364,7 @@ const Piscine: React.FC = () => {
           <Tab icon={<PoolIcon />} label="Vente de Tickets" />
           <Tab icon={<SubscriptionIcon />} label="Abonnements" />
           <Tab icon={<IncidentIcon />} label="Incidents" />
+          {isAdmin && <Tab icon={<PriceChangeIcon />} label="Tarifs" />}
         </Tabs>
       </Box>
 
@@ -619,6 +658,128 @@ const Piscine: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Tarifs Tab - Admin seulement */}
+      {isAdmin && (
+        <TabPanel value={tabValue} index={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">Gestion des Tarifs</Typography>
+                {!priceEditMode ? (
+                  <Button
+                    variant="contained"
+                    startIcon={<EditIcon />}
+                    onClick={() => setPriceEditMode(true)}
+                  >
+                    Modifier les tarifs
+                  </Button>
+                ) : (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button variant="outlined" onClick={() => { setPriceEditMode(false); fetchData(); }}>
+                      Annuler
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={priceSaving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+                      onClick={handleSavePrices}
+                      disabled={priceSaving}
+                    >
+                      Enregistrer
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+
+              <Alert severity="info" sx={{ mb: 3 }}>
+                Les nouveaux tarifs s'appliquent immédiatement à toutes les prochaines ventes et créations d'abonnements.
+              </Alert>
+
+              {/* Tickets */}
+              <Typography variant="subtitle1" fontWeight="bold" color="primary" sx={{ mb: 1.5 }}>
+                Tickets d'entrée
+              </Typography>
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Ticket Adulte"
+                    type="number"
+                    value={priceForm.ticket_adulte}
+                    onChange={(e) => setPriceForm({ ...priceForm, ticket_adulte: parseFloat(e.target.value) || 0 })}
+                    disabled={!priceEditMode}
+                    InputProps={{ endAdornment: <InputAdornment position="end">FCFA</InputAdornment> }}
+                    inputProps={{ min: 0, step: 100 }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: priceEditMode ? 'white' : '#f5f5f5' } }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Ticket Enfant"
+                    type="number"
+                    value={priceForm.ticket_enfant}
+                    onChange={(e) => setPriceForm({ ...priceForm, ticket_enfant: parseFloat(e.target.value) || 0 })}
+                    disabled={!priceEditMode}
+                    InputProps={{ endAdornment: <InputAdornment position="end">FCFA</InputAdornment> }}
+                    inputProps={{ min: 0, step: 100 }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: priceEditMode ? 'white' : '#f5f5f5' } }}
+                  />
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Abonnements */}
+              <Typography variant="subtitle1" fontWeight="bold" color="primary" sx={{ mb: 1.5 }}>
+                Abonnements
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Mensuel"
+                    type="number"
+                    value={priceForm.abonnement_mensuel}
+                    onChange={(e) => setPriceForm({ ...priceForm, abonnement_mensuel: parseFloat(e.target.value) || 0 })}
+                    disabled={!priceEditMode}
+                    InputProps={{ endAdornment: <InputAdornment position="end">FCFA</InputAdornment> }}
+                    inputProps={{ min: 0, step: 1000 }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: priceEditMode ? 'white' : '#f5f5f5' } }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Trimestriel"
+                    type="number"
+                    value={priceForm.abonnement_trimestriel}
+                    onChange={(e) => setPriceForm({ ...priceForm, abonnement_trimestriel: parseFloat(e.target.value) || 0 })}
+                    disabled={!priceEditMode}
+                    InputProps={{ endAdornment: <InputAdornment position="end">FCFA</InputAdornment> }}
+                    inputProps={{ min: 0, step: 1000 }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: priceEditMode ? 'white' : '#f5f5f5' } }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Annuel"
+                    type="number"
+                    value={priceForm.abonnement_annuel}
+                    onChange={(e) => setPriceForm({ ...priceForm, abonnement_annuel: parseFloat(e.target.value) || 0 })}
+                    disabled={!priceEditMode}
+                    InputProps={{ endAdornment: <InputAdornment position="end">FCFA</InputAdornment> }}
+                    inputProps={{ min: 0, step: 1000 }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: priceEditMode ? 'white' : '#f5f5f5' } }}
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </TabPanel>
+      )}
 
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>{snackbar.message}</Alert>

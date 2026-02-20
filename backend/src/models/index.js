@@ -16,6 +16,7 @@ const Expense = require('./Expense');
 const Incident = require('./Incident');
 const Receipt = require('./Receipt');
 const UserLayout = require('./UserLayout');
+const PriceSetting = require('./PriceSetting');
 
 // =====================================================
 // Associations / Relations
@@ -109,5 +110,6 @@ module.exports = {
   Expense,
   Incident,
   Receipt,
-  UserLayout
+  UserLayout,
+  PriceSetting
 };
