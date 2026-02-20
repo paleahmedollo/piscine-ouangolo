@@ -19,7 +19,8 @@ import {
   Logout,
   WifiOff,
   Wifi,
-  Sync as SyncIcon
+  Sync as SyncIcon,
+  Menu as MenuIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
@@ -28,9 +29,10 @@ const drawerWidth = 240;
 
 interface HeaderProps {
   title?: string;
+  onMenuClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title = 'Tableau de bord' }) => {
+const Header: React.FC<HeaderProps> = ({ title = 'Tableau de bord', onMenuClick }) => {
   const { user, logout } = useAuth();
   const { isOnline, isSyncing, pendingCount, syncNow } = useOfflineSync();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -64,14 +66,22 @@ const Header: React.FC<HeaderProps> = ({ title = 'Tableau de bord' }) => {
     <AppBar
       position="fixed"
       sx={{
-        width: `calc(100% - ${drawerWidth}px)`,
-        ml: `${drawerWidth}px`,
+        width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
+        ml: { xs: 0, md: `${drawerWidth}px` },
         backgroundColor: 'white',
         color: 'text.primary',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}
     >
       <Toolbar>
+        <IconButton
+          color="inherit"
+          edge="start"
+          onClick={onMenuClick}
+          sx={{ mr: 1, display: { md: 'none' } }}
+        >
+          <MenuIcon />
+        </IconButton>
         <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
           {title}
         </Typography>
