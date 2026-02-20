@@ -48,7 +48,7 @@ export const authApi = {
 // Piscine API
 export const piscineApi = {
   getPrices: () => api.get('/piscine/prices'),
-  createTicket: (data: { type: string; quantity: number; payment_method: string }) =>
+  createTicket: (data: { type: string; quantity: number; payment_method: string; payment_operator?: string; payment_reference?: string }) =>
     api.post('/piscine/tickets', data),
   getTickets: (params?: Record<string, string>) =>
     api.get('/piscine/tickets', { params }),
@@ -75,6 +75,7 @@ export const piscineApi = {
     location?: string;
     persons_involved?: string;
     actions_taken?: string;
+    photo_url?: string;
   }) => api.post('/piscine/incidents', data),
   getIncidents: (params?: Record<string, string>) => api.get('/piscine/incidents', { params }),
   updateIncident: (id: number, data: { status?: string; actions_taken?: string }) =>
@@ -103,6 +104,8 @@ export const restaurantApi = {
   createSale: (data: {
     items: Array<{ menu_item_id: number; quantity: number }>;
     payment_method: string;
+    payment_operator?: string;
+    payment_reference?: string;
     table_number?: string;
   }) => api.post('/restaurant/sales', data),
   getSales: (params?: Record<string, string>) =>
@@ -142,6 +145,8 @@ export const hotelApi = {
     check_out: string;
     deposit_paid?: number;
     notes?: string;
+    payment_operator?: string;
+    payment_reference?: string;
   }) => api.post('/hotel/reservations', data),
   getReservations: (params?: Record<string, string>) =>
     api.get('/hotel/reservations', { params }),

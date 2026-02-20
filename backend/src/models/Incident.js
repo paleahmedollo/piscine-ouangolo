@@ -50,6 +50,10 @@ const Incident = sequelize.define('Incident', {
       model: 'users',
       key: 'id'
     }
+  },
+  photo_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 }, {
   tableName: 'incidents',

@@ -63,6 +63,14 @@ const Reservation = sequelize.define('Reservation', {
       key: 'id'
     }
   },
+  payment_operator: {
+    type: DataTypes.STRING(20),
+    allowNull: true
+  },
+  payment_reference: {
+    type: DataTypes.STRING(200),
+    allowNull: true
+  },
   synced: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

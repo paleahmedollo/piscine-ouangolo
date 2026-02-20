@@ -208,7 +208,7 @@ const toggleAvailability = async (req, res) => {
  */
 const createSale = async (req, res) => {
   try {
-    const { items, payment_method, table_number } = req.body;
+    const { items, payment_method, payment_operator, payment_reference, table_number } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -257,6 +257,8 @@ const createSale = async (req, res) => {
       tax: 0,
       total: subtotal,
       payment_method: payment_method || 'especes',
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null,
       table_number
     });
 

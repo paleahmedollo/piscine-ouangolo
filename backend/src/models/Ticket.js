@@ -40,6 +40,14 @@ const Ticket = sequelize.define('Ticket', {
     allowNull: false,
     defaultValue: 'especes'
   },
+  payment_operator: {
+    type: DataTypes.STRING(20),
+    allowNull: true
+  },
+  payment_reference: {
+    type: DataTypes.STRING(200),
+    allowNull: true
+  },
   synced: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

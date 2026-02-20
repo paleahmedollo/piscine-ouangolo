@@ -45,6 +45,7 @@ import {
   Save as SaveIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
+import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { hotelApi } from '../services/api';
 import { Room, Reservation, RoomStatus } from '../types';
@@ -94,6 +95,7 @@ const Hotel: React.FC = () => {
   });
   const [resLoading, setResLoading] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
+  const [resPaymentInfo, setResPaymentInfo] = useState<PaymentInfo>({ method: 'especes' });
 
   // Stats
   const [stats, setStats] = useState<{
@@ -161,6 +163,7 @@ const Hotel: React.FC = () => {
       deposit_paid: 0,
       notes: ''
     });
+    setResPaymentInfo({ method: 'especes' });
     try {
       const res = await hotelApi.getAvailableRooms(today, tomorrow);
       setAvailableRooms(res.data.data);
@@ -200,7 +203,9 @@ const Hotel: React.FC = () => {
         check_in: resForm.check_in,
         check_out: resForm.check_out,
         deposit_paid: resForm.deposit_paid || undefined,
-        notes: resForm.notes || undefined
+        notes: resForm.notes || undefined,
+        payment_operator: resPaymentInfo.operator,
+        payment_reference: resPaymentInfo.reference
       });
       setSnackbar({ open: true, message: 'Réservation créée - Chambre marquée comme occupée', severity: 'success' });
       setResDialogOpen(false);
@@ -913,6 +918,13 @@ const Hotel: React.FC = () => {
                 rows={2}
                 value={resForm.notes}
                 onChange={(e) => setResForm({ ...resForm, notes: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <PaymentSelector
+                value={resPaymentInfo}
+                onChange={setResPaymentInfo}
+                label="Mode de paiement de l'acompte"
               />
             </Grid>
           </Grid>

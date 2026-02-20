@@ -202,7 +202,9 @@ const createReservation = async (req, res) => {
       check_in,
       check_out,
       deposit_paid,
-      notes
+      notes,
+      payment_operator,
+      payment_reference
     } = req.body;
 
     if (!room_id || !client_name || !check_in || !check_out) {
@@ -263,6 +265,8 @@ const createReservation = async (req, res) => {
       total_price,
       deposit_paid: deposit_paid || 0,
       notes,
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null,
       user_id: req.user.id
     });
 

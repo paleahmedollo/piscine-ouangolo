@@ -41,6 +41,14 @@ const Sale = sequelize.define('Sale', {
     type: DataTypes.STRING(10),
     allowNull: true
   },
+  payment_operator: {
+    type: DataTypes.STRING(20),
+    allowNull: true
+  },
+  payment_reference: {
+    type: DataTypes.STRING(200),
+    allowNull: true
+  },
   synced: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

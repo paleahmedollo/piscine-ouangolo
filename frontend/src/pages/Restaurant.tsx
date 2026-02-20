@@ -39,9 +39,10 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
+import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { restaurantApi } from '../services/api';
-import { MenuItem as MenuItemType, Sale, PaymentMethod, MenuCategory } from '../types';
+import { MenuItem as MenuItemType, Sale, MenuCategory } from '../types';
 
 interface OrderLine {
   menu_item_id: number;
@@ -83,7 +84,7 @@ const Restaurant: React.FC = () => {
 
   // Commande en cours - prix modifiables
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('especes');
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({ method: 'especes' });
   const [tableNumber, setTableNumber] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -199,6 +200,7 @@ const Restaurant: React.FC = () => {
     setTableNumber('');
     setDiscountType('none');
     setDiscountValue(0);
+    setPaymentInfo({ method: 'especes' });
   };
 
   // =====================================================
@@ -305,7 +307,9 @@ const Restaurant: React.FC = () => {
           menu_item_id: line.menu_item_id,
           quantity: line.quantity
         })),
-        payment_method: paymentMethod,
+        payment_method: paymentInfo.method,
+        payment_operator: paymentInfo.operator,
+        payment_reference: paymentInfo.reference,
         table_number: tableNumber || undefined
       });
       setSnackbar({ open: true, message: 'Vente enregistree avec succes', severity: 'success' });
@@ -777,18 +781,13 @@ const Restaurant: React.FC = () => {
               margin="normal"
             />
 
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Mode de paiement</InputLabel>
-              <Select
-                value={paymentMethod}
+            <Box sx={{ mt: 1 }}>
+              <PaymentSelector
+                value={paymentInfo}
+                onChange={setPaymentInfo}
                 label="Mode de paiement"
-                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-              >
-                <MenuItem value="especes">Especes</MenuItem>
-                <MenuItem value="carte">Carte</MenuItem>
-                <MenuItem value="mobile_money">Mobile Money</MenuItem>
-              </Select>
-            </FormControl>
+              />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

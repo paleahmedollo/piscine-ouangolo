@@ -25,7 +25,7 @@ const SUBSCRIPTION_PRICES = {
  */
 const createTicket = async (req, res) => {
   try {
-    const { type, quantity, payment_method } = req.body;
+    const { type, quantity, payment_method, payment_operator, payment_reference } = req.body;
 
     if (!type || !quantity) {
       return res.status(400).json({
@@ -50,7 +50,9 @@ const createTicket = async (req, res) => {
       quantity,
       unit_price,
       total,
-      payment_method: payment_method || 'especes'
+      payment_method: payment_method || 'especes',
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null
     });
 
     await logAction(req, 'CREATE_TICKET', 'piscine', 'ticket', ticket.id, { type, quantity, total });
@@ -443,7 +445,7 @@ const checkSubscription = async (req, res) => {
  */
 const createIncident = async (req, res) => {
   try {
-    const { title, description, severity, incident_date, incident_time, location, persons_involved, actions_taken } = req.body;
+    const { title, description, severity, incident_date, incident_time, location, persons_involved, actions_taken, photo_url } = req.body;
 
     if (!title || !description || !incident_date) {
       return res.status(400).json({
@@ -461,6 +463,7 @@ const createIncident = async (req, res) => {
       location: location || 'piscine',
       persons_involved,
       actions_taken,
+      photo_url: photo_url || null,
       user_id: req.user.id
     });
 

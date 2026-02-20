@@ -35,9 +35,11 @@ import {
   Warning as IncidentIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
+import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
+import CameraCapture from '../components/CameraCapture';
 import { useAuth } from '../contexts/AuthContext';
 import { piscineApi } from '../services/api';
-import { Ticket, Subscription, PaymentMethod, TicketType, SubscriptionType } from '../types';
+import { Ticket, Subscription, TicketType, SubscriptionType } from '../types';
 
 interface Incident {
   id: number;
@@ -97,7 +99,7 @@ const Piscine: React.FC = () => {
   // Ticket form
   const [ticketType, setTicketType] = useState<TicketType>('adulte');
   const [ticketQuantity, setTicketQuantity] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('especes');
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({ method: 'especes' });
   const [ticketLoading, setTicketLoading] = useState(false);
 
   // Subscription dialog
@@ -109,6 +111,9 @@ const Piscine: React.FC = () => {
     start_date: new Date().toISOString().split('T')[0]
   });
   const [subLoading, setSubLoading] = useState(false);
+
+  // Incident photo
+  const [incidentPhoto, setIncidentPhoto] = useState<string | undefined>(undefined);
 
   // Incident dialog
   const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
@@ -170,10 +175,13 @@ const Piscine: React.FC = () => {
       await piscineApi.createTicket({
         type: ticketType,
         quantity: ticketQuantity,
-        payment_method: paymentMethod
+        payment_method: paymentInfo.method,
+        payment_operator: paymentInfo.operator,
+        payment_reference: paymentInfo.reference
       });
       setSnackbar({ open: true, message: 'Vente enregistree', severity: 'success' });
       setTicketQuantity(1);
+      setPaymentInfo({ method: 'especes' });
       fetchData();
     } catch (error) {
       console.error('Error selling ticket:', error);
@@ -225,10 +233,12 @@ const Piscine: React.FC = () => {
         incident_time: incidentForm.incident_time || undefined,
         location: incidentForm.location,
         persons_involved: incidentForm.persons_involved || undefined,
-        actions_taken: incidentForm.actions_taken || undefined
+        actions_taken: incidentForm.actions_taken || undefined,
+        photo_url: incidentPhoto
       });
       setSnackbar({ open: true, message: 'Incident signale', severity: 'success' });
       setIncidentDialogOpen(false);
+      setIncidentPhoto(undefined);
       setIncidentForm({
         title: '',
         description: '',
@@ -347,18 +357,13 @@ const Piscine: React.FC = () => {
                     margin="normal"
                     inputProps={{ min: 1 }}
                   />
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Mode de paiement</InputLabel>
-                    <Select
-                      value={paymentMethod}
+                  <Box sx={{ mt: 2 }}>
+                    <PaymentSelector
+                      value={paymentInfo}
+                      onChange={setPaymentInfo}
                       label="Mode de paiement"
-                      onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    >
-                      <MenuItem value="especes">Especes</MenuItem>
-                      <MenuItem value="carte">Carte</MenuItem>
-                      <MenuItem value="mobile_money">Mobile Money</MenuItem>
-                    </Select>
-                  </FormControl>
+                    />
+                  </Box>
                   <Box sx={{ mt: 1.5, p: 1.5, bgcolor: 'grey.100', borderRadius: 1 }}>
                     <Typography variant="h5" textAlign="center">
                       Total: {formatCurrency(getTicketTotal())}
@@ -599,6 +604,13 @@ const Piscine: React.FC = () => {
           </Grid>
           <TextField fullWidth label="Personnes impliquees" value={incidentForm.persons_involved} onChange={(e) => setIncidentForm({ ...incidentForm, persons_involved: e.target.value })} margin="normal" placeholder="Noms des personnes concernees" />
           <TextField fullWidth label="Actions prises" multiline rows={2} value={incidentForm.actions_taken} onChange={(e) => setIncidentForm({ ...incidentForm, actions_taken: e.target.value })} margin="normal" placeholder="Mesures prises suite a l'incident" />
+          <Box sx={{ mt: 1 }}>
+            <CameraCapture
+              value={incidentPhoto}
+              onChange={setIncidentPhoto}
+              label="Photo de la scène (optionnel)"
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIncidentDialogOpen(false)}>Annuler</Button>
