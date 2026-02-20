@@ -82,11 +82,11 @@ const Header: React.FC<HeaderProps> = ({ title = 'Tableau de bord', onMenuClick 
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
           {title}
         </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1.5 } }}>
           {/* Pending sync indicator */}
           {pendingCount > 0 && (
             <Tooltip title={`${pendingCount} transaction(s) en attente de synchronisation`}>
@@ -106,18 +106,26 @@ const Header: React.FC<HeaderProps> = ({ title = 'Tableau de bord', onMenuClick 
             </Tooltip>
           )}
 
-          {/* Online/Offline indicator */}
-          <Chip
-            icon={isOnline ? <Wifi /> : <WifiOff />}
-            label={isOnline ? 'En ligne' : 'Hors ligne'}
-            color={isOnline ? 'success' : 'warning'}
-            size="small"
-            variant="outlined"
-          />
+          {/* Online/Offline indicator - texte masqué sur mobile */}
+          <Tooltip title={isOnline ? 'En ligne' : 'Hors ligne'}>
+            <Chip
+              icon={isOnline ? <Wifi /> : <WifiOff />}
+              label={isOnline ? 'En ligne' : 'Hors ligne'}
+              color={isOnline ? 'success' : 'warning'}
+              size="small"
+              variant="outlined"
+              sx={{ display: { xs: 'none', sm: 'flex' } }}
+            />
+          </Tooltip>
+          {/* Icône seule sur mobile */}
+          <Box sx={{ display: { xs: 'flex', sm: 'none' }, color: isOnline ? 'success.main' : 'warning.main' }}>
+            {isOnline ? <Wifi fontSize="small" /> : <WifiOff fontSize="small" />}
+          </Box>
 
           {/* User menu */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Box sx={{ mr: 1, textAlign: 'right' }}>
+            {/* Nom et rôle masqués sur mobile */}
+            <Box sx={{ mr: 1, textAlign: 'right', display: { xs: 'none', sm: 'block' } }}>
               <Typography variant="body2" fontWeight="medium">
                 {user?.full_name}
               </Typography>
