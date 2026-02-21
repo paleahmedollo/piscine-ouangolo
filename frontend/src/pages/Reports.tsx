@@ -20,7 +20,8 @@ import {
   IconButton,
   Divider,
   TablePagination,
-  Collapse
+  Collapse,
+  Checkbox
 } from '@mui/material';
 import {
   FilterList as FilterIcon,
@@ -35,7 +36,6 @@ import {
   AttachMoney
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
-import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
 import { reportsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -142,8 +142,7 @@ const moduleLabels: Record<string, string> = {
 
 const Reports: React.FC = () => {
   const { user } = useAuth();
-  const [clientReceiptOpen, setClientReceiptOpen] = useState(false);
-  const [clientReceiptData, setClientReceiptData] = useState<ClientReceiptData | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -276,23 +275,83 @@ const Reports: React.FC = () => {
     window.print();
   };
 
-  const openReceiptForTransaction = (t: Transaction) => {
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === transactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(transactions.map(t => t.id)));
+    }
+  };
+
+  const printReceipt = (t: Transaction) => {
     const paymentLabel: Record<string, string> = {
       especes: 'Espèces', carte: 'Carte', mobile_money: 'Mobile Money',
       virement: 'Virement', cheque: 'Chèque', acompte: 'Acompte', devis: 'Devis'
     };
-    setClientReceiptData({
-      type: 'generic',
-      module: t.module,
-      description: t.description,
-      amount: t.amount,
-      paymentMethod: paymentLabel[t.payment_method] || t.payment_method,
-      clientName: t.client_name || undefined,
-      date: `${new Date(t.date).toLocaleDateString('fr-FR')} ${t.time}`,
-      reference: t.reference || t.id,
-      cashierName: user?.full_name || user?.username || 'Caissier'
+    const cashier = user?.full_name || user?.username || 'Caissier';
+    const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA';
+    const now = new Date();
+    const num = `RC-${now.getFullYear()}-${now.getTime().toString().slice(-6)}`;
+    const dateStr = `${new Date(t.date).toLocaleDateString('fr-FR')} ${t.time}`;
+
+    const css = `
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:10px}
+      .center{text-align:center}.bold{font-weight:bold}
+      .row{display:flex;justify-content:space-between;margin:2px 0}
+      .sep{border-top:1px dashed #000;margin:6px 0}
+      .title{font-size:15px;font-weight:bold;text-align:center}
+      .total{display:flex;justify-content:space-between;font-size:13px;font-weight:bold;margin:4px 0}
+      @media print{body{width:100%}}
+    `;
+
+    const body = `
+      <div class="title">PISCINE DE OUANGOLO</div>
+      <div class="center" style="font-size:10px">Ouangolo, Côte d'Ivoire</div>
+      <div class="sep"></div>
+      <div class="center bold">REÇU CLIENT</div>
+      <div class="sep"></div>
+      <div class="row"><span>N° Reçu :</span><span>${num}</span></div>
+      <div class="row"><span>Date :</span><span>${dateStr}</span></div>
+      <div class="sep"></div>
+      <div class="bold" style="margin-bottom:4px">MODULE : ${t.module.toUpperCase()}</div>
+      ${t.client_name ? `<div class="row"><span>Client :</span><span>${t.client_name}</span></div>` : ''}
+      <div class="row"><span>Ref. :</span><span>${t.reference || t.id}</span></div>
+      <div class="sep"></div>
+      <div style="margin:2px 0;font-size:11px">${t.description}</div>
+      <div class="sep"></div>
+      <div class="total"><span>MONTANT :</span><span>${fmt(t.amount)}</span></div>
+      <div class="row"><span>Paiement :</span><span>${paymentLabel[t.payment_method] || t.payment_method}</span></div>
+      <div class="sep"></div>
+      <div class="row"><span>Caissier :</span><span>${cashier}</span></div>
+      <div style="margin-top:12px">Signature : ____________________</div>
+      <div class="center" style="margin-top:8px">Merci de votre visite !</div>
+    `;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu</title><style>${css}</style></head><body>${body}</body></html>`;
+    const win = window.open('', '_blank', 'width=400,height=600');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 300);
+  };
+
+  const printSelectedReceipts = () => {
+    const selected = transactions.filter(t => selectedIds.has(t.id));
+    if (selected.length === 0) return;
+    // Un reçu individuel par transaction sélectionnée
+    selected.forEach((t, i) => {
+      setTimeout(() => printReceipt(t), i * 600);
     });
-    setClientReceiptOpen(true);
   };
 
   const renderCellValue = (transaction: Transaction, columnId: string) => {
@@ -385,7 +444,17 @@ const Reports: React.FC = () => {
             Resume
           </Button>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+          {selectedIds.size > 0 && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PrintIcon />}
+              onClick={printSelectedReceipts}
+            >
+              Imprimer les reçus ({selectedIds.size})
+            </Button>
+          )}
           <Button variant="outlined" startIcon={<FilterIcon />} onClick={() => setShowFilters(!showFilters)}>
             Filtres {showFilters ? <ExpandLess /> : <ExpandMore />}
           </Button>
@@ -556,6 +625,15 @@ const Reports: React.FC = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={transactions.length > 0 && selectedIds.size === transactions.length}
+                        indeterminate={selectedIds.size > 0 && selectedIds.size < transactions.length}
+                        onChange={toggleSelectAll}
+                        title="Tout sélectionner"
+                      />
+                    </TableCell>
                     {visibleColumns.map(colId => {
                       const col = allColumns.find(c => c.id === colId);
                       return (
@@ -576,27 +654,30 @@ const Reports: React.FC = () => {
                         </TableCell>
                       );
                     })}
-                    <TableCell sx={{ fontWeight: 'bold' }} align="center">Reçu</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {transactions.map((transaction) => (
-                    <TableRow key={transaction.id} hover>
+                    <TableRow
+                      key={transaction.id}
+                      hover
+                      selected={selectedIds.has(transaction.id)}
+                      onClick={() => toggleSelect(transaction.id)}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          checked={selectedIds.has(transaction.id)}
+                          onChange={() => toggleSelect(transaction.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableCell>
                       {visibleColumns.map(colId => (
                         <TableCell key={colId}>
                           {renderCellValue(transaction, colId)}
                         </TableCell>
                       ))}
-                      <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          title="Imprimer le reçu client"
-                          onClick={() => openReceiptForTransaction(transaction)}
-                        >
-                          <PrintIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
                     </TableRow>
                   ))}
                   {transactions.length === 0 && (
@@ -761,11 +842,6 @@ const Reports: React.FC = () => {
           </Grid>
         )
       )}
-      <ClientReceiptDialog
-        open={clientReceiptOpen}
-        onClose={() => setClientReceiptOpen(false)}
-        data={clientReceiptData}
-      />
     </Layout>
   );
 };
