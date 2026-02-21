@@ -128,6 +128,10 @@ const Hotel: React.FC = () => {
   });
   const [newRoomLoading, setNewRoomLoading] = useState(false);
 
+  // Deposit reason dialog
+  const [depositReasonDialogOpen, setDepositReasonDialogOpen] = useState(false);
+  const [depositReason, setDepositReason] = useState('');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -193,14 +197,11 @@ const Hotel: React.FC = () => {
     }
   };
 
-  const handleCreateReservation = async () => {
-    if (!hasPermission('hotel', 'reservations')) {
-      setSnackbar({ open: true, message: 'Non autorisé', severity: 'error' });
-      return;
-    }
-
+  const doCreateReservation = async (reason?: string) => {
     try {
       setResLoading(true);
+      const extraNote = reason ? `Raison écart acompte: ${reason}` : '';
+      const finalNotes = [resForm.notes, extraNote].filter(Boolean).join('\n');
       await hotelApi.createReservation({
         room_id: resForm.room_id,
         client_name: resForm.client_name,
@@ -209,7 +210,7 @@ const Hotel: React.FC = () => {
         check_in: resForm.check_in,
         check_out: resForm.check_out,
         deposit_paid: resForm.deposit_paid || undefined,
-        notes: resForm.notes || undefined,
+        notes: finalNotes || undefined,
         cni_number: resForm.cni_number || undefined,
         origin_city: resForm.origin_city || undefined,
         destination_city: resForm.destination_city || undefined,
@@ -218,6 +219,7 @@ const Hotel: React.FC = () => {
       });
       setSnackbar({ open: true, message: 'Réservation créée - Chambre marquée comme occupée', severity: 'success' });
       setResDialogOpen(false);
+      setDepositReasonDialogOpen(false);
       fetchData();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
@@ -229,6 +231,26 @@ const Hotel: React.FC = () => {
     } finally {
       setResLoading(false);
     }
+  };
+
+  const handleCreateReservation = async () => {
+    if (!hasPermission('hotel', 'reservations')) {
+      setSnackbar({ open: true, message: 'Non autorisé', severity: 'error' });
+      return;
+    }
+
+    const selectedRoomNow = availableRooms.find(r => r.id === resForm.room_id);
+    const nights = resForm.check_in && resForm.check_out && resForm.check_in < resForm.check_out
+      ? Math.ceil((new Date(resForm.check_out).getTime() - new Date(resForm.check_in).getTime()) / 86400000) : 0;
+    const estimatedTotal = selectedRoomNow ? selectedRoomNow.price_per_night * nights : 0;
+
+    if (resForm.deposit_paid > 0 && estimatedTotal > 0 && resForm.deposit_paid < estimatedTotal) {
+      setDepositReason('');
+      setDepositReasonDialogOpen(true);
+      return;
+    }
+
+    await doCreateReservation();
   };
 
   const handleCheckIn = async (id: number) => {
@@ -351,6 +373,13 @@ const Hotel: React.FC = () => {
   };
 
   const summary = getReservationSummary();
+
+  // Valeurs calculées pour le formulaire de réservation
+  const resSelectedRoom = availableRooms.find(r => r.id === resForm.room_id);
+  const resNights = resForm.check_in && resForm.check_out && resForm.check_in < resForm.check_out
+    ? Math.ceil((new Date(resForm.check_out).getTime() - new Date(resForm.check_in).getTime()) / 86400000) : 0;
+  const resEstimatedTotal = resSelectedRoom ? resSelectedRoom.price_per_night * resNights : 0;
+  const resResteAPayer = resEstimatedTotal > 0 ? Math.max(0, resEstimatedTotal - resForm.deposit_paid) : 0;
 
   if (loading) {
     return (
@@ -952,6 +981,26 @@ const Hotel: React.FC = () => {
                 onChange={(e) => setResForm({ ...resForm, deposit_paid: Number(e.target.value) })}
               />
             </Grid>
+            {resEstimatedTotal > 0 && (
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 3, p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Total estimé ({resNights} nuit{resNights > 1 ? 's' : ''})
+                    </Typography>
+                    <Typography fontWeight="bold" color="primary">{formatCurrency(resEstimatedTotal)}</Typography>
+                  </Box>
+                  {resForm.deposit_paid > 0 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Reste à payer</Typography>
+                      <Typography fontWeight="bold" color={resResteAPayer > 0 ? 'error.main' : 'success.main'}>
+                        {resResteAPayer > 0 ? formatCurrency(resResteAPayer) : 'Soldé ✓'}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+            )}
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -979,6 +1028,39 @@ const Hotel: React.FC = () => {
             disabled={resLoading || !resForm.room_id || !resForm.client_name}
           >
             {resLoading ? <CircularProgress size={20} /> : 'Créer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog raison écart acompte - Hôtel */}
+      <Dialog open={depositReasonDialogOpen} onClose={() => setDepositReasonDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Raison de l'écart sur l'acompte</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2, mt: 1 }}>
+            Acompte versé : <strong>{formatCurrency(resForm.deposit_paid)}</strong> — Total estimé : <strong>{formatCurrency(resEstimatedTotal)}</strong>
+            <br />
+            Reste à payer : <strong>{formatCurrency(resResteAPayer)}</strong>
+          </Alert>
+          <TextField
+            fullWidth
+            label="Raison de l'écart (obligatoire)"
+            multiline
+            rows={3}
+            value={depositReason}
+            onChange={(e) => setDepositReason(e.target.value)}
+            placeholder="Ex: Le client paiera le solde à son arrivée..."
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDepositReasonDialogOpen(false)}>Annuler</Button>
+          <Button
+            onClick={() => doCreateReservation(depositReason)}
+            variant="contained"
+            color="warning"
+            disabled={resLoading || !depositReason.trim()}
+          >
+            {resLoading ? <CircularProgress size={20} /> : 'Confirmer et créer'}
           </Button>
         </DialogActions>
       </Dialog>

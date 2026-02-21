@@ -90,6 +90,10 @@ const Events: React.FC = () => {
   });
   const [formLoading, setFormLoading] = useState(false);
 
+  // Dialog raison écart acompte
+  const [depositReasonDialogOpen, setDepositReasonDialogOpen] = useState(false);
+  const [depositReason, setDepositReason] = useState('');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -107,19 +111,11 @@ const Events: React.FC = () => {
     }
   };
 
-  const handleCreateEvent = async () => {
-    if (!hasPermission('events', 'gestion')) {
-      setSnackbar({ open: true, message: 'Non autorise', severity: 'error' });
-      return;
-    }
-
-    if (!eventForm.name || !eventForm.client_name || !eventForm.event_date || !eventForm.space) {
-      setSnackbar({ open: true, message: 'Veuillez remplir tous les champs requis', severity: 'error' });
-      return;
-    }
-
+  const doCreateEvent = async (reason?: string) => {
     try {
       setFormLoading(true);
+      const extraNote = reason ? `Raison écart acompte: ${reason}` : '';
+      const finalDescription = [eventForm.description, extraNote].filter(Boolean).join('\n');
       await eventsApi.createEvent({
         name: eventForm.name,
         client_name: eventForm.client_name,
@@ -129,12 +125,13 @@ const Events: React.FC = () => {
         event_time: eventForm.event_time || undefined,
         space: eventForm.space as EventSpace,
         guest_count: eventForm.guest_count !== '' ? Number(eventForm.guest_count) : undefined,
-        description: eventForm.description || undefined,
+        description: finalDescription || undefined,
         price: eventForm.price !== '' ? Number(eventForm.price) : undefined,
         deposit_paid: eventForm.deposit_paid !== '' ? Number(eventForm.deposit_paid) : undefined
       });
       setSnackbar({ open: true, message: 'Evenement cree', severity: 'success' });
       setDialogOpen(false);
+      setDepositReasonDialogOpen(false);
       resetForm();
       fetchData();
     } catch (error: unknown) {
@@ -147,6 +144,28 @@ const Events: React.FC = () => {
     } finally {
       setFormLoading(false);
     }
+  };
+
+  const handleCreateEvent = async () => {
+    if (!hasPermission('events', 'gestion')) {
+      setSnackbar({ open: true, message: 'Non autorise', severity: 'error' });
+      return;
+    }
+
+    if (!eventForm.name || !eventForm.client_name || !eventForm.event_date || !eventForm.space) {
+      setSnackbar({ open: true, message: 'Veuillez remplir tous les champs requis', severity: 'error' });
+      return;
+    }
+
+    const price = eventForm.price !== '' ? Number(eventForm.price) : 0;
+    const deposit = eventForm.deposit_paid !== '' ? Number(eventForm.deposit_paid) : 0;
+    if (deposit > 0 && price > 0 && deposit < price) {
+      setDepositReason('');
+      setDepositReasonDialogOpen(true);
+      return;
+    }
+
+    await doCreateEvent();
   };
 
   const handleUpdateStatus = async (eventId: number, status: EventStatus) => {
@@ -489,6 +508,24 @@ const Events: React.FC = () => {
                 onChange={(e) => setEventForm({ ...eventForm, deposit_paid: e.target.value === '' ? '' : Number(e.target.value) })}
               />
             </Grid>
+            {eventForm.price !== '' && Number(eventForm.price) > 0 && eventForm.deposit_paid !== '' && Number(eventForm.deposit_paid) > 0 && (
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 3, p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Total</Typography>
+                    <Typography fontWeight="bold" color="primary">{formatCurrency(Number(eventForm.price))}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Reste à payer</Typography>
+                    <Typography fontWeight="bold" color={Number(eventForm.price) - Number(eventForm.deposit_paid) > 0 ? 'error.main' : 'success.main'}>
+                      {Number(eventForm.price) - Number(eventForm.deposit_paid) > 0
+                        ? formatCurrency(Number(eventForm.price) - Number(eventForm.deposit_paid))
+                        : 'Soldé ✓'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            )}
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -510,6 +547,39 @@ const Events: React.FC = () => {
             disabled={formLoading}
           >
             {formLoading ? <CircularProgress size={20} /> : 'Creer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog raison écart acompte - Événements */}
+      <Dialog open={depositReasonDialogOpen} onClose={() => setDepositReasonDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Raison de l'écart sur l'acompte</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2, mt: 1 }}>
+            Acompte versé : <strong>{eventForm.deposit_paid !== '' ? formatCurrency(Number(eventForm.deposit_paid)) : '0 FCFA'}</strong> — Total : <strong>{eventForm.price !== '' ? formatCurrency(Number(eventForm.price)) : '0 FCFA'}</strong>
+            <br />
+            Reste à payer : <strong>{eventForm.price !== '' && eventForm.deposit_paid !== '' ? formatCurrency(Number(eventForm.price) - Number(eventForm.deposit_paid)) : '0 FCFA'}</strong>
+          </Alert>
+          <TextField
+            fullWidth
+            label="Raison de l'écart (obligatoire)"
+            multiline
+            rows={3}
+            value={depositReason}
+            onChange={(e) => setDepositReason(e.target.value)}
+            placeholder="Ex: Le client paiera le solde le jour de l'événement..."
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDepositReasonDialogOpen(false)}>Annuler</Button>
+          <Button
+            onClick={() => doCreateEvent(depositReason)}
+            variant="contained"
+            color="warning"
+            disabled={formLoading || !depositReason.trim()}
+          >
+            {formLoading ? <CircularProgress size={20} /> : 'Confirmer et créer'}
           </Button>
         </DialogActions>
       </Dialog>
