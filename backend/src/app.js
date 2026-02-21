@@ -66,16 +66,23 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/receipts', receiptsRoutes);
 app.use('/api/reports', reportsRoutes);
 
-// Servir le frontend React (production)
+// Servir le frontend React si le dossier dist existe (mode local)
+const fs = require('fs');
 const frontendDist = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDist));
+const frontendIndex = path.join(frontendDist, 'index.html');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    if (fs.existsSync(frontendIndex)) {
+      res.sendFile(frontendIndex);
+    } else {
+      next();
+    }
+  });
+}
 
-// SPA catch-all: toutes les routes non-API renvoient index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendDist, 'index.html'));
-});
-
-// 404 handler (pour les routes /api non trouvees)
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,

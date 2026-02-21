@@ -122,6 +122,15 @@ const formatCurrency = (amount: number): string => {
 // Roles avec acces complet
 const FULL_ACCESS_ROLES = ['admin', 'gerant', 'responsable', 'directeur', 'maire'];
 
+// Mapping role -> module pour les employes
+const ROLE_MODULE_MAP: Record<string, string> = {
+  'maitre_nageur': 'piscine',
+  'serveuse': 'restaurant',
+  'serveur': 'restaurant',
+  'receptionniste': 'hotel',
+  'gestionnaire_events': 'events'
+};
+
 // Labels des modules
 const moduleLabels: Record<string, string> = {
   'piscine': 'Piscine',
@@ -144,6 +153,7 @@ const Reports: React.FC = () => {
   const [canFilterByUser, setCanFilterByUser] = useState(true);
   const [restrictedModule, setRestrictedModule] = useState<string | null>(null);
   const hasFullAccess = user ? FULL_ACCESS_ROLES.includes(user.role) : false;
+  const userRestrictedModule = user && !hasFullAccess ? (ROLE_MODULE_MAP[user.role] || null) : null;
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
@@ -641,16 +651,18 @@ const Reports: React.FC = () => {
                 <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                   <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Revenus par Module</Typography>
                   <Divider sx={{ mb: 1 }} />
-                  {Object.entries(summary.totals.revenue).map(([module, amount]) => (
-                    <Box key={module} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Chip
-                        label={module.charAt(0).toUpperCase() + module.slice(1)}
-                        size="small"
-                        sx={{ backgroundColor: `${moduleColors[module.charAt(0).toUpperCase() + module.slice(1)]}20` }}
-                      />
-                      <Typography variant="body2" fontWeight="bold">{formatCurrency(amount)}</Typography>
-                    </Box>
-                  ))}
+                  {Object.entries(summary.totals.revenue)
+                    .filter(([module]) => !userRestrictedModule || module === userRestrictedModule)
+                    .map(([module, amount]) => (
+                      <Box key={module} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                        <Chip
+                          label={moduleLabels[module] || module}
+                          size="small"
+                          sx={{ backgroundColor: `${moduleColors[moduleLabels[module] || module]}20` }}
+                        />
+                        <Typography variant="body2" fontWeight="bold">{formatCurrency(amount as number)}</Typography>
+                      </Box>
+                    ))}
                 </CardContent>
               </Card>
             </Grid>
@@ -662,16 +674,18 @@ const Reports: React.FC = () => {
                   <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Nombre de Transactions</Typography>
                   <Divider sx={{ mb: 1 }} />
                   <Grid container spacing={1}>
-                    {Object.entries(summary.counts).map(([key, count]) => (
-                      <Grid item xs={6} key={key}>
-                        <Box sx={{ textAlign: 'center', p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {key.charAt(0).toUpperCase() + key.slice(1)}
-                          </Typography>
-                          <Typography variant="body1" fontWeight="bold">{count}</Typography>
-                        </Box>
-                      </Grid>
-                    ))}
+                    {Object.entries(summary.counts)
+                      .filter(([key]) => !userRestrictedModule || key === userRestrictedModule || !['piscine','restaurant','hotel','events'].includes(key))
+                      .map(([key, count]) => (
+                        <Grid item xs={6} key={key}>
+                          <Box sx={{ textAlign: 'center', p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              {moduleLabels[key] || key.charAt(0).toUpperCase() + key.slice(1)}
+                            </Typography>
+                            <Typography variant="body1" fontWeight="bold">{count}</Typography>
+                          </Box>
+                        </Grid>
+                      ))}
                   </Grid>
                 </CardContent>
               </Card>
@@ -687,10 +701,10 @@ const Reports: React.FC = () => {
                       <TableHead>
                         <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                           <TableCell><strong>Date</strong></TableCell>
-                          <TableCell align="right"><strong>Piscine</strong></TableCell>
-                          <TableCell align="right"><strong>Restaurant</strong></TableCell>
-                          <TableCell align="right"><strong>Hotel</strong></TableCell>
-                          <TableCell align="right"><strong>Evenements</strong></TableCell>
+                          {(!userRestrictedModule || userRestrictedModule === 'piscine') && <TableCell align="right"><strong>Piscine</strong></TableCell>}
+                          {(!userRestrictedModule || userRestrictedModule === 'restaurant') && <TableCell align="right"><strong>Restaurant</strong></TableCell>}
+                          {(!userRestrictedModule || userRestrictedModule === 'hotel') && <TableCell align="right"><strong>Hotel</strong></TableCell>}
+                          {(!userRestrictedModule || userRestrictedModule === 'events') && <TableCell align="right"><strong>Evenements</strong></TableCell>}
                           <TableCell align="right"><strong>Total</strong></TableCell>
                         </TableRow>
                       </TableHead>
@@ -698,11 +712,11 @@ const Reports: React.FC = () => {
                         {summary.timeline.slice(-15).map((row) => (
                           <TableRow key={row.period} hover>
                             <TableCell>{row.period}</TableCell>
-                            <TableCell align="right">{formatCurrency(row.piscine)}</TableCell>
-                            <TableCell align="right">{formatCurrency(row.restaurant)}</TableCell>
-                            <TableCell align="right">{formatCurrency(row.hotel)}</TableCell>
-                            <TableCell align="right">{formatCurrency(row.events)}</TableCell>
-                            <TableCell align="right"><strong>{formatCurrency(row.total)}</strong></TableCell>
+                            {(!userRestrictedModule || userRestrictedModule === 'piscine') && <TableCell align="right">{formatCurrency(row.piscine)}</TableCell>}
+                            {(!userRestrictedModule || userRestrictedModule === 'restaurant') && <TableCell align="right">{formatCurrency(row.restaurant)}</TableCell>}
+                            {(!userRestrictedModule || userRestrictedModule === 'hotel') && <TableCell align="right">{formatCurrency(row.hotel)}</TableCell>}
+                            {(!userRestrictedModule || userRestrictedModule === 'events') && <TableCell align="right">{formatCurrency(row.events)}</TableCell>}
+                            <TableCell align="right"><strong>{formatCurrency(userRestrictedModule ? row[userRestrictedModule as keyof typeof row] as number : row.total)}</strong></TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

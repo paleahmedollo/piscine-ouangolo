@@ -7,26 +7,8 @@ const { hasRole } = require('../middlewares/rbac.middleware');
 router.use(authenticateToken);
 
 // =====================================================
-// EMPLOYEES ROUTES - Gerant, Admin, Directeur
-// =====================================================
-
-// GET /api/employees - Liste des employes
-router.get('/', hasRole('admin', 'directeur', 'gerant'), employeesController.getEmployees);
-
-// GET /api/employees/positions - Liste des postes
-router.get('/positions', hasRole('admin', 'directeur', 'gerant'), employeesController.getPositions);
-
-// GET /api/employees/:id - Details d'un employe
-router.get('/:id', hasRole('admin', 'directeur', 'gerant'), employeesController.getEmployee);
-
-// POST /api/employees - Creer un employe
-router.post('/', hasRole('admin', 'directeur', 'gerant'), employeesController.createEmployee);
-
-// PUT /api/employees/:id - Modifier un employe
-router.put('/:id', hasRole('admin', 'directeur', 'gerant'), employeesController.updateEmployee);
-
-// =====================================================
-// PAYROLL ROUTES - Admin et Directeur uniquement (pas le gerant)
+// PAYROLL ROUTES EN PREMIER (avant /:id pour eviter le conflit)
+// Admin et Directeur uniquement
 // =====================================================
 
 // GET /api/employees/payroll - Liste des paies
@@ -44,6 +26,23 @@ router.put('/payroll/:id/pay', hasRole('admin', 'directeur'), employeesControlle
 // DELETE /api/employees/payroll/:id - Annuler une paie
 router.delete('/payroll/:id', hasRole('admin', 'directeur'), employeesController.cancelPayroll);
 
-// Note: Route DELETE supprimee - utiliser la modification pour desactiver un employe
+// =====================================================
+// EMPLOYEES ROUTES - Gerant, Admin, Directeur
+// =====================================================
+
+// GET /api/employees - Liste des employes
+router.get('/', hasRole('admin', 'directeur', 'gerant'), employeesController.getEmployees);
+
+// GET /api/employees/positions - Liste des postes
+router.get('/positions', hasRole('admin', 'directeur', 'gerant'), employeesController.getPositions);
+
+// GET /api/employees/:id - Details d'un employe
+router.get('/:id', hasRole('admin', 'directeur', 'gerant'), employeesController.getEmployee);
+
+// POST /api/employees - Creer un employe
+router.post('/', hasRole('admin', 'directeur', 'gerant'), employeesController.createEmployee);
+
+// PUT /api/employees/:id - Modifier un employe
+router.put('/:id', hasRole('admin', 'directeur', 'gerant'), employeesController.updateEmployee);
 
 module.exports = router;
