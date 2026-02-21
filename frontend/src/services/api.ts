@@ -336,8 +336,26 @@ export const employeesApi = {
     full_name: string;
     position: string;
     phone?: string;
+    email?: string;
     hire_date?: string;
     base_salary?: number;
+    contract_type?: string;
+    end_contract_date?: string;
+    id_type?: string;
+    id_number?: string;
+    id_issue_date?: string;
+    id_expiry_date?: string;
+    id_issued_by?: string;
+    birth_date?: string;
+    birth_place?: string;
+    gender?: string;
+    nationality?: string;
+    address?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+    marital_status?: string;
+    dependents_count?: number;
+    notes?: string;
   }) => api.post('/employees', data),
   updateEmployee: (id: number, data: Record<string, unknown>) =>
     api.put(`/employees/${id}`, data),

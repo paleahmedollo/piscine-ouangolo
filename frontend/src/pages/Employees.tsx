@@ -44,8 +44,29 @@ interface Employee {
   full_name: string;
   position: string;
   phone: string;
+  email: string;
   hire_date: string;
   base_salary: number;
+  contract_type: string;
+  end_contract_date: string;
+  // Piece d'identite
+  id_type: string;
+  id_number: string;
+  id_issue_date: string;
+  id_expiry_date: string;
+  id_issued_by: string;
+  // Informations personnelles
+  birth_date: string;
+  birth_place: string;
+  gender: string;
+  nationality: string;
+  address: string;
+  // Contact d'urgence & Famille
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  marital_status: string;
+  dependents_count: number;
+  notes: string;
   is_active: boolean;
 }
 
@@ -122,8 +143,26 @@ const Employees: React.FC = () => {
     full_name: '',
     position: 'vigile',
     phone: '',
+    email: '',
     hire_date: new Date().toISOString().split('T')[0],
-    base_salary: 0
+    base_salary: 0,
+    contract_type: 'cdi',
+    end_contract_date: '',
+    id_type: '',
+    id_number: '',
+    id_issue_date: '',
+    id_expiry_date: '',
+    id_issued_by: '',
+    birth_date: '',
+    birth_place: '',
+    gender: '',
+    nationality: '',
+    address: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    marital_status: '',
+    dependents_count: 0,
+    notes: ''
   });
 
   const [payrollForm, setPayrollForm] = useState({
@@ -190,8 +229,26 @@ const Employees: React.FC = () => {
         full_name: employee.full_name,
         position: employee.position,
         phone: employee.phone || '',
+        email: employee.email || '',
         hire_date: employee.hire_date,
-        base_salary: employee.base_salary
+        base_salary: employee.base_salary,
+        contract_type: employee.contract_type || 'cdi',
+        end_contract_date: employee.end_contract_date || '',
+        id_type: employee.id_type || '',
+        id_number: employee.id_number || '',
+        id_issue_date: employee.id_issue_date || '',
+        id_expiry_date: employee.id_expiry_date || '',
+        id_issued_by: employee.id_issued_by || '',
+        birth_date: employee.birth_date || '',
+        birth_place: employee.birth_place || '',
+        gender: employee.gender || '',
+        nationality: employee.nationality || '',
+        address: employee.address || '',
+        emergency_contact_name: employee.emergency_contact_name || '',
+        emergency_contact_phone: employee.emergency_contact_phone || '',
+        marital_status: employee.marital_status || '',
+        dependents_count: employee.dependents_count || 0,
+        notes: employee.notes || ''
       });
     } else {
       setEditingEmployee(null);
@@ -199,8 +256,26 @@ const Employees: React.FC = () => {
         full_name: '',
         position: 'vigile',
         phone: '',
+        email: '',
         hire_date: new Date().toISOString().split('T')[0],
-        base_salary: 0
+        base_salary: 0,
+        contract_type: 'cdi',
+        end_contract_date: '',
+        id_type: '',
+        id_number: '',
+        id_issue_date: '',
+        id_expiry_date: '',
+        id_issued_by: '',
+        birth_date: '',
+        birth_place: '',
+        gender: '',
+        nationality: '',
+        address: '',
+        emergency_contact_name: '',
+        emergency_contact_phone: '',
+        marital_status: '',
+        dependents_count: 0,
+        notes: ''
       });
     }
     setOpenEmployeeDialog(true);
@@ -623,49 +698,278 @@ const Employees: React.FC = () => {
       </Card>
 
       {/* Dialog Employe */}
-      <Dialog open={openEmployeeDialog} onClose={() => setOpenEmployeeDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog open={openEmployeeDialog} onClose={() => setOpenEmployeeDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editingEmployee ? 'Modifier l\'employe' : 'Nouvel employe'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <DialogContent dividers>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+
+            {/* Section 1 : Informations professionnelles */}
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>
+              Informations professionnelles
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Nom complet"
+                  value={employeeForm.full_name}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, full_name: e.target.value })}
+                  fullWidth
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  label="Poste"
+                  value={employeeForm.position}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, position: e.target.value })}
+                  fullWidth
+                >
+                  {Object.entries(positionLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>{label}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Telephone"
+                  value={employeeForm.phone}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Email"
+                  type="email"
+                  value={employeeForm.email}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Date d'embauche"
+                  type="date"
+                  value={employeeForm.hire_date}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, hire_date: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Salaire de base (FCFA)"
+                  type="number"
+                  value={employeeForm.base_salary}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, base_salary: parseFloat(e.target.value) || 0 })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  label="Type de contrat"
+                  value={employeeForm.contract_type}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, contract_type: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value="cdi">CDI</MenuItem>
+                  <MenuItem value="cdd">CDD</MenuItem>
+                  <MenuItem value="saisonnier">Saisonnier</MenuItem>
+                  <MenuItem value="stage">Stage</MenuItem>
+                </TextField>
+              </Grid>
+              {(employeeForm.contract_type === 'cdd' || employeeForm.contract_type === 'stage' || employeeForm.contract_type === 'saisonnier') && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Date de fin de contrat"
+                    type="date"
+                    value={employeeForm.end_contract_date}
+                    onChange={(e) => setEmployeeForm({ ...employeeForm, end_contract_date: e.target.value })}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              )}
+            </Grid>
+
+            {/* Section 2 : Piece d'identite */}
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>
+              Piece d'identite
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  label="Type de piece"
+                  value={employeeForm.id_type}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, id_type: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value=""><em>Non renseigne</em></MenuItem>
+                  <MenuItem value="cni">Carte Nationale d'Identite (CNI)</MenuItem>
+                  <MenuItem value="passeport">Passeport</MenuItem>
+                  <MenuItem value="permis_sejour">Permis de sejour</MenuItem>
+                  <MenuItem value="acte_naissance">Acte de naissance</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Numero de la piece"
+                  value={employeeForm.id_number}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, id_number: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Date de delivrance"
+                  type="date"
+                  value={employeeForm.id_issue_date}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, id_issue_date: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Date d'expiration"
+                  type="date"
+                  value={employeeForm.id_expiry_date}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, id_expiry_date: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Delivre par (autorite / lieu)"
+                  value={employeeForm.id_issued_by}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, id_issued_by: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+
+            {/* Section 3 : Informations personnelles */}
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>
+              Informations personnelles
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Date de naissance"
+                  type="date"
+                  value={employeeForm.birth_date}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, birth_date: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Lieu de naissance"
+                  value={employeeForm.birth_place}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, birth_place: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  label="Sexe"
+                  value={employeeForm.gender}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, gender: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value=""><em>Non renseigne</em></MenuItem>
+                  <MenuItem value="M">Masculin</MenuItem>
+                  <MenuItem value="F">Feminin</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Nationalite"
+                  value={employeeForm.nationality}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, nationality: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Adresse domicile"
+                  value={employeeForm.address}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, address: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+            </Grid>
+
+            {/* Section 4 : Contact d'urgence & Famille */}
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>
+              Contact d'urgence & Situation familiale
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Nom contact d'urgence"
+                  value={employeeForm.emergency_contact_name}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, emergency_contact_name: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Tel. contact d'urgence"
+                  value={employeeForm.emergency_contact_phone}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, emergency_contact_phone: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  label="Situation matrimoniale"
+                  value={employeeForm.marital_status}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, marital_status: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value=""><em>Non renseigne</em></MenuItem>
+                  <MenuItem value="celibataire">Celibataire</MenuItem>
+                  <MenuItem value="marie">Marie(e)</MenuItem>
+                  <MenuItem value="divorce">Divorce(e)</MenuItem>
+                  <MenuItem value="veuf">Veuf / Veuve</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Nombre de personnes a charge"
+                  type="number"
+                  value={employeeForm.dependents_count}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, dependents_count: parseInt(e.target.value) || 0 })}
+                  fullWidth
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            </Grid>
+
+            {/* Section 5 : Notes */}
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>
+              Remarques internes
+            </Typography>
             <TextField
-              label="Nom complet"
-              value={employeeForm.full_name}
-              onChange={(e) => setEmployeeForm({ ...employeeForm, full_name: e.target.value })}
+              label="Notes"
+              value={employeeForm.notes}
+              onChange={(e) => setEmployeeForm({ ...employeeForm, notes: e.target.value })}
               fullWidth
-              required
+              multiline
+              rows={3}
+              placeholder="Observations, competences particulieres, historique..."
             />
-            <TextField
-              select
-              label="Poste"
-              value={employeeForm.position}
-              onChange={(e) => setEmployeeForm({ ...employeeForm, position: e.target.value })}
-              fullWidth
-            >
-              {Object.entries(positionLabels).map(([value, label]) => (
-                <MenuItem key={value} value={value}>{label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Telephone"
-              value={employeeForm.phone}
-              onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Date d'embauche"
-              type="date"
-              value={employeeForm.hire_date}
-              onChange={(e) => setEmployeeForm({ ...employeeForm, hire_date: e.target.value })}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              label="Salaire de base (FCFA)"
-              type="number"
-              value={employeeForm.base_salary}
-              onChange={(e) => setEmployeeForm({ ...employeeForm, base_salary: parseFloat(e.target.value) || 0 })}
-              fullWidth
-            />
+
           </Box>
         </DialogContent>
         <DialogActions>

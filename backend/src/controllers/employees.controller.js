@@ -100,7 +100,15 @@ const getEmployee = async (req, res) => {
  */
 const createEmployee = async (req, res) => {
   try {
-    const { full_name, position, phone, hire_date, base_salary } = req.body;
+    const {
+      full_name, position, phone, email, hire_date, base_salary,
+      contract_type, end_contract_date,
+      id_type, id_number, id_issue_date, id_expiry_date, id_issued_by,
+      birth_date, birth_place, gender, nationality, address,
+      emergency_contact_name, emergency_contact_phone,
+      marital_status, dependents_count,
+      notes
+    } = req.body;
 
     if (!full_name || !position) {
       return res.status(400).json({
@@ -113,8 +121,16 @@ const createEmployee = async (req, res) => {
       full_name,
       position,
       phone,
+      email,
       hire_date: hire_date || new Date(),
       base_salary: base_salary || 0,
+      contract_type: contract_type || 'cdi',
+      end_contract_date,
+      id_type, id_number, id_issue_date, id_expiry_date, id_issued_by,
+      birth_date, birth_place, gender, nationality, address,
+      emergency_contact_name, emergency_contact_phone,
+      marital_status, dependents_count: dependents_count || 0,
+      notes,
       is_active: true
     });
 
@@ -147,16 +163,44 @@ const updateEmployee = async (req, res) => {
       });
     }
 
-    const { full_name, position, phone, hire_date, base_salary, is_active } = req.body;
+    const {
+      full_name, position, phone, email, hire_date, base_salary, is_active,
+      contract_type, end_contract_date,
+      id_type, id_number, id_issue_date, id_expiry_date, id_issued_by,
+      birth_date, birth_place, gender, nationality, address,
+      emergency_contact_name, emergency_contact_phone,
+      marital_status, dependents_count,
+      notes
+    } = req.body;
 
-    await employee.update({
+    const updateData = {
       full_name: full_name || employee.full_name,
       position: position || employee.position,
       phone: phone !== undefined ? phone : employee.phone,
+      email: email !== undefined ? email : employee.email,
       hire_date: hire_date || employee.hire_date,
       base_salary: base_salary !== undefined ? base_salary : employee.base_salary,
-      is_active: is_active !== undefined ? is_active : employee.is_active
-    });
+      is_active: is_active !== undefined ? is_active : employee.is_active,
+      contract_type: contract_type !== undefined ? contract_type : employee.contract_type,
+      end_contract_date: end_contract_date !== undefined ? end_contract_date : employee.end_contract_date,
+      id_type: id_type !== undefined ? id_type : employee.id_type,
+      id_number: id_number !== undefined ? id_number : employee.id_number,
+      id_issue_date: id_issue_date !== undefined ? id_issue_date : employee.id_issue_date,
+      id_expiry_date: id_expiry_date !== undefined ? id_expiry_date : employee.id_expiry_date,
+      id_issued_by: id_issued_by !== undefined ? id_issued_by : employee.id_issued_by,
+      birth_date: birth_date !== undefined ? birth_date : employee.birth_date,
+      birth_place: birth_place !== undefined ? birth_place : employee.birth_place,
+      gender: gender !== undefined ? gender : employee.gender,
+      nationality: nationality !== undefined ? nationality : employee.nationality,
+      address: address !== undefined ? address : employee.address,
+      emergency_contact_name: emergency_contact_name !== undefined ? emergency_contact_name : employee.emergency_contact_name,
+      emergency_contact_phone: emergency_contact_phone !== undefined ? emergency_contact_phone : employee.emergency_contact_phone,
+      marital_status: marital_status !== undefined ? marital_status : employee.marital_status,
+      dependents_count: dependents_count !== undefined ? dependents_count : employee.dependents_count,
+      notes: notes !== undefined ? notes : employee.notes
+    };
+
+    await employee.update(updateData);
 
     res.json({
       success: true,
