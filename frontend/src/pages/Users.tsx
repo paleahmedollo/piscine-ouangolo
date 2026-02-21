@@ -29,8 +29,7 @@ import {
   Edit as EditIcon,
   Lock as LockIcon,
   CheckCircle,
-  Cancel,
-  DeleteForever as DeleteIcon
+  Cancel
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import { usersApi } from '../services/api';
@@ -92,10 +91,6 @@ const Users: React.FC = () => {
     role: 'serveuse'
   });
   const [newPassword, setNewPassword] = useState('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingUser, setDeletingUser] = useState<User | null>(null);
-
-  const isAhmed = currentUser?.username === 'ahmedpiscine';
 
   const fetchUsers = async () => {
     try {
@@ -192,20 +187,6 @@ const Users: React.FC = () => {
       setNewPassword('');
     } catch (err) {
       setError('Erreur lors de la reinitialisation du mot de passe');
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!deletingUser) return;
-    try {
-      await usersApi.deleteUser(deletingUser.id);
-      setSuccess(`Compte "${deletingUser.full_name}" supprimé définitivement`);
-      setDeleteDialogOpen(false);
-      setDeletingUser(null);
-      fetchUsers();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
 
@@ -322,17 +303,6 @@ const Users: React.FC = () => {
                               {user.is_active ? <Cancel /> : <CheckCircle />}
                             </IconButton>
                           </Tooltip>
-                          {isAhmed && user.id !== currentUser?.id && (
-                            <Tooltip title="Supprimer définitivement">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => { setDeletingUser(user); setDeleteDialogOpen(true); }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
-                          )}
                         </>
                       ) : (
                         <Typography variant="caption" color="text.secondary">
@@ -432,21 +402,6 @@ const Users: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog confirmation suppression définitive */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Supprimer définitivement</DialogTitle>
-        <DialogContent>
-          <Alert severity="error" sx={{ mt: 1 }}>
-            Vous allez supprimer définitivement le compte de <strong>{deletingUser?.full_name}</strong> ({deletingUser?.username}). Cette action est irréversible.
-          </Alert>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-          <Button onClick={handleDeleteUser} variant="contained" color="error" startIcon={<DeleteIcon />}>
-            Supprimer définitivement
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Layout>
   );
 };

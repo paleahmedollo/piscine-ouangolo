@@ -16,13 +16,4 @@ router.put('/:id', isGerant, usersController.updateUser);
 router.put('/:id/password', isGerant, usersController.resetPassword);
 router.put('/:id/toggle-active', isGerant, usersController.toggleActive);
 
-// Suppression définitive — réservée uniquement à ahmedpiscine
-const onlyAhmed = (req, res, next) => {
-  if (req.user.username !== 'ahmedpiscine') {
-    return res.status(403).json({ success: false, message: 'Action réservée au super-administrateur uniquement' });
-  }
-  next();
-};
-router.delete('/:id', onlyAhmed, usersController.deleteUser);
-
 module.exports = router;
