@@ -144,6 +144,38 @@ const createDefaultGerant = async () => {
   }
 };
 
+// Run database migrations (safe - IF NOT EXISTS)
+const runMigrations = async () => {
+  try {
+    const migrations = [
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS email VARCHAR(255)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_type VARCHAR(50) DEFAULT 'cdi'`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS end_contract_date DATE`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS id_type VARCHAR(50)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS id_number VARCHAR(100)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS id_issue_date DATE`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS id_expiry_date DATE`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS id_issued_by VARCHAR(255)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS birth_date DATE`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS birth_place VARCHAR(255)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS nationality VARCHAR(100) DEFAULT 'Ivoirienne'`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS address TEXT`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(50)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS marital_status VARCHAR(50)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS dependents_count INTEGER DEFAULT 0`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS notes TEXT`
+    ];
+    for (const sql of migrations) {
+      await sequelize.query(sql);
+    }
+    console.log('✅ Migrations employees appliquées');
+  } catch (error) {
+    console.error('Erreur migration:', error.message);
+  }
+};
+
 // Start server
 const startServer = async () => {
   try {
@@ -157,6 +189,9 @@ const startServer = async () => {
     } else {
       console.log('✅ Production mode - skipping sync');
     }
+
+    // Run migrations
+    await runMigrations();
 
     // Create default accounts
     await createDefaultAdmin();
