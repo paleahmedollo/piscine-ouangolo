@@ -1181,36 +1181,14 @@ ${payroll.notes ? `<div class="section">
                 <strong>{selectedPayroll.employee?.full_name}</strong><br />
                 Période : <strong>{monthNames[selectedPayroll.period_month - 1]} {selectedPayroll.period_year}</strong>
               </Alert>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-                <TextField
-                  label="Salaire de base"
-                  value={formatCurrency(selectedPayroll.base_salary)}
-                  disabled
-                  fullWidth
-                  size="small"
-                />
-                <TextField
-                  label="Bonus / Prime"
-                  value={`+ ${formatCurrency(selectedPayroll.bonus)}`}
-                  disabled
-                  fullWidth
-                  size="small"
-                />
-                <TextField
-                  label="Retenues / Déductions"
-                  value={`- ${formatCurrency(selectedPayroll.deductions)}`}
-                  disabled
-                  fullWidth
-                  size="small"
-                />
-                <TextField
-                  label="NET À PAYER"
-                  value={formatCurrency(selectedPayroll.net_salary)}
-                  disabled
-                  fullWidth
-                  InputProps={{ sx: { fontWeight: 'bold', color: 'primary.main' } }}
-                />
-              </Box>
+              <TextField
+                label="Salaire de base"
+                value={formatCurrency(selectedPayroll.base_salary)}
+                disabled
+                fullWidth
+                size="small"
+                sx={{ mb: 2 }}
+              />
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
                   select
