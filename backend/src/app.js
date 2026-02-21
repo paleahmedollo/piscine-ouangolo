@@ -99,10 +99,9 @@ const createDefaultAdmin = async () => {
   const bcrypt = require('bcryptjs');
 
   try {
-    // TEMPORARY RESET - force reset admin password
-    const hashedPassword = await bcrypt.hash('Admin2024', 10);
     const existingAdmin = await User.findOne({ where: { username: 'admin' } });
     if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
       await User.create({
         username: 'admin',
         password_hash: hashedPassword,
@@ -110,10 +109,7 @@ const createDefaultAdmin = async () => {
         role: 'admin',
         is_active: true
       }, { hooks: false });
-      console.log('✅ Compte admin créé (username: admin, password: Admin2024)');
-    } else {
-      await User.update({ password_hash: hashedPassword }, { where: { username: 'admin' }, hooks: false });
-      console.log('✅ Mot de passe admin réinitialisé (Admin2024)');
+      console.log('✅ Compte admin par défaut créé (username: admin, password: admin123)');
     }
   } catch (error) {
     console.error('Erreur lors de la création du compte admin:', error);
