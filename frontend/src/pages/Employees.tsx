@@ -751,7 +751,7 @@ ${payroll.notes ? `<div class="section">
               </Box>
 
               <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
+                <Table size="small" sx={{ '& .MuiTableCell-root': { py: 0.5, px: 1 } }}>
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                       <TableCell><strong>Employe</strong></TableCell>
