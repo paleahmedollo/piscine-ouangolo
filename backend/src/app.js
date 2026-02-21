@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { sequelize, testConnection } = require('./config/database');
 
 // Import routes
@@ -65,7 +66,16 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/receipts', receiptsRoutes);
 app.use('/api/reports', reportsRoutes);
 
-// 404 handler
+// Servir le frontend React (production)
+const frontendDist = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDist));
+
+// SPA catch-all: toutes les routes non-API renvoient index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
+
+// 404 handler (pour les routes /api non trouvees)
 app.use((req, res) => {
   res.status(404).json({
     success: false,
