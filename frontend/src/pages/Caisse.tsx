@@ -129,6 +129,18 @@ const Caisse: React.FC = () => {
     fetchData();
   }, []);
 
+  // Auto-refresh des clotures en attente pour le gerant (toutes les 30 sec)
+  useEffect(() => {
+    if (!hasPermission('caisse', 'validation')) return;
+    const interval = setInterval(async () => {
+      try {
+        const pendingRes = await caisseApi.getPendingCashRegisters();
+        setPendingRegisters(pendingRes.data.data);
+      } catch { /* silencieux */ }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -356,56 +368,65 @@ const Caisse: React.FC = () => {
         </Box>
       )}
 
-      {/* Pending Validations (Directeur) */}
-      {hasPermission('caisse', 'validation') && pendingRegisters.length > 0 && (
-        <Card sx={{ mb: 1.5 }}>
+      {/* Pending Validations - toujours visible pour le gerant */}
+      {hasPermission('caisse', 'validation') && (
+        <Card sx={{ mb: 1.5, border: pendingRegisters.length > 0 ? '2px solid #ff9800' : '1px solid #e0e0e0' }}>
           <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Typography variant="h6" gutterBottom color="warning.main">
-              Clotures en attente de validation ({pendingRegisters.length})
-            </Typography>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                    <TableCell><strong>Date</strong></TableCell>
-                    <TableCell><strong>Module</strong></TableCell>
-                    <TableCell><strong>Employe</strong></TableCell>
-                    <TableCell align="right"><strong>Attendu</strong></TableCell>
-                    <TableCell align="right"><strong>Reel</strong></TableCell>
-                    <TableCell align="right"><strong>Ecart</strong></TableCell>
-                    <TableCell align="center"><strong>Actions</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {pendingRegisters.map((reg) => (
-                    <TableRow key={reg.id} sx={{ backgroundColor: getDifferenceBgColor(reg.difference) }}>
-                      <TableCell>{new Date(reg.date).toLocaleDateString('fr-FR')}</TableCell>
-                      <TableCell>{moduleLabels[reg.module]}</TableCell>
-                      <TableCell>{reg.user?.full_name}</TableCell>
-                      <TableCell align="right">{formatCurrency(reg.expected_amount)}</TableCell>
-                      <TableCell align="right">{formatCurrency(reg.actual_amount)}</TableCell>
-                      <TableCell align="right">
-                        <Typography fontWeight="bold" color={getDifferenceColor(reg.difference)}>
-                          {reg.difference >= 0 ? '+' : ''}{formatCurrency(reg.difference)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="Valider">
-                          <IconButton color="success" onClick={() => handleValidate(reg.id, 'validee')}>
-                            <ValidateIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Rejeter">
-                          <IconButton color="error" onClick={() => handleValidate(reg.id, 'rejetee')}>
-                            <RejectIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6" color={pendingRegisters.length > 0 ? 'warning.main' : 'text.secondary'}>
+                {pendingRegisters.length > 0
+                  ? `⚠️ ${pendingRegisters.length} cloture(s) en attente de validation`
+                  : 'Validations des clotures'}
+              </Typography>
+              {pendingRegisters.length === 0 && (
+                <Typography variant="body2" color="text.secondary">Aucune cloture en attente</Typography>
+              )}
+            </Box>
+            {pendingRegisters.length > 0 && (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#fff3e0' }}>
+                      <TableCell><strong>Date</strong></TableCell>
+                      <TableCell><strong>Module</strong></TableCell>
+                      <TableCell><strong>Employe</strong></TableCell>
+                      <TableCell align="right"><strong>Attendu</strong></TableCell>
+                      <TableCell align="right"><strong>Reel</strong></TableCell>
+                      <TableCell align="right"><strong>Ecart</strong></TableCell>
+                      <TableCell align="center"><strong>Actions</strong></TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {pendingRegisters.map((reg) => (
+                      <TableRow key={reg.id} sx={{ backgroundColor: getDifferenceBgColor(reg.difference) }}>
+                        <TableCell>{new Date(reg.date).toLocaleDateString('fr-FR')}</TableCell>
+                        <TableCell>{moduleLabels[reg.module]}</TableCell>
+                        <TableCell><strong>{reg.user?.full_name}</strong></TableCell>
+                        <TableCell align="right">{formatCurrency(reg.expected_amount)}</TableCell>
+                        <TableCell align="right">{formatCurrency(reg.actual_amount)}</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="bold" color={getDifferenceColor(reg.difference)}>
+                            {reg.difference >= 0 ? '+' : ''}{formatCurrency(reg.difference)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Valider et imprimer le recu">
+                            <IconButton color="success" onClick={() => handleValidate(reg.id, 'validee')}>
+                              <ValidateIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Rejeter">
+                            <IconButton color="error" onClick={() => handleValidate(reg.id, 'rejetee')}>
+                              <RejectIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </CardContent>
         </Card>
       )}
@@ -451,7 +472,7 @@ const Caisse: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell align="center">
-                      {reg.status === 'validee' && (
+                      {reg.status === 'validee' && hasPermission('caisse', 'validation') && (
                         <Tooltip title="Imprimer le recu">
                           <IconButton
                             size="small"
