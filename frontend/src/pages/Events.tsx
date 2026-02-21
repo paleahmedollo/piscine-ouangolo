@@ -32,7 +32,6 @@ import {
   AttachMoney,
   CheckCircle as DoneIcon
 } from '@mui/icons-material';
-import { IconButton, Tooltip } from '@mui/material';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { eventsApi } from '../services/api';
@@ -185,20 +184,15 @@ const Events: React.FC = () => {
     }
   };
 
-  // Bouton "Terminer" dédié — même procédé que le Check-out Hôtel
+  // Bouton "Terminer" dédié — ouvre TOUJOURS le dialog (avec ou sans solde)
   const handleTerminate = (ev: Event) => {
     const price = parseFloat(String(ev.price || 0));
     const deposit = parseFloat(String(ev.deposit_paid || 0));
     const remaining = price - deposit;
-    if (price > 0 && remaining > 0) {
-      setSoldeEvent({ id: ev.id, price, deposit_paid: deposit, name: ev.name, client_name: ev.client_name });
-      setSoldePayment(remaining);
-      setSoldeNotes('');
-      setSoldeDialogOpen(true);
-    } else {
-      // Déjà soldé ou pas de prix → terminer directement
-      doTerminate(ev.id);
-    }
+    setSoldeEvent({ id: ev.id, price, deposit_paid: deposit, name: ev.name, client_name: ev.client_name });
+    setSoldePayment(remaining > 0 ? remaining : 0);
+    setSoldeNotes('');
+    setSoldeDialogOpen(true);
   };
 
   const doTerminate = async (eventId: number, paymentAmount?: number, paymentNotes?: string) => {
@@ -379,9 +373,9 @@ const Events: React.FC = () => {
                       </TableCell>
                       {hasPermission('events', 'gestion') && (
                         <TableCell align="center">
-                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', alignItems: 'center' }}>
-                            {/* Dropdown pour les changements de statut hors "terminé" */}
-                            <FormControl size="small" sx={{ minWidth: 100 }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'center' }}>
+                            {/* Dropdown pour les changements de statut courants */}
+                            <FormControl size="small" sx={{ minWidth: 110 }}>
                               <Select
                                 value={event.status}
                                 onChange={(e) => handleUpdateStatus(event.id, e.target.value as EventStatus)}
@@ -392,18 +386,17 @@ const Events: React.FC = () => {
                                 <MenuItem value="annule">Annule</MenuItem>
                               </Select>
                             </FormControl>
-                            {/* Bouton Terminer dédié — déclenche le dialog de solde si nécessaire */}
-                            {(event.status === 'en_cours' || event.status === 'confirme') && (
-                              <Tooltip title={reste > 0 ? `Terminer — Reste ${formatCurrency(reste)} à encaisser` : 'Terminer (soldé)'}>
-                                <IconButton
-                                  color="success"
-                                  size="small"
-                                  onClick={() => handleTerminate(event)}
-                                >
-                                  <DoneIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
+                            {/* Bouton TERMINER visible — toujours disponible pour les événements actifs */}
+                            <Button
+                              variant="contained"
+                              color={reste > 0 ? 'warning' : 'success'}
+                              size="small"
+                              startIcon={<DoneIcon />}
+                              onClick={() => handleTerminate(event)}
+                              sx={{ width: '100%', fontSize: '0.75rem' }}
+                            >
+                              {reste > 0 ? 'Terminer (solde dû)' : 'Terminer'}
+                            </Button>
                           </Box>
                         </TableCell>
                       )}
@@ -627,51 +620,79 @@ const Events: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog paiement du solde — Terminer événement */}
+      {/* Dialog clôture événement — toujours affiché au clic sur "Terminer" */}
       <Dialog open={soldeDialogOpen} onClose={() => setSoldeDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Paiement du solde — Clôture événement</DialogTitle>
+        <DialogTitle>Clôture de l'événement</DialogTitle>
         <DialogContent>
           {soldeEvent && (() => {
             const remaining = soldeEvent.price - soldeEvent.deposit_paid;
+            const dejaRegle = remaining <= 0;
             const ecart = soldePayment - remaining;
-            const hasEcart = soldePayment !== remaining;
+            const hasEcart = !dejaRegle && soldePayment !== remaining;
             return (
               <>
-                <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
-                  Événement : <strong>{soldeEvent.name}</strong><br />
-                  Client : <strong>{soldeEvent.client_name}</strong><br />
-                  Prix total : <strong>{formatCurrency(soldeEvent.price)}</strong><br />
-                  Acompte déjà versé : <strong>{formatCurrency(soldeEvent.deposit_paid)}</strong><br />
-                  <Typography component="span" fontWeight="bold" color="error.main">
-                    Reste à payer : {formatCurrency(remaining)}
+                {/* Résumé financier */}
+                <Box sx={{ p: 2, backgroundColor: '#f5f5f5', borderRadius: 1, mb: 2, mt: 1 }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                    {soldeEvent.name} — {soldeEvent.client_name}
                   </Typography>
-                </Alert>
-                <TextField
-                  fullWidth
-                  label="Montant encaissé (FCFA)"
-                  type="number"
-                  value={soldePayment}
-                  onChange={(e) => setSoldePayment(Number(e.target.value))}
-                  sx={{ mb: 2 }}
-                  inputProps={{ min: 0 }}
-                />
-                {hasEcart && (
-                  <Alert severity={ecart < 0 ? 'error' : 'warning'} sx={{ mb: 2 }}>
-                    {ecart < 0
-                      ? `Manque : ${formatCurrency(Math.abs(ecart))} — Justification obligatoire`
-                      : `Surplus : ${formatCurrency(ecart)} — Justification obligatoire`}
-                  </Alert>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary">Prix total</Typography>
+                    <Typography variant="body2" fontWeight="bold">{soldeEvent.price > 0 ? formatCurrency(soldeEvent.price) : 'Non renseigné'}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary">Acompte versé</Typography>
+                    <Typography variant="body2" fontWeight="bold" color="success.main">{formatCurrency(soldeEvent.deposit_paid)}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">Reste à payer</Typography>
+                    <Typography variant="body2" fontWeight="bold" color={dejaRegle ? 'success.main' : 'error.main'}>
+                      {dejaRegle ? 'Soldé ✓' : formatCurrency(remaining)}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Cas 1 : solde restant → encaisser */}
+                {!dejaRegle && (
+                  <>
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      ⚠️ Le client n'a pas encore tout réglé. Il reste <strong>{formatCurrency(remaining)}</strong> à encaisser avant de clôturer.
+                    </Alert>
+                    <TextField
+                      fullWidth
+                      label="Montant encaissé maintenant (FCFA)"
+                      type="number"
+                      value={soldePayment}
+                      onChange={(e) => setSoldePayment(Number(e.target.value))}
+                      sx={{ mb: 2 }}
+                      inputProps={{ min: 0 }}
+                    />
+                    {hasEcart && soldePayment >= 0 && (
+                      <Alert severity={ecart < 0 ? 'error' : 'info'} sx={{ mb: 2 }}>
+                        {ecart < 0
+                          ? `Manque encore : ${formatCurrency(Math.abs(ecart))} — Justification obligatoire`
+                          : `Surplus encaissé : ${formatCurrency(ecart)} — Justification obligatoire`}
+                      </Alert>
+                    )}
+                    {hasEcart && (
+                      <TextField
+                        fullWidth
+                        label="Justification de l'écart (obligatoire)"
+                        multiline
+                        rows={2}
+                        value={soldeNotes}
+                        onChange={(e) => setSoldeNotes(e.target.value)}
+                        placeholder="Ex: Le client paiera le reste la semaine prochaine..."
+                      />
+                    )}
+                  </>
                 )}
-                {hasEcart && (
-                  <TextField
-                    fullWidth
-                    label="Remarque / justification de l'écart (obligatoire)"
-                    multiline
-                    rows={2}
-                    value={soldeNotes}
-                    onChange={(e) => setSoldeNotes(e.target.value)}
-                    placeholder="Ex: Le client paiera le reste la semaine prochaine..."
-                  />
+
+                {/* Cas 2 : déjà soldé → simple confirmation */}
+                {dejaRegle && (
+                  <Alert severity="success">
+                    Cet événement est entièrement soldé. Confirmez-vous la clôture ?
+                  </Alert>
                 )}
               </>
             );
@@ -683,19 +704,26 @@ const Events: React.FC = () => {
             onClick={() => {
               if (!soldeEvent) return;
               const remaining = soldeEvent.price - soldeEvent.deposit_paid;
-              const hasEcart = soldePayment !== remaining;
+              const dejaRegle = remaining <= 0;
+              const hasEcart = !dejaRegle && soldePayment !== remaining;
               if (hasEcart && !soldeNotes.trim()) return;
-              doTerminate(soldeEvent.id, soldePayment, soldeNotes || undefined);
+              doTerminate(
+                soldeEvent.id,
+                !dejaRegle && soldePayment > 0 ? soldePayment : undefined,
+                soldeNotes || undefined
+              );
             }}
             variant="contained"
-            color="primary"
+            color="success"
             disabled={soldeLoading || (() => {
               if (!soldeEvent) return true;
               const remaining = soldeEvent.price - soldeEvent.deposit_paid;
-              return soldePayment !== remaining && !soldeNotes.trim();
+              const dejaRegle = remaining <= 0;
+              const hasEcart = !dejaRegle && soldePayment !== remaining;
+              return hasEcart && !soldeNotes.trim();
             })()}
           >
-            {soldeLoading ? <CircularProgress size={20} /> : 'Confirmer et terminer'}
+            {soldeLoading ? <CircularProgress size={20} /> : 'Confirmer et clôturer'}
           </Button>
         </DialogActions>
       </Dialog>
