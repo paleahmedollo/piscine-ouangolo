@@ -147,6 +147,8 @@ export interface Event {
   guest_count?: number;
   description?: string;
   status: EventStatus;
+  price?: number;
+  deposit_paid?: number;
   user_id: number;
   created_at: string;
   user?: User;

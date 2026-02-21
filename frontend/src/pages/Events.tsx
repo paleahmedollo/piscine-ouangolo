@@ -27,7 +27,12 @@ import {
   TableRow,
   Divider
 } from '@mui/material';
-import { Add as AddIcon, AttachMoney } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  AttachMoney,
+  CheckCircle as DoneIcon
+} from '@mui/icons-material';
+import { IconButton, Tooltip } from '@mui/material';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { eventsApi } from '../services/api';
@@ -61,15 +66,9 @@ const statusLabels: Record<EventStatus, string> = {
   annule: 'Annule'
 };
 
-// Extension du type Event pour inclure price et deposit_paid
-interface EventWithPrice extends Event {
-  price?: number;
-  deposit_paid?: number;
-}
-
 const Events: React.FC = () => {
   const { hasPermission } = useAuth();
-  const [events, setEvents] = useState<EventWithPrice[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
@@ -175,45 +174,59 @@ const Events: React.FC = () => {
     await doCreateEvent();
   };
 
+  // Changement de statut simple (dropdown — sans "terminé")
   const handleUpdateStatus = async (eventId: number, status: EventStatus) => {
-    // Interception avant "terminé" si solde restant
-    if (status === 'termine') {
-      const ev = events.find(e => e.id === eventId);
-      if (ev) {
-        const price = parseFloat(String(ev.price || 0));
-        const deposit = parseFloat(String(ev.deposit_paid || 0));
-        const remaining = price - deposit;
-        if (price > 0 && remaining > 0) {
-          setSoldeEvent({ id: ev.id, price, deposit_paid: deposit, name: ev.name, client_name: ev.client_name });
-          setSoldePayment(remaining);
-          setSoldeNotes('');
-          setSoldeDialogOpen(true);
-          return;
-        }
-      }
-    }
-    await doUpdateStatus(eventId, status);
-  };
-
-  const doUpdateStatus = async (eventId: number, status: EventStatus, paymentAmount?: number, paymentNotes?: string) => {
     try {
-      setSoldeLoading(true);
-      // Si paiement du solde → mettre à jour deposit_paid et notes avant de terminer
-      if (paymentAmount !== undefined && paymentAmount > 0 && soldeEvent) {
-        const newDeposit = soldeEvent.deposit_paid + paymentAmount;
-        const extraNote = paymentNotes ? `[Solde final] ${paymentNotes}` : '';
-        await eventsApi.updateEvent(eventId, {
-          deposit_paid: newDeposit,
-          ...(extraNote ? { description: extraNote } : {})
-        });
-      }
       await eventsApi.updateEventStatus(eventId, status);
       setSnackbar({ open: true, message: 'Statut mis a jour', severity: 'success' });
+      fetchData();
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Erreur', severity: 'error' });
+    }
+  };
+
+  // Bouton "Terminer" dédié — même procédé que le Check-out Hôtel
+  const handleTerminate = (ev: Event) => {
+    const price = parseFloat(String(ev.price || 0));
+    const deposit = parseFloat(String(ev.deposit_paid || 0));
+    const remaining = price - deposit;
+    if (price > 0 && remaining > 0) {
+      setSoldeEvent({ id: ev.id, price, deposit_paid: deposit, name: ev.name, client_name: ev.client_name });
+      setSoldePayment(remaining);
+      setSoldeNotes('');
+      setSoldeDialogOpen(true);
+    } else {
+      // Déjà soldé ou pas de prix → terminer directement
+      doTerminate(ev.id);
+    }
+  };
+
+  const doTerminate = async (eventId: number, paymentAmount?: number, paymentNotes?: string) => {
+    try {
+      setSoldeLoading(true);
+      // Enregistrer le paiement du solde si fourni
+      if (paymentAmount !== undefined && paymentAmount > 0) {
+        const ev = events.find(e => e.id === eventId);
+        if (ev) {
+          const currentDeposit = parseFloat(String(ev.deposit_paid || 0));
+          const newDeposit = currentDeposit + paymentAmount;
+          const updateData: Record<string, unknown> = { deposit_paid: newDeposit };
+          if (paymentNotes) {
+            const existingDesc = ev.description || '';
+            updateData.description = existingDesc
+              ? `${existingDesc}\n[Solde final] ${paymentNotes}`
+              : `[Solde final] ${paymentNotes}`;
+          }
+          await eventsApi.updateEvent(eventId, updateData);
+        }
+      }
+      await eventsApi.updateEventStatus(eventId, 'termine');
+      setSnackbar({ open: true, message: 'Evenement termine et solde enregistre', severity: 'success' });
       setSoldeDialogOpen(false);
       setSoldeEvent(null);
       fetchData();
     } catch (error) {
-      setSnackbar({ open: true, message: 'Erreur', severity: 'error' });
+      setSnackbar({ open: true, message: 'Erreur lors de la cloture', severity: 'error' });
     } finally {
       setSoldeLoading(false);
     }
@@ -235,7 +248,8 @@ const Events: React.FC = () => {
     });
   };
 
-  const upcomingEvents = events.filter(e => ['demande', 'confirme'].includes(e.status));
+  // Tous les événements actifs (demande, confirmé, en cours)
+  const activeEvents = events.filter(e => ['demande', 'confirme', 'en_cours'].includes(e.status));
 
   // Calculer le resume financier
   const getSummary = () => {
@@ -265,8 +279,8 @@ const Events: React.FC = () => {
         <Grid item xs={6} md={3}>
           <Card>
             <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-              <Typography color="text.secondary" gutterBottom variant="body2">Evenements a venir</Typography>
-              <Typography variant="h5" fontWeight="bold">{upcomingEvents.length}</Typography>
+              <Typography color="text.secondary" gutterBottom variant="body2">Evenements actifs</Typography>
+              <Typography variant="h5" fontWeight="bold">{activeEvents.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -304,9 +318,9 @@ const Events: React.FC = () => {
         )}
       </Box>
 
-      {/* Upcoming Events */}
+      {/* Événements actifs */}
       <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>
-        Evenements a venir
+        Evenements actifs
       </Typography>
       <Card sx={{ mb: 1.5 }}>
         <CardContent>
@@ -318,66 +332,87 @@ const Events: React.FC = () => {
                   <TableCell><strong>Evenement</strong></TableCell>
                   <TableCell><strong>Client</strong></TableCell>
                   <TableCell><strong>Espace</strong></TableCell>
-                  <TableCell><strong>Invites</strong></TableCell>
                   <TableCell align="right"><strong>Prix</strong></TableCell>
                   <TableCell align="right"><strong>Acompte</strong></TableCell>
+                  <TableCell align="right"><strong>Reste</strong></TableCell>
                   <TableCell><strong>Statut</strong></TableCell>
-                  {hasPermission('events', 'gestion') && <TableCell><strong>Actions</strong></TableCell>}
+                  {hasPermission('events', 'gestion') && <TableCell align="center"><strong>Actions</strong></TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {upcomingEvents.map((event) => (
-                  <TableRow key={event.id} hover>
-                    <TableCell>
-                      {new Date(event.event_date).toLocaleDateString('fr-FR')}
-                      {event.event_time && ` ${event.event_time.slice(0, 5)}`}
-                    </TableCell>
-                    <TableCell>
-                      <Typography fontWeight="medium">{event.name}</Typography>
-                      {event.description && (
-                        <Typography variant="caption" color="text.secondary">
-                          {event.description.substring(0, 50)}...
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {event.client_name}
-                      {event.client_phone && (
-                        <Typography variant="caption" display="block">{event.client_phone}</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>{spaceLabels[event.space]}</TableCell>
-                    <TableCell>{event.guest_count || '-'}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                      {event.price ? formatCurrency(event.price) : '-'}
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'success.main' }}>
-                      {event.deposit_paid ? formatCurrency(event.deposit_paid) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={statusLabels[event.status]} color={statusColors[event.status]} size="small" />
-                    </TableCell>
-                    {hasPermission('events', 'gestion') && (
+                {activeEvents.map((event) => {
+                  const price = parseFloat(String(event.price || 0));
+                  const deposit = parseFloat(String(event.deposit_paid || 0));
+                  const reste = price - deposit;
+                  return (
+                    <TableRow key={event.id} hover sx={{
+                      backgroundColor: event.status === 'en_cours' ? '#e8f5e9' : 'inherit'
+                    }}>
                       <TableCell>
-                        <FormControl size="small" sx={{ minWidth: 120 }}>
-                          <Select
-                            value={event.status}
-                            onChange={(e) => handleUpdateStatus(event.id, e.target.value as EventStatus)}
-                          >
-                            <MenuItem value="demande">Demande</MenuItem>
-                            <MenuItem value="confirme">Confirme</MenuItem>
-                            <MenuItem value="en_cours">En cours</MenuItem>
-                            <MenuItem value="termine">Termine</MenuItem>
-                            <MenuItem value="annule">Annule</MenuItem>
-                          </Select>
-                        </FormControl>
+                        {new Date(event.event_date).toLocaleDateString('fr-FR')}
+                        {event.event_time && (
+                          <Typography variant="caption" display="block">{event.event_time.slice(0, 5)}</Typography>
+                        )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-                {upcomingEvents.length === 0 && (
+                      <TableCell>
+                        <Typography fontWeight="medium">{event.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{event.client_phone}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography fontWeight="medium">{event.client_name}</Typography>
+                        {event.guest_count && (
+                          <Typography variant="caption" color="text.secondary">{event.guest_count} invités</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>{spaceLabels[event.space]}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                        {price > 0 ? formatCurrency(price) : '-'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: 'success.main' }}>
+                        {deposit > 0 ? formatCurrency(deposit) : '-'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', color: reste > 0 ? 'error.main' : 'success.main' }}>
+                        {price > 0 ? (reste > 0 ? formatCurrency(reste) : 'Soldé ✓') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={statusLabels[event.status]} color={statusColors[event.status]} size="small" />
+                      </TableCell>
+                      {hasPermission('events', 'gestion') && (
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', alignItems: 'center' }}>
+                            {/* Dropdown pour les changements de statut hors "terminé" */}
+                            <FormControl size="small" sx={{ minWidth: 100 }}>
+                              <Select
+                                value={event.status}
+                                onChange={(e) => handleUpdateStatus(event.id, e.target.value as EventStatus)}
+                              >
+                                <MenuItem value="demande">Demande</MenuItem>
+                                <MenuItem value="confirme">Confirme</MenuItem>
+                                <MenuItem value="en_cours">En cours</MenuItem>
+                                <MenuItem value="annule">Annule</MenuItem>
+                              </Select>
+                            </FormControl>
+                            {/* Bouton Terminer dédié — déclenche le dialog de solde si nécessaire */}
+                            {(event.status === 'en_cours' || event.status === 'confirme') && (
+                              <Tooltip title={reste > 0 ? `Terminer — Reste ${formatCurrency(reste)} à encaisser` : 'Terminer (soldé)'}>
+                                <IconButton
+                                  color="success"
+                                  size="small"
+                                  onClick={() => handleTerminate(event)}
+                                >
+                                  <DoneIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Box>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+                {activeEvents.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">Aucun evenement a venir</TableCell>
+                    <TableCell colSpan={9} align="center" sx={{ py: 4 }}>Aucun evenement actif</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -592,7 +627,7 @@ const Events: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog solde final avant Terminé */}
+      {/* Dialog paiement du solde — Terminer événement */}
       <Dialog open={soldeDialogOpen} onClose={() => setSoldeDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Paiement du solde — Clôture événement</DialogTitle>
         <DialogContent>
@@ -635,7 +670,7 @@ const Events: React.FC = () => {
                     rows={2}
                     value={soldeNotes}
                     onChange={(e) => setSoldeNotes(e.target.value)}
-                    placeholder="Ex: Le client a réglé 90%, reste 10 000 FCFA..."
+                    placeholder="Ex: Le client paiera le reste la semaine prochaine..."
                   />
                 )}
               </>
@@ -650,7 +685,7 @@ const Events: React.FC = () => {
               const remaining = soldeEvent.price - soldeEvent.deposit_paid;
               const hasEcart = soldePayment !== remaining;
               if (hasEcart && !soldeNotes.trim()) return;
-              doUpdateStatus(soldeEvent.id, 'termine', soldePayment, soldeNotes || undefined);
+              doTerminate(soldeEvent.id, soldePayment, soldeNotes || undefined);
             }}
             variant="contained"
             color="primary"
