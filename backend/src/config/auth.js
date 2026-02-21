@@ -49,7 +49,7 @@ module.exports = {
     caisse: {
       cloture_propre: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur'],
       validation: ['gerant', 'admin', 'directeur'],
-      lecture: ['gerant', 'admin', 'responsable', 'directeur', 'maire']
+      lecture: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
     },
     dashboard: {
       complet: ['gerant', 'admin', 'directeur'],
