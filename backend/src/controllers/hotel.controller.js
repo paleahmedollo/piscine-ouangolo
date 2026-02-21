@@ -535,6 +535,15 @@ const checkOut = async (req, res) => {
       });
     }
 
+    // Paiement du solde au checkout (optionnel)
+    const { payment_amount, payment_notes } = req.body || {};
+    if (payment_amount && parseFloat(payment_amount) > 0) {
+      reservation.deposit_paid = parseFloat(reservation.deposit_paid || 0) + parseFloat(payment_amount);
+    }
+    if (payment_notes) {
+      reservation.notes = [reservation.notes, `[Solde checkout] ${payment_notes}`].filter(Boolean).join('\n');
+    }
+
     reservation.status = 'terminee';
     await reservation.save();
 
@@ -546,7 +555,8 @@ const checkOut = async (req, res) => {
 
     await logAction(req, 'CHECKOUT', 'hotel', 'reservation', reservation.id, {
       total_price: reservation.total_price,
-      deposit_paid: reservation.deposit_paid
+      deposit_paid: reservation.deposit_paid,
+      payment_at_checkout: payment_amount || 0
     });
 
     res.json({

@@ -128,9 +128,16 @@ const Hotel: React.FC = () => {
   });
   const [newRoomLoading, setNewRoomLoading] = useState(false);
 
-  // Deposit reason dialog
+  // Deposit reason dialog (création)
   const [depositReasonDialogOpen, setDepositReasonDialogOpen] = useState(false);
   const [depositReason, setDepositReason] = useState('');
+
+  // Checkout payment dialog (solde restant)
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [checkoutReservation, setCheckoutReservation] = useState<{ id: number; total_price: number; deposit_paid: number; client_name: string } | null>(null);
+  const [checkoutPaymentAmount, setCheckoutPaymentAmount] = useState<number>(0);
+  const [checkoutNotes, setCheckoutNotes] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -263,13 +270,43 @@ const Hotel: React.FC = () => {
     }
   };
 
-  const handleCheckOut = async (id: number) => {
+  const handleCheckOut = (id: number) => {
+    const reservation = allReservations.find(r => r.id === id);
+    if (!reservation) return;
+
+    const remaining = reservation.total_price - (reservation.deposit_paid || 0);
+    if (remaining > 0) {
+      // Il reste quelque chose à payer → ouvrir le dialog
+      setCheckoutReservation({
+        id: reservation.id,
+        total_price: reservation.total_price,
+        deposit_paid: reservation.deposit_paid || 0,
+        client_name: reservation.client_name
+      });
+      setCheckoutPaymentAmount(remaining);
+      setCheckoutNotes('');
+      setCheckoutDialogOpen(true);
+    } else {
+      // Solde déjà réglé → checkout direct
+      doCheckOut(id);
+    }
+  };
+
+  const doCheckOut = async (id: number, paymentAmount?: number, paymentNotes?: string) => {
     try {
-      await hotelApi.checkOut(id);
+      setCheckoutLoading(true);
+      await hotelApi.checkOut(id, {
+        payment_amount: paymentAmount && paymentAmount > 0 ? paymentAmount : undefined,
+        payment_notes: paymentNotes || undefined
+      });
       setSnackbar({ open: true, message: 'Check-out effectué', severity: 'success' });
+      setCheckoutDialogOpen(false);
+      setCheckoutReservation(null);
       fetchData();
     } catch (error) {
       setSnackbar({ open: true, message: 'Erreur lors du check-out', severity: 'error' });
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -1028,6 +1065,79 @@ const Hotel: React.FC = () => {
             disabled={resLoading || !resForm.room_id || !resForm.client_name}
           >
             {resLoading ? <CircularProgress size={20} /> : 'Créer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog paiement solde au checkout */}
+      <Dialog open={checkoutDialogOpen} onClose={() => setCheckoutDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Paiement du solde — Check-out</DialogTitle>
+        <DialogContent>
+          {checkoutReservation && (() => {
+            const remaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
+            const ecart = checkoutPaymentAmount - remaining;
+            const hasEcart = checkoutPaymentAmount !== remaining;
+            return (
+              <>
+                <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
+                  Client : <strong>{checkoutReservation.client_name}</strong><br />
+                  Total séjour : <strong>{formatCurrency(checkoutReservation.total_price)}</strong><br />
+                  Acompte déjà versé : <strong>{formatCurrency(checkoutReservation.deposit_paid)}</strong><br />
+                  <Typography component="span" fontWeight="bold" color="error.main">
+                    Reste à payer : {formatCurrency(remaining)}
+                  </Typography>
+                </Alert>
+                <TextField
+                  fullWidth
+                  label="Montant encaissé (FCFA)"
+                  type="number"
+                  value={checkoutPaymentAmount}
+                  onChange={(e) => setCheckoutPaymentAmount(Number(e.target.value))}
+                  sx={{ mb: 2 }}
+                  inputProps={{ min: 0 }}
+                />
+                {hasEcart && (
+                  <Alert severity={ecart < 0 ? 'error' : 'warning'} sx={{ mb: 2 }}>
+                    {ecart < 0
+                      ? `Manque : ${formatCurrency(Math.abs(ecart))} — Justification obligatoire`
+                      : `Surplus : ${formatCurrency(ecart)} — Justification obligatoire`}
+                  </Alert>
+                )}
+                {hasEcart && (
+                  <TextField
+                    fullWidth
+                    label="Remarque / justification de l'écart (obligatoire)"
+                    multiline
+                    rows={2}
+                    value={checkoutNotes}
+                    onChange={(e) => setCheckoutNotes(e.target.value)}
+                    placeholder="Ex: Le client a payé en 2 fois, reste 5 000 FCFA à régulariser..."
+                  />
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCheckoutDialogOpen(false)}>Annuler</Button>
+          <Button
+            onClick={() => {
+              if (!checkoutReservation) return;
+              const remaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
+              const hasEcart = checkoutPaymentAmount !== remaining;
+              if (hasEcart && !checkoutNotes.trim()) return;
+              doCheckOut(checkoutReservation.id, checkoutPaymentAmount, checkoutNotes || undefined);
+            }}
+            variant="contained"
+            color="primary"
+            disabled={checkoutLoading || (() => {
+              if (!checkoutReservation) return true;
+              const remaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
+              const hasEcart = checkoutPaymentAmount !== remaining;
+              return hasEcart && !checkoutNotes.trim();
+            })()}
+          >
+            {checkoutLoading ? <CircularProgress size={20} /> : 'Confirmer le check-out'}
           </Button>
         </DialogActions>
       </Dialog>

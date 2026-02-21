@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { CashRegister, User, Ticket, Sale, Reservation, Quote } = require('../models');
+const { CashRegister, User, Ticket, Sale, Reservation, Event, Quote } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 const { generateReceipt } = require('./receipts.controller');
 
@@ -62,14 +62,14 @@ const calculateExpectedAmount = async (module, date, userId = null) => {
       break;
 
     case 'events':
-      const quotes = await Quote.findAll({
+      const eventRecords = await Event.findAll({
         where: {
-          created_at: { [Op.between]: [startOfDay, endOfDay] },
+          ...whereClause,
           deposit_paid: { [Op.gt]: 0 }
         }
       });
-      quotes.forEach(q => {
-        total += parseFloat(q.deposit_paid || 0);
+      eventRecords.forEach(e => {
+        total += parseFloat(e.deposit_paid || 0);
         count++;
       });
       break;
