@@ -267,6 +267,7 @@ export const usersApi = {
   resetPassword: (id: number, newPassword: string) =>
     api.put(`/users/${id}/password`, { new_password: newPassword }),
   toggleActive: (id: number) => api.put(`/users/${id}/toggle-active`),
+  deleteUser: (id: number) => api.delete(`/users/${id}`),
   getRoles: () => api.get('/users/roles')
 };
 

@@ -353,7 +353,7 @@ const toggleActive = async (req, res) => {
 
 /**
  * DELETE /api/users/:id
- * Supprimer un utilisateur (soft delete via is_active)
+ * Suppression définitive — réservée à ahmedpiscine uniquement (vérifié dans la route)
  */
 const deleteUser = async (req, res) => {
   try {
@@ -369,25 +369,26 @@ const deleteUser = async (req, res) => {
     if (user.id === req.user.id) {
       return res.status(400).json({
         success: false,
-        message: 'Vous ne pouvez pas vous supprimer vous-même'
+        message: 'Vous ne pouvez pas supprimer votre propre compte'
       });
     }
 
-    // Soft delete
-    user.is_active = false;
-    await user.save();
+    const deletedInfo = { username: user.username, full_name: user.full_name, role: user.role };
 
-    await logAction(req, 'DELETE_USER', 'users', 'user', user.id);
+    await logAction(req, 'DELETE_USER', 'users', 'user', user.id, deletedInfo);
+
+    // Suppression définitive
+    await user.destroy();
 
     res.json({
       success: true,
-      message: 'Utilisateur supprimé'
+      message: `Compte "${deletedInfo.full_name}" supprimé définitivement`
     });
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la suppression'
+      message: 'Erreur lors de la suppression. Des données liées à ce compte existent peut-être.'
     });
   }
 };
