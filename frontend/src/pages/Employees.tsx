@@ -34,7 +34,8 @@ import {
   CheckCircle,
   Cancel,
   People,
-  AttachMoney
+  AttachMoney,
+  Print as PrintIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import { employeesApi } from '../services/api';
@@ -462,6 +463,119 @@ const Employees: React.FC = () => {
     }
   };
 
+  const printPayroll = (payroll: Payroll) => {
+    const employee = payroll.employee;
+    const periodLabel = `${monthNames[payroll.period_month - 1]} ${payroll.period_year}`;
+    const paymentMethodLabel: Record<string, string> = {
+      especes: 'Espèces',
+      virement: 'Virement bancaire',
+      cheque: 'Chèque'
+    };
+    const statusLabel = payroll.status === 'paye' ? 'PAYÉ' : payroll.status === 'annule' ? 'ANNULÉ' : 'EN ATTENTE';
+
+    const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Bulletin de salaire — ${employee?.full_name} — ${periodLabel}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #111; background: #fff; padding: 24px; }
+  .header { text-align: center; border-bottom: 3px double #1976d2; padding-bottom: 12px; margin-bottom: 16px; }
+  .header h1 { font-size: 18px; color: #1976d2; letter-spacing: 1px; }
+  .header h2 { font-size: 14px; color: #555; margin-top: 4px; }
+  .badge { display: inline-block; background: ${payroll.status === 'paye' ? '#e8f5e9' : payroll.status === 'annule' ? '#ffebee' : '#fff8e1'}; color: ${payroll.status === 'paye' ? '#2e7d32' : payroll.status === 'annule' ? '#c62828' : '#e65100'}; border: 1px solid ${payroll.status === 'paye' ? '#a5d6a7' : payroll.status === 'annule' ? '#ef9a9a' : '#ffcc02'}; padding: 3px 12px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-top: 8px; }
+  .section { margin-bottom: 14px; }
+  .section-title { font-size: 11px; font-weight: bold; color: #1976d2; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; margin-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
+  .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee; }
+  .row:last-child { border-bottom: none; }
+  .row.total { border-top: 2px solid #1976d2; border-bottom: 2px solid #1976d2; padding: 8px 0; margin-top: 4px; background: #f0f7ff; }
+  .row label { color: #555; }
+  .row span { font-weight: bold; }
+  .row.total label, .row.total span { font-size: 15px; color: #1976d2; }
+  .row.green span { color: #2e7d32; }
+  .row.red span { color: #c62828; }
+  .info-item { margin-bottom: 4px; }
+  .info-item label { color: #666; font-size: 11px; display: block; }
+  .info-item span { font-weight: bold; }
+  .footer { margin-top: 24px; border-top: 1px solid #ccc; padding-top: 10px; display: flex; justify-content: space-between; font-size: 11px; color: #777; }
+  @media print {
+    body { padding: 8px; }
+    @page { margin: 12mm; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>PISCINE DE OUANGOLO</h1>
+  <h2>BULLETIN DE SALAIRE — ${periodLabel.toUpperCase()}</h2>
+  <div class="badge">${statusLabel}</div>
+</div>
+
+<div class="section">
+  <div class="section-title">Informations employé</div>
+  <div class="grid">
+    <div class="info-item"><label>Nom complet</label><span>${employee?.full_name || '-'}</span></div>
+    <div class="info-item"><label>Poste</label><span>${positionLabels[employee?.position || ''] || employee?.position || '-'}</span></div>
+    <div class="info-item"><label>Téléphone</label><span>${employee?.phone || '-'}</span></div>
+    <div class="info-item"><label>Période</label><span>${periodLabel}</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Détail du salaire</div>
+  <div class="row">
+    <label>Salaire de base</label>
+    <span>${new Intl.NumberFormat('fr-FR').format(payroll.base_salary)} FCFA</span>
+  </div>
+  <div class="row green">
+    <label>Bonus / Prime</label>
+    <span>+ ${new Intl.NumberFormat('fr-FR').format(payroll.bonus)} FCFA</span>
+  </div>
+  <div class="row red">
+    <label>Retenues / Déductions</label>
+    <span>- ${new Intl.NumberFormat('fr-FR').format(payroll.deductions)} FCFA</span>
+  </div>
+  <div class="row total">
+    <label>NET À PAYER</label>
+    <span>${new Intl.NumberFormat('fr-FR').format(payroll.net_salary)} FCFA</span>
+  </div>
+</div>
+
+${payroll.status === 'paye' ? `<div class="section">
+  <div class="section-title">Paiement effectué</div>
+  <div class="row">
+    <label>Mode de paiement</label>
+    <span>${paymentMethodLabel[payroll.payment_method] || payroll.payment_method || '-'}</span>
+  </div>
+  <div class="row">
+    <label>Date de paiement</label>
+    <span>${payroll.payment_date ? new Date(payroll.payment_date).toLocaleDateString('fr-FR') : '-'}</span>
+  </div>
+</div>` : ''}
+
+${payroll.notes ? `<div class="section">
+  <div class="section-title">Notes</div>
+  <p>${payroll.notes}</p>
+</div>` : ''}
+
+<div class="footer">
+  <span>Imprimé le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+  <span>Piscine de Ouangolo — Gestion RH</span>
+</div>
+
+<script>window.onload = function() { window.print(); };<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=700,height=900');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
   if (loading) {
     return (
       <Layout title="Gestion des Employes">
@@ -682,10 +796,15 @@ const Employees: React.FC = () => {
                             </>
                           )}
                           {payroll.status === 'paye' && (
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" component="span">
                               {payroll.payment_date ? new Date(payroll.payment_date).toLocaleDateString('fr-FR') : ''}
                             </Typography>
                           )}
+                          <Tooltip title="Imprimer le bulletin">
+                            <IconButton size="small" color="info" onClick={() => printPayroll(payroll)}>
+                              <PrintIcon />
+                            </IconButton>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     ))}
