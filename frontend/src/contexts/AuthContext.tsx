@@ -71,7 +71,7 @@ const moduleAccess: Record<string, UserRole[]> = {
   caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur'],
   dashboard: ['gerant', 'admin', 'responsable', 'directeur', 'maire'],
   users: ['gerant', 'admin'],  // Gerant et admin
-  employees: ['admin', 'directeur'],  // Seul admin peut gerer la paie (directeur en lecture)
+  employees: ['admin', 'directeur', 'gerant'],  // Admin/directeur pour la paie, gerant pour la gestion
   expenses: ['gerant', 'admin', 'directeur'],
   reports: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
 };
