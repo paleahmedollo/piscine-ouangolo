@@ -64,11 +64,11 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 // DIRECTEUR/RESPONSABLE/MAIRE = lecture seule (tous les rapports)
 // Employes (maitre_nageur, serveur, receptionniste, gestionnaire_events) = leur module + leurs propres transactions
 const moduleAccess: Record<string, UserRole[]> = {
-  piscine: ['maitre_nageur', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
-  restaurant: ['serveuse', 'serveur', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
-  hotel: ['receptionniste', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
-  events: ['gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
-  caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur', 'maire'],
+  piscine: ['maitre_nageur', 'gerant', 'admin', 'directeur', 'maire'],
+  restaurant: ['serveuse', 'serveur', 'gerant', 'admin', 'directeur', 'maire'],
+  hotel: ['receptionniste', 'gerant', 'admin', 'directeur', 'maire'],
+  events: ['gestionnaire_events', 'gerant', 'admin', 'directeur', 'maire'],
+  caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur'],
   dashboard: ['gerant', 'admin', 'responsable', 'directeur', 'maire'],
   users: ['gerant', 'admin'],  // Gerant et admin
   employees: ['admin', 'directeur'],  // Seul admin peut gerer la paie (directeur en lecture)

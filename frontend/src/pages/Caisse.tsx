@@ -54,6 +54,14 @@ const moduleLabels: Record<CashRegisterModule, string> = {
   events: 'Evenements'
 };
 
+const roleAbbr: Record<string, string> = {
+  maitre_nageur: 'MN',
+  serveuse: 'SV',
+  serveur: 'SV',
+  receptionniste: 'REC',
+  gestionnaire_events: 'GE'
+};
+
 const statusColors: Record<string, 'warning' | 'success' | 'error'> = {
   en_attente: 'warning',
   validee: 'success',
@@ -508,11 +516,7 @@ const Caisse: React.FC = () => {
                   ) : (
                     moduleEmployees.map((emp) => (
                       <MenuItem key={emp.id} value={emp.id}>
-                        {emp.full_name} ({emp.role === 'maitre_nageur' ? 'Maitre-nageur' :
-                          emp.role === 'serveuse' ? 'Serveuse' :
-                          emp.role === 'serveur' ? 'Serveur' :
-                          emp.role === 'receptionniste' ? 'Receptionniste' :
-                          emp.role === 'gestionnaire_events' ? 'Gest. Events' : emp.role})
+                        <strong>{roleAbbr[emp.role] || emp.role}</strong>&nbsp;/ {emp.full_name}
                       </MenuItem>
                     ))
                   )}
