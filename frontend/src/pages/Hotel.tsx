@@ -46,6 +46,7 @@ import {
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
+import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { hotelApi } from '../services/api';
 import { Room, Reservation, RoomStatus } from '../types';
@@ -73,7 +74,9 @@ const statusLabels: Record<string, string> = {
 };
 
 const Hotel: React.FC = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const [clientReceiptOpen, setClientReceiptOpen] = useState(false);
+  const [clientReceiptData, setClientReceiptData] = useState<ClientReceiptData | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [, setReservations] = useState<Reservation[]>([]); // reservations en_cours (non utilise directement)
@@ -295,6 +298,8 @@ const Hotel: React.FC = () => {
   const doCheckOut = async (id: number, paymentAmount?: number, paymentNotes?: string) => {
     try {
       setCheckoutLoading(true);
+      // Capturer les données de la réservation AVANT fetchData
+      const res = allReservations.find(r => r.id === id);
       await hotelApi.checkOut(id, {
         payment_amount: paymentAmount && paymentAmount > 0 ? paymentAmount : undefined,
         payment_notes: paymentNotes || undefined
@@ -302,6 +307,24 @@ const Hotel: React.FC = () => {
       setSnackbar({ open: true, message: 'Check-out effectué', severity: 'success' });
       setCheckoutDialogOpen(false);
       setCheckoutReservation(null);
+      // Ouvrir le reçu client (gérant/admin uniquement)
+      if (res && hasPermission('caisse', 'validation')) {
+        setClientReceiptData({
+          type: 'hotel',
+          clientName: res.client_name,
+          clientPhone: res.client_phone || undefined,
+          roomNumber: res.room?.number || '',
+          roomType: res.room?.type || '',
+          checkIn: res.check_in,
+          checkOut: res.check_out,
+          nights: res.nights,
+          totalPrice: res.total_price,
+          depositPaid: res.deposit_paid || 0,
+          soldePaid: paymentAmount || 0,
+          cashierName: user?.full_name || user?.username || 'Caissier'
+        });
+        setClientReceiptOpen(true);
+      }
       fetchData();
     } catch (error) {
       setSnackbar({ open: true, message: 'Erreur lors du check-out', severity: 'error' });
@@ -1174,6 +1197,12 @@ const Hotel: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ClientReceiptDialog
+        open={clientReceiptOpen}
+        onClose={() => setClientReceiptOpen(false)}
+        data={clientReceiptData}
+      />
 
       <Snackbar
         open={snackbar.open}

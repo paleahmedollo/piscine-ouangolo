@@ -33,6 +33,7 @@ import {
   CheckCircle as DoneIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
+import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { eventsApi } from '../services/api';
 import { Event, EventSpace, EventStatus } from '../types';
@@ -66,7 +67,9 @@ const statusLabels: Record<EventStatus, string> = {
 };
 
 const Events: React.FC = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const [clientReceiptOpen, setClientReceiptOpen] = useState(false);
+  const [clientReceiptData, setClientReceiptData] = useState<ClientReceiptData | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
@@ -198,26 +201,43 @@ const Events: React.FC = () => {
   const doTerminate = async (eventId: number, paymentAmount?: number, paymentNotes?: string) => {
     try {
       setSoldeLoading(true);
+      // Capturer les données de l'événement AVANT fetchData
+      const ev = events.find(e => e.id === eventId);
       // Enregistrer le paiement du solde si fourni
-      if (paymentAmount !== undefined && paymentAmount > 0) {
-        const ev = events.find(e => e.id === eventId);
-        if (ev) {
-          const currentDeposit = parseFloat(String(ev.deposit_paid || 0));
-          const newDeposit = currentDeposit + paymentAmount;
-          const updateData: Record<string, unknown> = { deposit_paid: newDeposit };
-          if (paymentNotes) {
-            const existingDesc = ev.description || '';
-            updateData.description = existingDesc
-              ? `${existingDesc}\n[Solde final] ${paymentNotes}`
-              : `[Solde final] ${paymentNotes}`;
-          }
-          await eventsApi.updateEvent(eventId, updateData);
+      if (paymentAmount !== undefined && paymentAmount > 0 && ev) {
+        const currentDeposit = parseFloat(String(ev.deposit_paid || 0));
+        const newDeposit = currentDeposit + paymentAmount;
+        const updateData: Record<string, unknown> = { deposit_paid: newDeposit };
+        if (paymentNotes) {
+          const existingDesc = ev.description || '';
+          updateData.description = existingDesc
+            ? `${existingDesc}\n[Solde final] ${paymentNotes}`
+            : `[Solde final] ${paymentNotes}`;
         }
+        await eventsApi.updateEvent(eventId, updateData);
       }
       await eventsApi.updateEventStatus(eventId, 'termine');
       setSnackbar({ open: true, message: 'Evenement termine et solde enregistre', severity: 'success' });
       setSoldeDialogOpen(false);
       setSoldeEvent(null);
+      // Ouvrir le reçu client (gérant/admin uniquement)
+      if (ev && hasPermission('caisse', 'validation')) {
+        const depositBefore = parseFloat(String(ev.deposit_paid || 0));
+        setClientReceiptData({
+          type: 'event',
+          clientName: ev.client_name,
+          clientPhone: ev.client_phone || undefined,
+          eventName: ev.name,
+          eventDate: ev.event_date,
+          space: spaceLabels[ev.space],
+          guestCount: ev.guest_count || undefined,
+          price: parseFloat(String(ev.price || 0)),
+          depositPaid: depositBefore,
+          soldePaid: paymentAmount || 0,
+          cashierName: user?.full_name || user?.username || 'Caissier'
+        });
+        setClientReceiptOpen(true);
+      }
       fetchData();
     } catch (error) {
       setSnackbar({ open: true, message: 'Erreur lors de la cloture', severity: 'error' });
@@ -760,6 +780,12 @@ const Events: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ClientReceiptDialog
+        open={clientReceiptOpen}
+        onClose={() => setClientReceiptOpen(false)}
+        data={clientReceiptData}
+      />
 
       <Snackbar
         open={snackbar.open}

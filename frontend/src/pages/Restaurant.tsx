@@ -36,10 +36,12 @@ import {
 import {
   ShoppingCart,
   Add as AddIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
+import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { restaurantApi } from '../services/api';
 import { MenuItem as MenuItemType, Sale, MenuCategory } from '../types';
@@ -74,7 +76,9 @@ const categoryLabels: Record<MenuCategory, string> = {
 const quantities = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 const Restaurant: React.FC = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const [clientReceiptOpen, setClientReceiptOpen] = useState(false);
+  const [clientReceiptData, setClientReceiptData] = useState<ClientReceiptData | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [menu, setMenu] = useState<MenuItemType[]>([]);
   const [menuByCategory, setMenuByCategory] = useState<Record<string, MenuItemType[]>>({});
@@ -290,6 +294,24 @@ const Restaurant: React.FC = () => {
     }
   };
 
+  // Ouvrir le reçu pour une vente existante (historique)
+  const openReceiptForSale = (sale: Sale) => {
+    setClientReceiptData({
+      type: 'restaurant',
+      items: sale.items_json.map(i => ({
+        name: i.name,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        total: i.total
+      })),
+      total: sale.total,
+      paymentMethod: sale.payment_method,
+      tableNumber: sale.table_number || undefined,
+      cashierName: user?.full_name || user?.username || 'Caissier'
+    });
+    setClientReceiptOpen(true);
+  };
+
   // Valider la commande
   const handleCheckout = async () => {
     const activeLines = getActiveLines();
@@ -302,17 +324,39 @@ const Restaurant: React.FC = () => {
 
     try {
       setCheckoutLoading(true);
+      // Capturer les données de la commande AVANT reset
+      const currentLines = [...activeLines];
+      const currentTotal = getOrderTotal();
+      const currentPaymentMethod = paymentInfo.method;
+      const currentTableNumber = tableNumber;
       await restaurantApi.createSale({
-        items: activeLines.map(line => ({
+        items: currentLines.map(line => ({
           menu_item_id: line.menu_item_id,
           quantity: line.quantity
         })),
-        payment_method: paymentInfo.method,
+        payment_method: currentPaymentMethod,
         payment_operator: paymentInfo.operator,
         payment_reference: paymentInfo.reference,
-        table_number: tableNumber || undefined
+        table_number: currentTableNumber || undefined
       });
       setSnackbar({ open: true, message: 'Vente enregistree avec succes', severity: 'success' });
+      // Ouvrir le reçu si gérant/admin
+      if (hasPermission('caisse', 'validation')) {
+        setClientReceiptData({
+          type: 'restaurant',
+          items: currentLines.map(line => ({
+            name: line.name,
+            quantity: line.quantity,
+            unit_price: line.unit_price,
+            total: line.quantity * line.unit_price
+          })),
+          total: currentTotal,
+          paymentMethod: currentPaymentMethod,
+          tableNumber: currentTableNumber || undefined,
+          cashierName: user?.full_name || user?.username || 'Caissier'
+        });
+        setClientReceiptOpen(true);
+      }
       resetOrder();
       setConfirmDialogOpen(false);
       fetchData();
@@ -586,6 +630,7 @@ const Restaurant: React.FC = () => {
                       <TableCell><strong>Table</strong></TableCell>
                       <TableCell align="right"><strong>Total</strong></TableCell>
                       <TableCell><strong>Paiement</strong></TableCell>
+                      {hasPermission('caisse', 'validation') && <TableCell align="center"><strong>Reçu</strong></TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -607,11 +652,20 @@ const Restaurant: React.FC = () => {
                         <TableCell>
                           <Chip label={sale.payment_method} size="small" />
                         </TableCell>
+                        {hasPermission('caisse', 'validation') && (
+                          <TableCell align="center">
+                            <Tooltip title="Imprimer le reçu">
+                              <IconButton size="small" color="primary" onClick={() => openReceiptForSale(sale)}>
+                                <PrintIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                     {sales.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={hasPermission('caisse', 'validation') ? 6 : 5} align="center" sx={{ py: 4 }}>
                           Aucune vente aujourd'hui
                         </TableCell>
                       </TableRow>
@@ -880,6 +934,12 @@ const Restaurant: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ClientReceiptDialog
+        open={clientReceiptOpen}
+        onClose={() => setClientReceiptOpen(false)}
+        data={clientReceiptData}
+      />
 
       <Snackbar
         open={snackbar.open}
