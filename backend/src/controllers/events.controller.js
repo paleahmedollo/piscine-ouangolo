@@ -240,7 +240,7 @@ const updateEvent = async (req, res) => {
     const allowedFields = [
       'name', 'client_name', 'client_phone', 'client_email',
       'event_date', 'event_time', 'end_date', 'space',
-      'guest_count', 'description', 'status'
+      'guest_count', 'description', 'status', 'price', 'deposit_paid', 'notes'
     ];
 
     allowedFields.forEach(field => {

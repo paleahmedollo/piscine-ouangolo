@@ -90,9 +90,16 @@ const Events: React.FC = () => {
   });
   const [formLoading, setFormLoading] = useState(false);
 
-  // Dialog raison écart acompte
+  // Dialog raison écart acompte (création)
   const [depositReasonDialogOpen, setDepositReasonDialogOpen] = useState(false);
   const [depositReason, setDepositReason] = useState('');
+
+  // Dialog solde final avant "Terminé"
+  const [soldeDialogOpen, setSoldeDialogOpen] = useState(false);
+  const [soldeEvent, setSoldeEvent] = useState<{ id: number; price: number; deposit_paid: number; name: string; client_name: string } | null>(null);
+  const [soldePayment, setSoldePayment] = useState<number>(0);
+  const [soldeNotes, setSoldeNotes] = useState('');
+  const [soldeLoading, setSoldeLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -169,12 +176,46 @@ const Events: React.FC = () => {
   };
 
   const handleUpdateStatus = async (eventId: number, status: EventStatus) => {
+    // Interception avant "terminé" si solde restant
+    if (status === 'termine') {
+      const ev = events.find(e => e.id === eventId);
+      if (ev) {
+        const price = parseFloat(String(ev.price || 0));
+        const deposit = parseFloat(String(ev.deposit_paid || 0));
+        const remaining = price - deposit;
+        if (price > 0 && remaining > 0) {
+          setSoldeEvent({ id: ev.id, price, deposit_paid: deposit, name: ev.name, client_name: ev.client_name });
+          setSoldePayment(remaining);
+          setSoldeNotes('');
+          setSoldeDialogOpen(true);
+          return;
+        }
+      }
+    }
+    await doUpdateStatus(eventId, status);
+  };
+
+  const doUpdateStatus = async (eventId: number, status: EventStatus, paymentAmount?: number, paymentNotes?: string) => {
     try {
+      setSoldeLoading(true);
+      // Si paiement du solde → mettre à jour deposit_paid et notes avant de terminer
+      if (paymentAmount !== undefined && paymentAmount > 0 && soldeEvent) {
+        const newDeposit = soldeEvent.deposit_paid + paymentAmount;
+        const extraNote = paymentNotes ? `[Solde final] ${paymentNotes}` : '';
+        await eventsApi.updateEvent(eventId, {
+          deposit_paid: newDeposit,
+          ...(extraNote ? { description: extraNote } : {})
+        });
+      }
       await eventsApi.updateEventStatus(eventId, status);
       setSnackbar({ open: true, message: 'Statut mis a jour', severity: 'success' });
+      setSoldeDialogOpen(false);
+      setSoldeEvent(null);
       fetchData();
     } catch (error) {
       setSnackbar({ open: true, message: 'Erreur', severity: 'error' });
+    } finally {
+      setSoldeLoading(false);
     }
   };
 
@@ -547,6 +588,79 @@ const Events: React.FC = () => {
             disabled={formLoading}
           >
             {formLoading ? <CircularProgress size={20} /> : 'Creer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog solde final avant Terminé */}
+      <Dialog open={soldeDialogOpen} onClose={() => setSoldeDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Paiement du solde — Clôture événement</DialogTitle>
+        <DialogContent>
+          {soldeEvent && (() => {
+            const remaining = soldeEvent.price - soldeEvent.deposit_paid;
+            const ecart = soldePayment - remaining;
+            const hasEcart = soldePayment !== remaining;
+            return (
+              <>
+                <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
+                  Événement : <strong>{soldeEvent.name}</strong><br />
+                  Client : <strong>{soldeEvent.client_name}</strong><br />
+                  Prix total : <strong>{formatCurrency(soldeEvent.price)}</strong><br />
+                  Acompte déjà versé : <strong>{formatCurrency(soldeEvent.deposit_paid)}</strong><br />
+                  <Typography component="span" fontWeight="bold" color="error.main">
+                    Reste à payer : {formatCurrency(remaining)}
+                  </Typography>
+                </Alert>
+                <TextField
+                  fullWidth
+                  label="Montant encaissé (FCFA)"
+                  type="number"
+                  value={soldePayment}
+                  onChange={(e) => setSoldePayment(Number(e.target.value))}
+                  sx={{ mb: 2 }}
+                  inputProps={{ min: 0 }}
+                />
+                {hasEcart && (
+                  <Alert severity={ecart < 0 ? 'error' : 'warning'} sx={{ mb: 2 }}>
+                    {ecart < 0
+                      ? `Manque : ${formatCurrency(Math.abs(ecart))} — Justification obligatoire`
+                      : `Surplus : ${formatCurrency(ecart)} — Justification obligatoire`}
+                  </Alert>
+                )}
+                {hasEcart && (
+                  <TextField
+                    fullWidth
+                    label="Remarque / justification de l'écart (obligatoire)"
+                    multiline
+                    rows={2}
+                    value={soldeNotes}
+                    onChange={(e) => setSoldeNotes(e.target.value)}
+                    placeholder="Ex: Le client a réglé 90%, reste 10 000 FCFA..."
+                  />
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSoldeDialogOpen(false)}>Annuler</Button>
+          <Button
+            onClick={() => {
+              if (!soldeEvent) return;
+              const remaining = soldeEvent.price - soldeEvent.deposit_paid;
+              const hasEcart = soldePayment !== remaining;
+              if (hasEcart && !soldeNotes.trim()) return;
+              doUpdateStatus(soldeEvent.id, 'termine', soldePayment, soldeNotes || undefined);
+            }}
+            variant="contained"
+            color="primary"
+            disabled={soldeLoading || (() => {
+              if (!soldeEvent) return true;
+              const remaining = soldeEvent.price - soldeEvent.deposit_paid;
+              return soldePayment !== remaining && !soldeNotes.trim();
+            })()}
+          >
+            {soldeLoading ? <CircularProgress size={20} /> : 'Confirmer et terminer'}
           </Button>
         </DialogActions>
       </Dialog>

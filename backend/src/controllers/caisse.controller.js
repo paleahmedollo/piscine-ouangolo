@@ -138,22 +138,6 @@ const closeCashRegister = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Vérifier si une clôture existe déjà pour aujourd'hui pour cet employé
-    const existingClosure = await CashRegister.findOne({
-      where: {
-        user_id: targetUserId,
-        module,
-        date: today
-      }
-    });
-
-    if (existingClosure) {
-      return res.status(409).json({
-        success: false,
-        message: 'Une clôture existe déjà pour cet employé/module aujourd\'hui'
-      });
-    }
-
     // Calculer le montant attendu pour l'employé cible
     const { total: expected_amount, count: transactions_count } = await calculateExpectedAmount(
       module,
