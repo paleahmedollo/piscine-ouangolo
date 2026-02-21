@@ -34,6 +34,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Anti-cache pour toutes les routes API
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({

@@ -516,7 +516,10 @@ const Caisse: React.FC = () => {
                   ) : (
                     moduleEmployees.map((emp) => (
                       <MenuItem key={emp.id} value={emp.id}>
-                        <strong>{roleAbbr[emp.role] || emp.role}</strong>&nbsp;/ {emp.full_name}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip label={roleAbbr[emp.role] || emp.role} size="small" color="primary" sx={{ fontWeight: 'bold', minWidth: 40 }} />
+                          <span>{emp.full_name}</span>
+                        </Box>
                       </MenuItem>
                     ))
                   )}
