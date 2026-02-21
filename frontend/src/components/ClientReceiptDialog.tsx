@@ -45,6 +45,17 @@ export type ClientReceiptData =
       paymentMethod: string;
       tableNumber?: string;
       cashierName: string;
+    }
+  | {
+      type: 'generic';
+      module: string;
+      description: string;
+      amount: number;
+      paymentMethod: string;
+      clientName?: string;
+      date: string;
+      reference: string;
+      cashierName: string;
     };
 
 interface Props {
@@ -126,6 +137,21 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
       ${itemsHtml}
       <div class="sep"></div>
       <div class="total-row"><span>TOTAL :</span><span>${fmt(data.total)}</span></div>
+      <div class="row"><span>Paiement :</span><span>${data.paymentMethod}</span></div>
+    `;
+  }
+
+  if (data.type === 'generic') {
+    body += `
+      <div class="bold" style="margin-bottom:4px">MODULE : ${data.module.toUpperCase()}</div>
+      ${data.clientName ? `<div class="row"><span>Client :</span><span>${data.clientName}</span></div>` : ''}
+      <div class="row"><span>Date :</span><span>${data.date}</span></div>
+      <div class="row"><span>Ref. :</span><span>${data.reference}</span></div>
+      <div class="sep"></div>
+      <div class="row"><span>Description :</span><span></span></div>
+      <div style="margin:2px 0;font-size:11px">${data.description}</div>
+      <div class="sep"></div>
+      <div class="total-row"><span>MONTANT :</span><span>${fmt(data.amount)}</span></div>
       <div class="row"><span>Paiement :</span><span>${data.paymentMethod}</span></div>
     `;
   }
@@ -236,13 +262,32 @@ const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
             </>
           )}
 
+          {data.type === 'generic' && (
+            <>
+              <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'inherit', display: 'block', mb: 0.5 }}>
+                MODULE : {data.module.toUpperCase()}
+              </Typography>
+              {data.clientName && <R label="Client :" value={data.clientName} />}
+              <R label="Date :" value={data.date} />
+              <R label="Ref. :" value={data.reference} />
+              <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', display: 'block' }}>Description :</Typography>
+              <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block', mb: 0.5 }}>{data.description}</Typography>
+              <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+              <R label="Paiement :" value={data.paymentMethod} />
+            </>
+          )}
+
           <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'inherit' }}>TOTAL ENCAISSÉ :</Typography>
+            <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'inherit' }}>
+              {data.type === 'generic' ? 'MONTANT :' : 'TOTAL ENCAISSÉ :'}
+            </Typography>
             <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'inherit', fontSize: '13px', color: 'primary.main' }}>
               {data.type === 'hotel' ? fmt(data.depositPaid + data.soldePaid)
                 : data.type === 'event' ? fmt(data.depositPaid + data.soldePaid)
-                : fmt(data.total)}
+                : data.type === 'restaurant' ? fmt(data.total)
+                : fmt(data.amount)}
             </Typography>
           </Box>
           <Divider sx={{ borderStyle: 'dashed', my: 1 }} />

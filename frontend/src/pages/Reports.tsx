@@ -35,6 +35,7 @@ import {
   AttachMoney
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
+import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
 import { reportsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -141,6 +142,8 @@ const moduleLabels: Record<string, string> = {
 
 const Reports: React.FC = () => {
   const { user } = useAuth();
+  const [clientReceiptOpen, setClientReceiptOpen] = useState(false);
+  const [clientReceiptData, setClientReceiptData] = useState<ClientReceiptData | null>(null);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -271,6 +274,25 @@ const Reports: React.FC = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const openReceiptForTransaction = (t: Transaction) => {
+    const paymentLabel: Record<string, string> = {
+      especes: 'Espèces', carte: 'Carte', mobile_money: 'Mobile Money',
+      virement: 'Virement', cheque: 'Chèque', acompte: 'Acompte', devis: 'Devis'
+    };
+    setClientReceiptData({
+      type: 'generic',
+      module: t.module,
+      description: t.description,
+      amount: t.amount,
+      paymentMethod: paymentLabel[t.payment_method] || t.payment_method,
+      clientName: t.client_name || undefined,
+      date: `${new Date(t.date).toLocaleDateString('fr-FR')} ${t.time}`,
+      reference: t.reference || t.id,
+      cashierName: user?.full_name || user?.username || 'Caissier'
+    });
+    setClientReceiptOpen(true);
   };
 
   const renderCellValue = (transaction: Transaction, columnId: string) => {
@@ -554,6 +576,7 @@ const Reports: React.FC = () => {
                         </TableCell>
                       );
                     })}
+                    <TableCell sx={{ fontWeight: 'bold' }} align="center">Reçu</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -564,11 +587,21 @@ const Reports: React.FC = () => {
                           {renderCellValue(transaction, colId)}
                         </TableCell>
                       ))}
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          title="Imprimer le reçu client"
+                          onClick={() => openReceiptForTransaction(transaction)}
+                        >
+                          <PrintIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {transactions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={visibleColumns.length} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={visibleColumns.length + 1} align="center" sx={{ py: 4 }}>
                         Aucune transaction trouvee
                       </TableCell>
                     </TableRow>
@@ -728,6 +761,11 @@ const Reports: React.FC = () => {
           </Grid>
         )
       )}
+      <ClientReceiptDialog
+        open={clientReceiptOpen}
+        onClose={() => setClientReceiptOpen(false)}
+        data={clientReceiptData}
+      />
     </Layout>
   );
 };

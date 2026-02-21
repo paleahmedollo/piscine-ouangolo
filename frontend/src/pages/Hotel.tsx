@@ -1020,7 +1020,6 @@ const Hotel: React.FC = () => {
                 label="Vient de (ville / pays)"
                 value={resForm.origin_city}
                 onChange={(e) => setResForm({ ...resForm, origin_city: e.target.value })}
-                placeholder="Ex: Abidjan"
               />
             </Grid>
             <Grid item xs={6}>
@@ -1029,7 +1028,6 @@ const Hotel: React.FC = () => {
                 label="Va à (ville / pays)"
                 value={resForm.destination_city}
                 onChange={(e) => setResForm({ ...resForm, destination_city: e.target.value })}
-                placeholder="Ex: Bouaké"
               />
             </Grid>
             <Grid item xs={12}>
@@ -1037,8 +1035,8 @@ const Hotel: React.FC = () => {
                 fullWidth
                 label="Acompte versé"
                 type="number"
-                value={resForm.deposit_paid}
-                onChange={(e) => setResForm({ ...resForm, deposit_paid: Number(e.target.value) })}
+                value={resForm.deposit_paid === 0 ? '' : resForm.deposit_paid}
+                onChange={(e) => setResForm({ ...resForm, deposit_paid: e.target.value === '' ? 0 : Number(e.target.value) })}
               />
             </Grid>
             {resEstimatedTotal > 0 && (

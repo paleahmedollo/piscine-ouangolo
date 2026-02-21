@@ -651,36 +651,22 @@ const Events: React.FC = () => {
             const hasEcart = !dejaRegle && soldePayment !== remaining;
             return (
               <>
-                {/* Résumé financier */}
-                <Box sx={{ p: 2, backgroundColor: '#f5f5f5', borderRadius: 1, mb: 2, mt: 1 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                    {soldeEvent.name} — {soldeEvent.client_name}
+                {/* Résumé financier style hôtel */}
+                <Alert severity={dejaRegle ? 'success' : 'info'} sx={{ mb: 2, mt: 1 }}>
+                  Événement : <strong>{soldeEvent.name}</strong> — {soldeEvent.client_name}<br />
+                  Prix total : <strong>{soldeEvent.price > 0 ? formatCurrency(soldeEvent.price) : 'Non renseigné'}</strong><br />
+                  Acompte déjà versé : <strong>{formatCurrency(soldeEvent.deposit_paid)}</strong><br />
+                  <Typography component="span" fontWeight="bold" color={dejaRegle ? 'success.main' : 'error.main'}>
+                    Reste à payer : {dejaRegle ? 'Soldé ✓' : formatCurrency(remaining)}
                   </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2" color="text.secondary">Prix total</Typography>
-                    <Typography variant="body2" fontWeight="bold">{soldeEvent.price > 0 ? formatCurrency(soldeEvent.price) : 'Non renseigné'}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2" color="text.secondary">Acompte versé</Typography>
-                    <Typography variant="body2" fontWeight="bold" color="success.main">{formatCurrency(soldeEvent.deposit_paid)}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary">Reste à payer</Typography>
-                    <Typography variant="body2" fontWeight="bold" color={dejaRegle ? 'success.main' : 'error.main'}>
-                      {dejaRegle ? 'Soldé ✓' : formatCurrency(remaining)}
-                    </Typography>
-                  </Box>
-                </Box>
+                </Alert>
 
                 {/* Cas 1 : solde restant → encaisser */}
                 {!dejaRegle && (
                   <>
-                    <Alert severity="warning" sx={{ mb: 2 }}>
-                      ⚠️ Le client n'a pas encore tout réglé. Il reste <strong>{formatCurrency(remaining)}</strong> à encaisser avant de clôturer.
-                    </Alert>
                     <TextField
                       fullWidth
-                      label="Montant encaissé maintenant (FCFA)"
+                      label="Montant encaissé (FCFA)"
                       type="number"
                       value={soldePayment}
                       onChange={(e) => setSoldePayment(Number(e.target.value))}
@@ -688,7 +674,7 @@ const Events: React.FC = () => {
                       inputProps={{ min: 0 }}
                     />
                     {hasEcart && soldePayment >= 0 && (
-                      <Alert severity={ecart < 0 ? 'error' : 'info'} sx={{ mb: 2 }}>
+                      <Alert severity={ecart < 0 ? 'error' : 'warning'} sx={{ mb: 2 }}>
                         {ecart < 0
                           ? `Manque encore : ${formatCurrency(Math.abs(ecart))} — Justification obligatoire`
                           : `Surplus encaissé : ${formatCurrency(ecart)} — Justification obligatoire`}
@@ -706,13 +692,6 @@ const Events: React.FC = () => {
                       />
                     )}
                   </>
-                )}
-
-                {/* Cas 2 : déjà soldé → simple confirmation */}
-                {dejaRegle && (
-                  <Alert severity="success">
-                    Cet événement est entièrement soldé. Confirmez-vous la clôture ?
-                  </Alert>
                 )}
               </>
             );
