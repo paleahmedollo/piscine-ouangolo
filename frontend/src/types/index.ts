@@ -30,7 +30,7 @@ export interface AuthState {
 
 // Piscine
 export type TicketType = 'adulte' | 'enfant';
-export type PaymentMethod = 'especes' | 'carte' | 'mobile_money';
+export type PaymentMethod = 'especes' | 'carte' | 'mobile_money' | 'chambre';
 export type SubscriptionType = 'mensuel' | 'trimestriel' | 'annuel';
 
 export interface Ticket {
@@ -88,6 +88,7 @@ export interface Sale {
   total: number;
   payment_method: PaymentMethod;
   table_number?: string;
+  room_number?: string;
   created_at: string;
   user?: User;
 }

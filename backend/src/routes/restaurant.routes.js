@@ -21,4 +21,7 @@ router.get('/sales', checkPermission('restaurant', 'lecture'), restaurantControl
 router.get('/sales/stats', checkPermission('restaurant', 'lecture'), restaurantController.getSaleStats);
 router.get('/sales/:id', checkPermission('restaurant', 'lecture'), restaurantController.getSaleById);
 
+// Facturation chambre hôtel
+router.get('/bills/room/:roomNumber', checkPermission('restaurant', 'lecture'), restaurantController.getRoomBill);
+
 module.exports = router;

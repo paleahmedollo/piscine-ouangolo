@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { MenuItem, Sale, User } = require('../models');
+const { MenuItem, Sale, User, Room, Reservation } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 
 // =====================================================
@@ -208,7 +208,24 @@ const toggleAvailability = async (req, res) => {
  */
 const createSale = async (req, res) => {
   try {
-    const { items, payment_method, payment_operator, payment_reference, table_number } = req.body;
+    const { items, payment_method, payment_operator, payment_reference, table_number, room_number } = req.body;
+
+    // Si facturation à une chambre, vérifier que la chambre est bien occupée
+    if (room_number) {
+      const room = await Room.findOne({ where: { number: room_number } });
+      if (!room) {
+        return res.status(400).json({
+          success: false,
+          message: `Chambre ${room_number} introuvable`
+        });
+      }
+      if (room.status !== 'occupee') {
+        return res.status(400).json({
+          success: false,
+          message: `La chambre ${room_number} n'est pas occupée actuellement`
+        });
+      }
+    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -256,10 +273,11 @@ const createSale = async (req, res) => {
       subtotal,
       tax: 0,
       total: subtotal,
-      payment_method: payment_method || 'especes',
+      payment_method: room_number ? 'chambre' : (payment_method || 'especes'),
       payment_operator: payment_operator || null,
       payment_reference: payment_reference || null,
-      table_number
+      table_number: table_number || null,
+      room_number: room_number || null
     });
 
     await logAction(req, 'CREATE_SALE', 'restaurant', 'sale', sale.id, {
@@ -442,6 +460,73 @@ const getSaleStats = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/restaurant/bills/room/:roomNumber
+ * Obtenir toutes les consommations restaurant facturées à une chambre
+ */
+const getRoomBill = async (req, res) => {
+  try {
+    const { roomNumber } = req.params;
+
+    // Vérifier que la chambre existe
+    const room = await Room.findOne({ where: { number: roomNumber } });
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: `Chambre ${roomNumber} introuvable`
+      });
+    }
+
+    // Trouver la réservation en cours pour cette chambre
+    const activeReservation = await Reservation.findOne({
+      where: { room_id: room.id, status: 'en_cours' },
+      order: [['created_at', 'DESC']]
+    });
+
+    // Récupérer toutes les ventes liées à cette chambre
+    // Si une réservation est en cours, on prend depuis la date de check-in
+    let whereClause = { room_number: roomNumber };
+    if (activeReservation) {
+      whereClause.created_at = {
+        [Op.gte]: new Date(activeReservation.check_in)
+      };
+    }
+
+    const sales = await Sale.findAll({
+      where: whereClause,
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }],
+      order: [['created_at', 'ASC']]
+    });
+
+    const totalRestaurant = sales.reduce((sum, s) => sum + parseFloat(s.total), 0);
+
+    res.json({
+      success: true,
+      data: {
+        room: { number: room.number, type: room.type },
+        reservation: activeReservation ? {
+          client_name: activeReservation.client_name,
+          check_in: activeReservation.check_in,
+          check_out: activeReservation.check_out,
+          total_price: activeReservation.total_price,
+          deposit_paid: activeReservation.deposit_paid
+        } : null,
+        sales,
+        total_restaurant: totalRestaurant,
+        total_general: activeReservation
+          ? parseFloat(activeReservation.total_price) + totalRestaurant
+          : totalRestaurant
+      }
+    });
+  } catch (error) {
+    console.error('Get room bill error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération de la facture'
+    });
+  }
+};
+
 module.exports = {
   getMenu,
   createMenuItem,
@@ -451,5 +536,6 @@ module.exports = {
   createSale,
   getSales,
   getSaleById,
-  getSaleStats
+  getSaleStats,
+  getRoomBill
 };

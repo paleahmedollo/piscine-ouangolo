@@ -41,6 +41,11 @@ const Sale = sequelize.define('Sale', {
     type: DataTypes.STRING(10),
     allowNull: true
   },
+  room_number: {
+    type: DataTypes.STRING(10),
+    allowNull: true,
+    comment: 'Numéro de chambre si la vente est facturée à une chambre hôtel'
+  },
   payment_operator: {
     type: DataTypes.STRING(20),
     allowNull: true

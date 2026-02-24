@@ -42,14 +42,16 @@ import {
   AttachMoney,
   Settings as SettingsIcon,
   Edit as EditIcon,
-  Save as SaveIcon
+  Save as SaveIcon,
+  Restaurant as RestaurantIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
 import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
 import { useAuth } from '../contexts/AuthContext';
-import { hotelApi } from '../services/api';
-import { Room, Reservation, RoomStatus } from '../types';
+import { hotelApi, restaurantApi } from '../services/api';
+import { Room, Reservation, RoomStatus, Sale } from '../types';
 
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
@@ -134,6 +136,19 @@ const Hotel: React.FC = () => {
   // Deposit reason dialog (création)
   const [depositReasonDialogOpen, setDepositReasonDialogOpen] = useState(false);
   const [depositReason, setDepositReason] = useState('');
+
+  // Dialog facture restaurant par chambre
+  const [roomBillDialogOpen, setRoomBillDialogOpen] = useState(false);
+  const [roomBillSearch, setRoomBillSearch] = useState('');
+  const [roomBillData, setRoomBillData] = useState<{
+    room: { number: string; type: string };
+    reservation: { client_name: string; check_in: string; check_out: string; total_price: number; deposit_paid: number } | null;
+    sales: Sale[];
+    total_restaurant: number;
+    total_general: number;
+  } | null>(null);
+  const [roomBillLoading, setRoomBillLoading] = useState(false);
+  const [roomBillError, setRoomBillError] = useState('');
 
   // Checkout payment dialog (solde restant)
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
@@ -434,6 +449,23 @@ const Hotel: React.FC = () => {
 
   const summary = getReservationSummary();
 
+  const fetchRoomBill = async () => {
+    const num = roomBillSearch.trim();
+    if (!num) return;
+    try {
+      setRoomBillLoading(true);
+      setRoomBillError('');
+      setRoomBillData(null);
+      const res = await restaurantApi.getRoomBill(num);
+      setRoomBillData(res.data.data);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setRoomBillError(err.response?.data?.message || 'Chambre introuvable ou erreur serveur');
+    } finally {
+      setRoomBillLoading(false);
+    }
+  };
+
   // Valeurs calculées pour le formulaire de réservation
   const resSelectedRoom = availableRooms.find(r => r.id === resForm.room_id);
   const resNights = resForm.check_in && resForm.check_out && resForm.check_in < resForm.check_out
@@ -489,7 +521,22 @@ const Hotel: React.FC = () => {
         </Grid>
       </Grid>
 
-      <Box sx={{ mb: 1, display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ mb: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        {hasPermission('hotel', 'lecture') && (
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<RestaurantIcon />}
+            onClick={() => {
+              setRoomBillSearch('');
+              setRoomBillData(null);
+              setRoomBillError('');
+              setRoomBillDialogOpen(true);
+            }}
+          >
+            Facture Restaurant
+          </Button>
+        )}
         {hasPermission('hotel', 'reservations') && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={openNewReservation}>
             Nouvelle Réservation
@@ -1193,6 +1240,173 @@ const Hotel: React.FC = () => {
           >
             {resLoading ? <CircularProgress size={20} /> : 'Confirmer et créer'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Facture Restaurant par Chambre */}
+      <Dialog
+        open={roomBillDialogOpen}
+        onClose={() => setRoomBillDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <RestaurantIcon color="warning" />
+          Facture Restaurant — Consultation par Chambre
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {/* Barre de recherche */}
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              <TextField
+                label="Numéro de chambre"
+                value={roomBillSearch}
+                onChange={(e) => {
+                  setRoomBillSearch(e.target.value);
+                  setRoomBillData(null);
+                  setRoomBillError('');
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') fetchRoomBill(); }}
+                size="small"
+                placeholder="ex: 101"
+                sx={{ width: 200 }}
+                autoFocus
+              />
+              <Button
+                variant="contained"
+                startIcon={roomBillLoading ? <CircularProgress size={16} color="inherit" /> : <SearchIcon />}
+                onClick={fetchRoomBill}
+                disabled={roomBillLoading || !roomBillSearch.trim()}
+              >
+                Rechercher
+              </Button>
+            </Box>
+
+            {/* Erreur */}
+            {roomBillError && (
+              <Alert severity="error" sx={{ mb: 2 }}>{roomBillError}</Alert>
+            )}
+
+            {/* Résultats */}
+            {roomBillData && (
+              <Box>
+                {/* Infos réservation */}
+                <Card variant="outlined" sx={{ mb: 2, backgroundColor: '#f8f9fa' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                      Chambre {roomBillData.room.number} — {roomBillData.room.type}
+                    </Typography>
+                    {roomBillData.reservation ? (
+                      <Box>
+                        <Typography variant="body2">
+                          <strong>Client :</strong> {roomBillData.reservation.client_name}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Séjour :</strong> {new Date(roomBillData.reservation.check_in).toLocaleDateString('fr-FR')} → {new Date(roomBillData.reservation.check_out).toLocaleDateString('fr-FR')}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Prix hôtel :</strong> {formatCurrency(roomBillData.reservation.total_price)}
+                          {roomBillData.reservation.deposit_paid > 0 && (
+                            <> (Acompte versé : {formatCurrency(roomBillData.reservation.deposit_paid)})</>
+                          )}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        Aucune réservation en cours pour cette chambre. Affichage de toutes les consommations restaurant liées.
+                      </Alert>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Tableau des consommations restaurant */}
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <RestaurantIcon fontSize="small" color="warning" />
+                  Consommations au Restaurant
+                </Typography>
+                {roomBillData.sales.length > 0 ? (
+                  <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: '#fff8e1' }}>
+                          <TableCell><strong>Date / Heure</strong></TableCell>
+                          <TableCell><strong>Articles</strong></TableCell>
+                          <TableCell align="right"><strong>Montant</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {roomBillData.sales.map((sale) => (
+                          <TableRow key={sale.id} hover>
+                            <TableCell>
+                              {new Date(sale.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                              {' '}
+                              {new Date(sale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                            </TableCell>
+                            <TableCell>
+                              {sale.items_json.map(item => `${item.name} x${item.quantity}`).join(', ')}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                              {formatCurrency(sale.total)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Aucune consommation restaurant enregistrée pour cette chambre.
+                  </Alert>
+                )}
+
+                {/* Récapitulatif total */}
+                <Card variant="outlined" sx={{ backgroundColor: '#e8f5e9' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                      Récapitulatif
+                    </Typography>
+                    <Divider sx={{ my: 1 }} />
+                    {roomBillData.reservation && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography>Hébergement</Typography>
+                        <Typography fontWeight="bold">{formatCurrency(roomBillData.reservation.total_price)}</Typography>
+                      </Box>
+                    )}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography>Restaurant</Typography>
+                      <Typography fontWeight="bold" color="warning.main">{formatCurrency(roomBillData.total_restaurant)}</Typography>
+                    </Box>
+                    <Divider sx={{ my: 1 }} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="h6">TOTAL GÉNÉRAL</Typography>
+                      <Typography variant="h5" fontWeight="bold" color="primary">
+                        {formatCurrency(roomBillData.total_general)}
+                      </Typography>
+                    </Box>
+                    {roomBillData.reservation && roomBillData.reservation.deposit_paid > 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, color: 'text.secondary' }}>
+                        <Typography variant="body2">Acompte déjà versé</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          -{formatCurrency(roomBillData.reservation.deposit_paid)}
+                        </Typography>
+                      </Box>
+                    )}
+                    {roomBillData.reservation && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">RESTE À PAYER</Typography>
+                        <Typography variant="h6" fontWeight="bold" color="error.main">
+                          {formatCurrency(Math.max(0, roomBillData.total_general - (roomBillData.reservation.deposit_paid || 0)))}
+                        </Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRoomBillDialogOpen(false)}>Fermer</Button>
         </DialogActions>
       </Dialog>
 

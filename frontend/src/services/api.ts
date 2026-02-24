@@ -114,12 +114,15 @@ export const restaurantApi = {
     payment_operator?: string;
     payment_reference?: string;
     table_number?: string;
+    room_number?: string;
   }) => api.post('/restaurant/sales', data),
   getSales: (params?: Record<string, string>) =>
     api.get('/restaurant/sales', { params }),
   getSale: (id: number) => api.get(`/restaurant/sales/${id}`),
   getSaleStats: (date?: string) =>
-    api.get('/restaurant/sales/stats', { params: { date } })
+    api.get('/restaurant/sales/stats', { params: { date } }),
+  getRoomBill: (roomNumber: string) =>
+    api.get(`/restaurant/bills/room/${roomNumber}`)
 };
 
 // Hotel API

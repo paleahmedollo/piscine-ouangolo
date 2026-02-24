@@ -37,8 +37,11 @@ import {
   ShoppingCart,
   Add as AddIcon,
   Edit as EditIcon,
-  Print as PrintIcon
+  Print as PrintIcon,
+  Hotel as HotelIcon
 } from '@mui/icons-material';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import Layout from '../components/layout/Layout';
 import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
 import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
@@ -96,6 +99,10 @@ const Restaurant: React.FC = () => {
   // Remise
   const [discountType, setDiscountType] = useState<'none' | 'percent' | 'fixed'>('none');
   const [discountValue, setDiscountValue] = useState<number>(0);
+
+  // Facturation chambre
+  const [billToRoom, setBillToRoom] = useState(false);
+  const [roomNumberInput, setRoomNumberInput] = useState('');
 
   // Stats
   const [stats, setStats] = useState<{ total_ventes: number; total_montant: number } | null>(null);
@@ -205,6 +212,8 @@ const Restaurant: React.FC = () => {
     setDiscountType('none');
     setDiscountValue(0);
     setPaymentInfo({ method: 'especes' });
+    setBillToRoom(false);
+    setRoomNumberInput('');
   };
 
   // =====================================================
@@ -329,17 +338,26 @@ const Restaurant: React.FC = () => {
       const currentTotal = getOrderTotal();
       const currentPaymentMethod = paymentInfo.method;
       const currentTableNumber = tableNumber;
+      const currentBillToRoom = billToRoom;
+      const currentRoomNumber = roomNumberInput.trim();
       await restaurantApi.createSale({
         items: currentLines.map(line => ({
           menu_item_id: line.menu_item_id,
           quantity: line.quantity
         })),
-        payment_method: currentPaymentMethod,
-        payment_operator: paymentInfo.operator,
-        payment_reference: paymentInfo.reference,
-        table_number: currentTableNumber || undefined
+        payment_method: currentBillToRoom ? 'chambre' : currentPaymentMethod,
+        payment_operator: currentBillToRoom ? undefined : paymentInfo.operator,
+        payment_reference: currentBillToRoom ? undefined : paymentInfo.reference,
+        table_number: currentTableNumber || undefined,
+        room_number: currentBillToRoom ? currentRoomNumber : undefined
       });
-      setSnackbar({ open: true, message: 'Vente enregistree avec succes', severity: 'success' });
+      setSnackbar({
+        open: true,
+        message: currentBillToRoom
+          ? `Commande facturée à la chambre ${currentRoomNumber} avec succès`
+          : 'Vente enregistrée avec succès',
+        severity: 'success'
+      });
       // Ouvrir le reçu si gérant/admin
       if (hasPermission('caisse', 'validation')) {
         setClientReceiptData({
@@ -627,7 +645,7 @@ const Restaurant: React.FC = () => {
                     <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                       <TableCell><strong>Heure</strong></TableCell>
                       <TableCell><strong>Articles</strong></TableCell>
-                      <TableCell><strong>Table</strong></TableCell>
+                      <TableCell><strong>Table / Chambre</strong></TableCell>
                       <TableCell align="right"><strong>Total</strong></TableCell>
                       <TableCell><strong>Paiement</strong></TableCell>
                       {hasPermission('caisse', 'validation') && <TableCell align="center"><strong>Reçu</strong></TableCell>}
@@ -635,7 +653,7 @@ const Restaurant: React.FC = () => {
                   </TableHead>
                   <TableBody>
                     {sales.map((sale) => (
-                      <TableRow key={sale.id} hover>
+                      <TableRow key={sale.id} hover sx={{ backgroundColor: sale.room_number ? '#fff8e1' : 'inherit' }}>
                         <TableCell>
                           {new Date(sale.created_at).toLocaleTimeString('fr-FR', {
                             hour: '2-digit',
@@ -645,12 +663,27 @@ const Restaurant: React.FC = () => {
                         <TableCell>
                           {sale.items_json.map(item => `${item.name} x${item.quantity}`).join(', ')}
                         </TableCell>
-                        <TableCell>{sale.table_number || '-'}</TableCell>
+                        <TableCell>
+                          {sale.room_number ? (
+                            <Chip
+                              icon={<HotelIcon fontSize="small" />}
+                              label={`Chambre ${sale.room_number}`}
+                              size="small"
+                              color="warning"
+                            />
+                          ) : (
+                            sale.table_number || '-'
+                          )}
+                        </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                           {formatCurrency(sale.total)}
                         </TableCell>
                         <TableCell>
-                          <Chip label={sale.payment_method} size="small" />
+                          <Chip
+                            label={sale.payment_method === 'chambre' ? 'Chambre' : sale.payment_method}
+                            size="small"
+                            color={sale.payment_method === 'chambre' ? 'warning' : 'default'}
+                          />
                         </TableCell>
                         {hasPermission('caisse', 'validation') && (
                           <TableCell align="center">
@@ -835,13 +868,52 @@ const Restaurant: React.FC = () => {
               margin="normal"
             />
 
-            <Box sx={{ mt: 1 }}>
-              <PaymentSelector
-                value={paymentInfo}
-                onChange={setPaymentInfo}
-                label="Mode de paiement"
+            {/* Option facturation chambre */}
+            <Box sx={{ mt: 2, p: 1.5, border: '1px solid', borderColor: billToRoom ? 'primary.main' : 'divider', borderRadius: 1, backgroundColor: billToRoom ? '#e3f2fd' : 'transparent' }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={billToRoom}
+                    onChange={(e) => {
+                      setBillToRoom(e.target.checked);
+                      if (!e.target.checked) setRoomNumberInput('');
+                    }}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <HotelIcon fontSize="small" color={billToRoom ? 'primary' : 'action'} />
+                    <Typography fontWeight={billToRoom ? 'bold' : 'normal'}>
+                      Facturer à une chambre hôtel
+                    </Typography>
+                  </Box>
+                }
               />
+              {billToRoom && (
+                <TextField
+                  fullWidth
+                  label="Numéro de chambre"
+                  value={roomNumberInput}
+                  onChange={(e) => setRoomNumberInput(e.target.value)}
+                  size="small"
+                  sx={{ mt: 1 }}
+                  required
+                  placeholder="ex: 101"
+                  autoFocus
+                />
+              )}
             </Box>
+
+            {!billToRoom && (
+              <Box sx={{ mt: 1 }}>
+                <PaymentSelector
+                  value={paymentInfo}
+                  onChange={setPaymentInfo}
+                  label="Mode de paiement"
+                />
+              </Box>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -849,9 +921,9 @@ const Restaurant: React.FC = () => {
           <Button
             onClick={handleCheckout}
             variant="contained"
-            disabled={checkoutLoading || getActiveLines().length === 0}
+            disabled={checkoutLoading || getActiveLines().length === 0 || (billToRoom && !roomNumberInput.trim())}
           >
-            {checkoutLoading ? <CircularProgress size={20} /> : 'Valider la vente'}
+            {checkoutLoading ? <CircularProgress size={20} /> : (billToRoom ? 'Facturer à la chambre' : 'Valider la vente')}
           </Button>
         </DialogActions>
       </Dialog>
