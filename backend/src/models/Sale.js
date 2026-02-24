@@ -46,6 +46,12 @@ const Sale = sequelize.define('Sale', {
     allowNull: true,
     comment: 'Numéro de chambre si la vente est facturée à une chambre hôtel'
   },
+  status: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'ferme',
+    comment: 'ouvert = ticket en attente de paiement | ferme = ticket encaissé'
+  },
   payment_operator: {
     type: DataTypes.STRING(20),
     allowNull: true

@@ -17,6 +17,8 @@ router.put('/menu/:id/availability', checkPermission('restaurant', 'ventes'), re
 
 // Ventes
 router.post('/sales', checkPermission('restaurant', 'ventes'), restaurantController.createSale);
+router.get('/sales/open', checkPermission('restaurant', 'lecture'), restaurantController.getOpenSales);
+router.put('/sales/:id/close', checkPermission('restaurant', 'ventes'), restaurantController.closeSale);
 router.get('/sales', checkPermission('restaurant', 'lecture'), restaurantController.getSales);
 router.get('/sales/stats', checkPermission('restaurant', 'lecture'), restaurantController.getSaleStats);
 router.get('/sales/:id', checkPermission('restaurant', 'lecture'), restaurantController.getSaleById);

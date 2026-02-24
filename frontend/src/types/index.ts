@@ -86,9 +86,10 @@ export interface Sale {
   subtotal: number;
   tax: number;
   total: number;
-  payment_method: PaymentMethod;
+  payment_method: PaymentMethod | 'en_attente';
   table_number?: string;
   room_number?: string;
+  status: 'ouvert' | 'ferme';
   created_at: string;
   user?: User;
 }

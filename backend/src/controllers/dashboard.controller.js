@@ -52,14 +52,14 @@ const getDashboard = async (req, res) => {
       };
     }
 
-    // Stats Restaurant
+    // Stats Restaurant (seulement les ventes encaissées - status = 'ferme')
     if (['admin', 'serveuse', 'serveur', 'gerant', 'responsable', 'directeur', 'maire'].includes(req.user.role)) {
       const todaySales = await Sale.findAll({
-        where: { created_at: { [Op.between]: [today, tomorrow] } }
+        where: { status: 'ferme', created_at: { [Op.between]: [today, tomorrow] } }
       });
 
       const monthSales = await Sale.findAll({
-        where: { created_at: { [Op.between]: [startOfMonth, endOfMonth] } }
+        where: { status: 'ferme', created_at: { [Op.between]: [startOfMonth, endOfMonth] } }
       });
 
       dashboard.modules.restaurant = {
@@ -242,10 +242,10 @@ const getReports = async (req, res) => {
       };
     }
 
-    // Rapport Restaurant
+    // Rapport Restaurant (seulement les ventes encaissées)
     if (!module || module === 'restaurant') {
       const sales = await Sale.findAll({
-        where: { created_at: { [Op.between]: [startDate, endDate] } }
+        where: { status: 'ferme', created_at: { [Op.between]: [startDate, endDate] } }
       });
 
       report.modules.restaurant = {

@@ -110,12 +110,15 @@ export const restaurantApi = {
   toggleAvailability: (id: number) => api.put(`/restaurant/menu/${id}/availability`),
   createSale: (data: {
     items: Array<{ menu_item_id: number; quantity: number }>;
-    payment_method: string;
-    payment_operator?: string;
-    payment_reference?: string;
     table_number?: string;
     room_number?: string;
   }) => api.post('/restaurant/sales', data),
+  getOpenSales: () => api.get('/restaurant/sales/open'),
+  closeSale: (id: number, data: {
+    payment_method: string;
+    payment_operator?: string;
+    payment_reference?: string;
+  }) => api.put(`/restaurant/sales/${id}/close`, data),
   getSales: (params?: Record<string, string>) =>
     api.get('/restaurant/sales', { params }),
   getSale: (id: number) => api.get(`/restaurant/sales/${id}`),

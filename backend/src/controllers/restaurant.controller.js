@@ -267,17 +267,20 @@ const createSale = async (req, res) => {
       });
     }
 
+    // Ticket toujours créé ouvert — l'employé viendra fermer en encaissant
+    // Si chambre → payment_method = 'chambre' et reste ouvert jusqu'au check-out
     const sale = await Sale.create({
       user_id: req.user.id,
       items_json: itemsWithDetails,
       subtotal,
       tax: 0,
       total: subtotal,
-      payment_method: room_number ? 'chambre' : (payment_method || 'especes'),
-      payment_operator: payment_operator || null,
-      payment_reference: payment_reference || null,
+      payment_method: room_number ? 'chambre' : 'en_attente',
+      payment_operator: null,
+      payment_reference: null,
       table_number: table_number || null,
-      room_number: room_number || null
+      room_number: room_number || null,
+      status: 'ouvert'
     });
 
     await logAction(req, 'CREATE_SALE', 'restaurant', 'sale', sale.id, {
@@ -287,7 +290,9 @@ const createSale = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Vente enregistrée',
+      message: room_number
+        ? `Ticket ouvert — facturé à la chambre ${room_number}`
+        : 'Ticket ouvert — en attente d\'encaissement',
       data: sale
     });
   } catch (error) {
@@ -300,15 +305,100 @@ const createSale = async (req, res) => {
 };
 
 /**
+ * GET /api/restaurant/sales/open
+ * Lister les tickets ouverts (non encaissés)
+ */
+const getOpenSales = async (req, res) => {
+  try {
+    let whereClause = { status: 'ouvert' };
+
+    // Les serveurs/serveuses voient seulement leurs tickets ouverts
+    if (!['directeur', 'maire', 'gerant', 'responsable', 'admin'].includes(req.user.role)) {
+      whereClause.user_id = req.user.id;
+    }
+
+    const sales = await Sale.findAll({
+      where: whereClause,
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }],
+      order: [['created_at', 'ASC']]
+    });
+
+    res.json({ success: true, data: { sales } });
+  } catch (error) {
+    console.error('Get open sales error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des tickets ouverts' });
+  }
+};
+
+/**
+ * PUT /api/restaurant/sales/:id/close
+ * Fermer (encaisser) un ticket ouvert
+ */
+const closeSale = async (req, res) => {
+  try {
+    const sale = await Sale.findByPk(req.params.id);
+
+    if (!sale) {
+      return res.status(404).json({ success: false, message: 'Ticket introuvable' });
+    }
+
+    if (sale.status === 'ferme') {
+      return res.status(400).json({ success: false, message: 'Ce ticket est déjà encaissé' });
+    }
+
+    // Les tickets chambre ne se ferment pas manuellement (ils restent liés à la chambre)
+    if (sale.room_number) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce ticket est facturé à une chambre — il sera soldé au check-out'
+      });
+    }
+
+    const { payment_method, payment_operator, payment_reference } = req.body;
+
+    if (!payment_method || payment_method === 'en_attente') {
+      return res.status(400).json({ success: false, message: 'Mode de paiement requis' });
+    }
+
+    await sale.update({
+      status: 'ferme',
+      payment_method,
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null
+    });
+
+    await logAction(req, 'CLOSE_SALE', 'restaurant', 'sale', sale.id, {
+      payment_method,
+      total: sale.total
+    });
+
+    // Recharger avec l'utilisateur pour la réponse
+    await sale.reload({ include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }] });
+
+    res.json({
+      success: true,
+      message: 'Ticket encaissé avec succès',
+      data: sale
+    });
+  } catch (error) {
+    console.error('Close sale error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de l\'encaissement' });
+  }
+};
+
+/**
  * GET /api/restaurant/sales
- * Lister les ventes
+ * Lister les ventes (par défaut: fermées du jour)
  */
 const getSales = async (req, res) => {
   try {
-    const { date, start_date, end_date, page = 1, limit = 50 } = req.query;
+    const { date, start_date, end_date, status, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
 
     let whereClause = {};
+
+    // Par défaut on ne montre que les ventes fermées (encaissées)
+    whereClause.status = status || 'ferme';
 
     if (date) {
       whereClause.created_at = {
@@ -331,8 +421,8 @@ const getSales = async (req, res) => {
       };
     }
 
-    // Filtrer par utilisateur si pas directeur/maire
-    if (!['directeur', 'maire'].includes(req.user.role)) {
+    // Filtrer par utilisateur si pas directeur/maire/gerant
+    if (!['directeur', 'maire', 'gerant', 'responsable', 'admin'].includes(req.user.role)) {
       whereClause.user_id = req.user.id;
     }
 
@@ -409,13 +499,14 @@ const getSaleStats = async (req, res) => {
     nextDay.setDate(nextDay.getDate() + 1);
 
     let whereClause = {
+      status: 'ferme',  // Seulement les tickets encaissés dans les stats
       created_at: {
         [Op.gte]: targetDate,
         [Op.lt]: nextDay
       }
     };
 
-    if (!['directeur', 'maire'].includes(req.user.role)) {
+    if (!['directeur', 'maire', 'gerant', 'responsable', 'admin'].includes(req.user.role)) {
       whereClause.user_id = req.user.id;
     }
 
@@ -534,6 +625,8 @@ module.exports = {
   deleteMenuItem,
   toggleAvailability,
   createSale,
+  getOpenSales,
+  closeSale,
   getSales,
   getSaleById,
   getSaleStats,

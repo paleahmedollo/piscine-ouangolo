@@ -86,12 +86,12 @@ const Restaurant: React.FC = () => {
   const [menu, setMenu] = useState<MenuItemType[]>([]);
   const [menuByCategory, setMenuByCategory] = useState<Record<string, MenuItemType[]>>({});
   const [sales, setSales] = useState<Sale[]>([]);
+  const [openSales, setOpenSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
-  // Commande en cours - prix modifiables
+  // Commande en cours
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
-  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({ method: 'especes' });
   const [tableNumber, setTableNumber] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -103,6 +103,12 @@ const Restaurant: React.FC = () => {
   // Facturation chambre
   const [billToRoom, setBillToRoom] = useState(false);
   const [roomNumberInput, setRoomNumberInput] = useState('');
+
+  // Encaissement d'un ticket ouvert
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [closingSale, setClosingSale] = useState<Sale | null>(null);
+  const [closePaymentInfo, setClosePaymentInfo] = useState<PaymentInfo>({ method: 'especes' });
+  const [closeLoading, setCloseLoading] = useState(false);
 
   // Stats
   const [stats, setStats] = useState<{ total_ventes: number; total_montant: number } | null>(null);
@@ -140,16 +146,18 @@ const Restaurant: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [menuRes, allMenuRes, salesRes, statsRes] = await Promise.all([
+      const [menuRes, allMenuRes, salesRes, openSalesRes, statsRes] = await Promise.all([
         restaurantApi.getMenu({ available_only: 'true' }),
         restaurantApi.getMenu(),
         restaurantApi.getSales(),
+        restaurantApi.getOpenSales(),
         restaurantApi.getSaleStats()
       ]);
       setMenu(menuRes.data.data.items);
       setMenuByCategory(menuRes.data.data.byCategory);
       setAllMenu(allMenuRes.data.data.items);
       setSales(salesRes.data.data.sales);
+      setOpenSales(openSalesRes.data.data.sales);
       setStats(statsRes.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -211,7 +219,6 @@ const Restaurant: React.FC = () => {
     setTableNumber('');
     setDiscountType('none');
     setDiscountValue(0);
-    setPaymentInfo({ method: 'especes' });
     setBillToRoom(false);
     setRoomNumberInput('');
   };
@@ -321,68 +328,82 @@ const Restaurant: React.FC = () => {
     setClientReceiptOpen(true);
   };
 
-  // Valider la commande
+  // Enregistrer la commande comme ticket ouvert
   const handleCheckout = async () => {
     const activeLines = getActiveLines();
     if (activeLines.length === 0) return;
 
     if (!hasPermission('restaurant', 'ventes')) {
-      setSnackbar({ open: true, message: 'Non autorise', severity: 'error' });
+      setSnackbar({ open: true, message: 'Non autorisé', severity: 'error' });
       return;
     }
 
     try {
       setCheckoutLoading(true);
-      // Capturer les données de la commande AVANT reset
-      const currentLines = [...activeLines];
-      const currentTotal = getOrderTotal();
-      const currentPaymentMethod = paymentInfo.method;
-      const currentTableNumber = tableNumber;
       const currentBillToRoom = billToRoom;
       const currentRoomNumber = roomNumberInput.trim();
+      const currentTableNumber = tableNumber;
       await restaurantApi.createSale({
-        items: currentLines.map(line => ({
+        items: activeLines.map(line => ({
           menu_item_id: line.menu_item_id,
           quantity: line.quantity
         })),
-        payment_method: currentBillToRoom ? 'chambre' : currentPaymentMethod,
-        payment_operator: currentBillToRoom ? undefined : paymentInfo.operator,
-        payment_reference: currentBillToRoom ? undefined : paymentInfo.reference,
         table_number: currentTableNumber || undefined,
         room_number: currentBillToRoom ? currentRoomNumber : undefined
       });
       setSnackbar({
         open: true,
         message: currentBillToRoom
-          ? `Commande facturée à la chambre ${currentRoomNumber} avec succès`
-          : 'Vente enregistrée avec succès',
+          ? `Ticket ouvert — facturé à la chambre ${currentRoomNumber}`
+          : 'Ticket ouvert — en attente d\'encaissement',
         severity: 'success'
       });
-      // Ouvrir le reçu si gérant/admin
-      if (hasPermission('caisse', 'validation')) {
-        setClientReceiptData({
-          type: 'restaurant',
-          items: currentLines.map(line => ({
-            name: line.name,
-            quantity: line.quantity,
-            unit_price: line.unit_price,
-            total: line.quantity * line.unit_price
-          })),
-          total: currentTotal,
-          paymentMethod: currentPaymentMethod,
-          tableNumber: currentTableNumber || undefined,
-          cashierName: user?.full_name || user?.username || 'Caissier'
-        });
-        setClientReceiptOpen(true);
-      }
       resetOrder();
       setConfirmDialogOpen(false);
       fetchData();
-    } catch (error) {
-      console.error('Error creating sale:', error);
-      setSnackbar({ open: true, message: 'Erreur lors de la vente', severity: 'error' });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setSnackbar({ open: true, message: err.response?.data?.message || 'Erreur lors de la commande', severity: 'error' });
     } finally {
       setCheckoutLoading(false);
+    }
+  };
+
+  // Encaisser un ticket ouvert
+  const handleCloseSale = async () => {
+    if (!closingSale) return;
+    try {
+      setCloseLoading(true);
+      const res = await restaurantApi.closeSale(closingSale.id, {
+        payment_method: closePaymentInfo.method,
+        payment_operator: closePaymentInfo.operator,
+        payment_reference: closePaymentInfo.reference
+      });
+      const closedSale = res.data.data;
+      setSnackbar({ open: true, message: 'Ticket encaissé avec succès', severity: 'success' });
+      // Générer le reçu
+      setClientReceiptData({
+        type: 'restaurant',
+        items: closedSale.items_json.map((i: { name: string; quantity: number; unit_price: number; total: number }) => ({
+          name: i.name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          total: i.total
+        })),
+        total: closedSale.total,
+        paymentMethod: closePaymentInfo.method,
+        tableNumber: closedSale.table_number || undefined,
+        cashierName: user?.full_name || user?.username || 'Caissier'
+      });
+      setClientReceiptOpen(true);
+      setCloseDialogOpen(false);
+      setClosingSale(null);
+      fetchData();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setSnackbar({ open: true, message: err.response?.data?.message || 'Erreur lors de l\'encaissement', severity: 'error' });
+    } finally {
+      setCloseLoading(false);
     }
   };
 
@@ -424,9 +445,11 @@ const Restaurant: React.FC = () => {
           <Card>
             <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
               <Typography color="text.secondary" gutterBottom variant="body2">
-                Articles au menu
+                Tickets ouverts
               </Typography>
-              <Typography variant="h5">{menu.length}</Typography>
+              <Typography variant="h5" color={openSales.filter(s => !s.room_number).length > 0 ? 'warning.main' : 'text.primary'}>
+                {openSales.filter(s => !s.room_number).length}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -436,6 +459,16 @@ const Restaurant: React.FC = () => {
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
           {hasPermission('restaurant', 'ventes') && (
             <Tab label="Nouvelle Commande" />
+          )}
+          {hasPermission('restaurant', 'ventes') && (
+            <Tab
+              label={
+                openSales.filter(s => !s.room_number).length > 0
+                  ? `Tickets ouverts (${openSales.filter(s => !s.room_number).length})`
+                  : 'Tickets ouverts'
+              }
+              sx={{ color: openSales.filter(s => !s.room_number).length > 0 ? 'warning.main' : 'inherit' }}
+            />
           )}
           <Tab label="Ventes du jour" />
           {hasPermission('restaurant', 'gestion_menu') && (
@@ -631,8 +664,72 @@ const Restaurant: React.FC = () => {
         </Box>
       )}
 
+      {/* Tab Tickets ouverts */}
+      {hasPermission('restaurant', 'ventes') && tabValue === 1 && (
+        <Box sx={{ pt: 1.5 }}>
+          {openSales.filter(s => !s.room_number).length === 0 ? (
+            <Alert severity="info">Aucun ticket ouvert pour le moment.</Alert>
+          ) : (
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Tickets en attente d'encaissement
+                </Typography>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#fff8e1' }}>
+                        <TableCell><strong>Heure</strong></TableCell>
+                        <TableCell><strong>Serveur</strong></TableCell>
+                        <TableCell><strong>Articles</strong></TableCell>
+                        <TableCell><strong>Table</strong></TableCell>
+                        <TableCell align="right"><strong>Total</strong></TableCell>
+                        <TableCell align="center"><strong>Action</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {openSales.filter(s => !s.room_number).map((sale) => (
+                        <TableRow key={sale.id} hover sx={{ backgroundColor: '#fffde7' }}>
+                          <TableCell>
+                            {new Date(sale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </TableCell>
+                          <TableCell>{sale.user?.full_name || '-'}</TableCell>
+                          <TableCell>
+                            {sale.items_json.map(item => `${item.name} x${item.quantity}`).join(', ')}
+                          </TableCell>
+                          <TableCell>{sale.table_number || '-'}</TableCell>
+                          <TableCell align="right">
+                            <Typography fontWeight="bold" color="primary">
+                              {formatCurrency(sale.total)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Button
+                              variant="contained"
+                              color="success"
+                              size="small"
+                              onClick={() => {
+                                setClosingSale(sale);
+                                setClosePaymentInfo({ method: 'especes' });
+                                setCloseDialogOpen(true);
+                              }}
+                            >
+                              Encaisser
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          )}
+        </Box>
+      )}
+
       {/* Tab Ventes du jour */}
-      {((hasPermission('restaurant', 'ventes') && tabValue === 1) || (!hasPermission('restaurant', 'ventes') && tabValue === 0)) && (
+      {((hasPermission('restaurant', 'ventes') && tabValue === 2) || (!hasPermission('restaurant', 'ventes') && tabValue === 0)) && (
         <Box sx={{ pt: 1.5 }}>
           <Card>
             <CardContent>
@@ -712,7 +809,7 @@ const Restaurant: React.FC = () => {
       )}
 
       {/* Tab Gestion du Menu - visible uniquement pour gerant et admin */}
-      {((hasPermission('restaurant', 'ventes') && tabValue === 2) || (!hasPermission('restaurant', 'ventes') && tabValue === 1)) && hasPermission('restaurant', 'gestion_menu') && (
+      {((hasPermission('restaurant', 'ventes') && tabValue === 3) || (!hasPermission('restaurant', 'ventes') && tabValue === 1)) && hasPermission('restaurant', 'gestion_menu') && (
         <Box sx={{ pt: 1.5 }}>
           <Card>
             <CardContent>
@@ -906,13 +1003,9 @@ const Restaurant: React.FC = () => {
             </Box>
 
             {!billToRoom && (
-              <Box sx={{ mt: 1 }}>
-                <PaymentSelector
-                  value={paymentInfo}
-                  onChange={setPaymentInfo}
-                  label="Mode de paiement"
-                />
-              </Box>
+              <Alert severity="info" sx={{ mt: 1.5 }}>
+                Le ticket restera ouvert. L'employé encaissera le client à la fin du repas.
+              </Alert>
             )}
           </Box>
         </DialogContent>
@@ -1003,6 +1096,49 @@ const Restaurant: React.FC = () => {
           <Button onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
           <Button onClick={handleDeleteMenuItem} variant="contained" color="error">
             Supprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Encaissement d'un ticket ouvert */}
+      <Dialog open={closeDialogOpen} onClose={() => setCloseDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Encaisser le ticket</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {closingSale && (
+              <>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Articles :</Typography>
+                {closingSale.items_json.map((item, idx) => (
+                  <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography>{item.name} x{item.quantity}</Typography>
+                    <Typography>{formatCurrency(item.total)}</Typography>
+                  </Box>
+                ))}
+                <Divider sx={{ my: 1 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6">TOTAL</Typography>
+                  <Typography variant="h5" fontWeight="bold" color="primary">
+                    {formatCurrency(closingSale.total)}
+                  </Typography>
+                </Box>
+              </>
+            )}
+            <PaymentSelector
+              value={closePaymentInfo}
+              onChange={setClosePaymentInfo}
+              label="Mode de paiement"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCloseDialogOpen(false)}>Annuler</Button>
+          <Button
+            onClick={handleCloseSale}
+            variant="contained"
+            color="success"
+            disabled={closeLoading}
+          >
+            {closeLoading ? <CircularProgress size={20} /> : 'Encaisser et imprimer reçu'}
           </Button>
         </DialogActions>
       </Dialog>

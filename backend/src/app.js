@@ -169,13 +169,13 @@ const runMigrations = async () => {
       `ALTER TABLE employees ADD COLUMN IF NOT EXISTS marital_status VARCHAR(50)`,
       `ALTER TABLE employees ADD COLUMN IF NOT EXISTS dependents_count INTEGER DEFAULT 0`,
       `ALTER TABLE employees ADD COLUMN IF NOT EXISTS notes TEXT`,
-      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS room_number VARCHAR(10)`
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS room_number VARCHAR(10)`,
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ferme'`
     ];
     for (const sql of migrations) {
       await sequelize.query(sql);
     }
-    console.log('✅ Migrations employees appliquées');
-    console.log('✅ Migration sales (room_number) appliquée');
+    console.log('✅ Migrations appliquées (employees, sales room_number, sales status)');
   } catch (error) {
     console.error('Erreur migration:', error.message);
   }
