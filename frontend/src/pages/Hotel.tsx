@@ -157,6 +157,13 @@ const Hotel: React.FC = () => {
   const [checkoutNotes, setCheckoutNotes] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
+  // Restaurant → intégration check-out
+  const [roomRestaurantTotals, setRoomRestaurantTotals] = useState<Record<string, { total: number; sales: Sale[] }>>({});
+  const [restaurantAlertOpen, setRestaurantAlertOpen] = useState(false);
+  const [restaurantAlertData, setRestaurantAlertData] = useState<{ total: number; sales: Sale[] } | null>(null);
+  const [pendingCheckoutId, setPendingCheckoutId] = useState<number | null>(null);
+  const [restaurantIncluded, setRestaurantIncluded] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -171,9 +178,34 @@ const Hotel: React.FC = () => {
         hotelApi.getStats()
       ]);
       setRooms(roomsRes.data.data);
-      setReservations(reservationsRes.data.data.reservations);
+      const enCours: Reservation[] = reservationsRes.data.data.reservations;
+      setReservations(enCours);
       setAllReservations(allResRes.data.data.reservations);
       setStats(statsRes.data.data);
+
+      // Charger les totaux restaurant pour toutes les chambres en cours
+      const active = enCours.filter(r => r.room?.number);
+      if (active.length > 0) {
+        const bills = await Promise.allSettled(
+          active.map(r => restaurantApi.getRoomBill(r.room!.number))
+        );
+        const totals: Record<string, { total: number; sales: Sale[] }> = {};
+        bills.forEach((result, i) => {
+          if (
+            result.status === 'fulfilled' &&
+            result.value.data?.data?.sales?.length > 0 &&
+            result.value.data.data.total_restaurant > 0
+          ) {
+            totals[active[i].room!.number] = {
+              total: result.value.data.data.total_restaurant,
+              sales: result.value.data.data.sales
+            };
+          }
+        });
+        setRoomRestaurantTotals(totals);
+      } else {
+        setRoomRestaurantTotals({});
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       setSnackbar({ open: true, message: 'Erreur lors du chargement', severity: 'error' });
@@ -288,13 +320,13 @@ const Hotel: React.FC = () => {
     }
   };
 
-  const handleCheckOut = (id: number) => {
+  // Ouvre le dialog de paiement check-out (après décision restaurant)
+  const proceedCheckOut = (id: number) => {
     const reservation = allReservations.find(r => r.id === id);
     if (!reservation) return;
 
     const remaining = reservation.total_price - (reservation.deposit_paid || 0);
     if (remaining > 0) {
-      // Il reste quelque chose à payer → ouvrir le dialog
       setCheckoutReservation({
         id: reservation.id,
         total_price: reservation.total_price,
@@ -305,8 +337,33 @@ const Hotel: React.FC = () => {
       setCheckoutNotes('');
       setCheckoutDialogOpen(true);
     } else {
-      // Solde déjà réglé → checkout direct
       doCheckOut(id);
+    }
+  };
+
+  const handleCheckOut = (id: number) => {
+    const reservation = allReservations.find(r => r.id === id);
+    if (!reservation) return;
+
+    // Vérifier si la chambre a des dépenses restaurant en cours
+    const roomNum = reservation.room?.number;
+    if (roomNum && roomRestaurantTotals[roomNum] && roomRestaurantTotals[roomNum].total > 0) {
+      setPendingCheckoutId(id);
+      setRestaurantAlertData(roomRestaurantTotals[roomNum]);
+      setRestaurantIncluded(false);
+      setRestaurantAlertOpen(true);
+      return;
+    }
+
+    // Pas de dépenses restaurant → checkout direct
+    proceedCheckOut(id);
+  };
+
+  const handleRestaurantAlertDecision = (include: boolean) => {
+    setRestaurantIncluded(include);
+    setRestaurantAlertOpen(false);
+    if (pendingCheckoutId !== null) {
+      proceedCheckOut(pendingCheckoutId);
     }
   };
 
@@ -319,11 +376,28 @@ const Hotel: React.FC = () => {
         payment_amount: paymentAmount && paymentAmount > 0 ? paymentAmount : undefined,
         payment_notes: paymentNotes || undefined
       });
+
+      // Si restaurant inclus dans la facture → fermer les ventes de la chambre
+      const roomNum = res?.room?.number;
+      if (restaurantIncluded && roomNum) {
+        try {
+          await restaurantApi.closeRoomSales(roomNum, 'chambre');
+        } catch (e) {
+          console.error('Erreur fermeture ventes restaurant chambre:', e);
+        }
+      }
+
       setSnackbar({ open: true, message: 'Check-out effectué', severity: 'success' });
       setCheckoutDialogOpen(false);
       setCheckoutReservation(null);
+
       // Ouvrir le reçu client (gérant/admin uniquement)
       if (res && hasPermission('caisse', 'validation')) {
+        const restData = (restaurantIncluded && roomNum) ? roomRestaurantTotals[roomNum] : null;
+        // Aplatir tous les articles restaurant de toutes les ventes
+        const allRestaurantItems = restData
+          ? restData.sales.flatMap(s => s.items_json)
+          : undefined;
         setClientReceiptData({
           type: 'hotel',
           clientName: res.client_name,
@@ -336,10 +410,17 @@ const Hotel: React.FC = () => {
           totalPrice: res.total_price,
           depositPaid: res.deposit_paid || 0,
           soldePaid: paymentAmount || 0,
-          cashierName: user?.full_name || user?.username || 'Caissier'
+          cashierName: user?.full_name || user?.username || 'Caissier',
+          restaurantItems: allRestaurantItems,
+          restaurantTotal: restData?.total
         });
         setClientReceiptOpen(true);
       }
+
+      // Réinitialiser l'état restaurant
+      setRestaurantIncluded(false);
+      setPendingCheckoutId(null);
+      setRestaurantAlertData(null);
       fetchData();
     } catch (error) {
       setSnackbar({ open: true, message: 'Erreur lors du check-out', severity: 'error' });
@@ -655,6 +736,17 @@ const Hotel: React.FC = () => {
                         <TableCell>
                           <Typography fontWeight="bold">{res.room?.number}</Typography>
                           <Typography variant="caption" color="text.secondary">{res.room?.type}</Typography>
+                          {res.room?.number && roomRestaurantTotals[res.room.number] && (
+                            <Tooltip title={`${formatCurrency(roomRestaurantTotals[res.room.number].total)} de consommations restaurant en attente`}>
+                              <Chip
+                                icon={<RestaurantIcon sx={{ fontSize: '14px !important' }} />}
+                                label={formatCurrency(roomRestaurantTotals[res.room.number].total)}
+                                color="warning"
+                                size="small"
+                                sx={{ mt: 0.5, fontSize: '0.65rem', height: '20px' }}
+                              />
+                            </Tooltip>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Typography fontWeight="medium">{res.client_name}</Typography>
@@ -1407,6 +1499,75 @@ const Hotel: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRoomBillDialogOpen(false)}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog : Alerte dépenses restaurant avant check-out */}
+      <Dialog open={restaurantAlertOpen} onClose={() => setRestaurantAlertOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
+          <RestaurantIcon /> Services Restaurant Détectés
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Cette chambre a consommé au restaurant. Voulez-vous inclure ces frais dans la facture de check-out ?
+          </Alert>
+          {restaurantAlertData && (
+            <>
+              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#fff3e0' }}>
+                      <TableCell><strong>Date</strong></TableCell>
+                      <TableCell><strong>Articles</strong></TableCell>
+                      <TableCell align="right"><strong>Montant</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {restaurantAlertData.sales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          {new Date(sale.created_at).toLocaleDateString('fr-FR')}
+                        </TableCell>
+                        <TableCell>
+                          {sale.items_json.map((item, i) => (
+                            <Typography key={i} variant="caption" display="block">
+                              {item.name} × {item.quantity}
+                            </Typography>
+                          ))}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {formatCurrency(sale.total)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow sx={{ backgroundColor: '#fff3e0' }}>
+                      <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>TOTAL RESTAURANT</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', color: 'warning.dark', fontSize: '1rem' }}>
+                        {formatCurrency(restaurantAlertData.total)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={() => handleRestaurantAlertDecision(false)}
+            variant="outlined"
+            color="inherit"
+          >
+            Continuer sans restaurant
+          </Button>
+          <Button
+            onClick={() => handleRestaurantAlertDecision(true)}
+            variant="contained"
+            color="warning"
+            startIcon={<RestaurantIcon />}
+          >
+            Inclure dans la facture
+          </Button>
         </DialogActions>
       </Dialog>
 

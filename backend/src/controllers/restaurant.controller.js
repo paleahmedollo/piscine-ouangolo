@@ -618,6 +618,52 @@ const getRoomBill = async (req, res) => {
   }
 };
 
+/**
+ * PUT /api/restaurant/bills/room/:roomNumber/close
+ * Clôturer toutes les ventes ouvertes d'une chambre au moment du check-out hôtel
+ */
+const closeRoomSales = async (req, res) => {
+  try {
+    const { roomNumber } = req.params;
+    const { payment_method } = req.body;
+
+    if (!roomNumber) {
+      return res.status(400).json({ success: false, message: 'Numéro de chambre requis' });
+    }
+
+    const [updatedCount] = await Sale.update(
+      {
+        status: 'ferme',
+        payment_method: payment_method || 'chambre'
+      },
+      {
+        where: {
+          room_number: roomNumber,
+          status: 'ouvert'
+        }
+      }
+    );
+
+    await logAction(req, 'restaurant', 'fermeture_chambre', null, {
+      room_number: roomNumber,
+      sales_closed: updatedCount,
+      payment_method: payment_method || 'chambre'
+    });
+
+    res.json({
+      success: true,
+      message: `${updatedCount} vente(s) de la chambre ${roomNumber} clôturée(s)`,
+      data: { sales_closed: updatedCount }
+    });
+  } catch (error) {
+    console.error('Close room sales error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la clôture des ventes de la chambre'
+    });
+  }
+};
+
 module.exports = {
   getMenu,
   createMenuItem,
@@ -630,5 +676,6 @@ module.exports = {
   getSales,
   getSaleById,
   getSaleStats,
-  getRoomBill
+  getRoomBill,
+  closeRoomSales
 };

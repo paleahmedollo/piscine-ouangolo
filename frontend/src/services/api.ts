@@ -125,7 +125,9 @@ export const restaurantApi = {
   getSaleStats: (date?: string) =>
     api.get('/restaurant/sales/stats', { params: { date } }),
   getRoomBill: (roomNumber: string) =>
-    api.get(`/restaurant/bills/room/${roomNumber}`)
+    api.get(`/restaurant/bills/room/${roomNumber}`),
+  closeRoomSales: (roomNumber: string, paymentMethod: string) =>
+    api.put(`/restaurant/bills/room/${roomNumber}/close`, { payment_method: paymentMethod })
 };
 
 // Hotel API

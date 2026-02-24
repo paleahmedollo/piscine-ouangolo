@@ -24,6 +24,9 @@ export type ClientReceiptData =
       depositPaid: number;
       soldePaid: number;
       cashierName: string;
+      // Consommations restaurant optionnelles (si incluses au check-out)
+      restaurantItems?: Array<{ name: string; quantity: number; unit_price: number; total: number }>;
+      restaurantTotal?: number;
     }
   | {
       type: 'event';
@@ -91,6 +94,17 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
   `;
 
   if (data.type === 'hotel') {
+    const totalGeneral = data.totalPrice + (data.restaurantTotal || 0);
+    const restaurantHtml = data.restaurantItems && data.restaurantItems.length > 0
+      ? `
+        <div class="sep"></div>
+        <div class="bold" style="margin-bottom:4px">RESTAURANT</div>
+        ${data.restaurantItems.map(i =>
+          `<div class="row"><span>${i.name} x${i.quantity}</span><span>${fmt(i.total)}</span></div>`
+        ).join('')}
+        <div class="row"><span>Sous-total restaurant :</span><span>${fmt(data.restaurantTotal || 0)}</span></div>
+      `
+      : '';
     body += `
       <div class="bold" style="margin-bottom:4px">MODULE : HÔTEL</div>
       <div class="row"><span>Client :</span><span>${data.clientName}</span></div>
@@ -100,7 +114,11 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
       <div class="row"><span>Départ :</span><span>${new Date(data.checkOut).toLocaleDateString('fr-FR')}</span></div>
       <div class="row"><span>Durée :</span><span>${data.nights} nuit${data.nights > 1 ? 's' : ''}</span></div>
       <div class="sep"></div>
+      <div class="bold" style="margin-bottom:4px">HÉBERGEMENT</div>
       <div class="row"><span>Total séjour :</span><span>${fmt(data.totalPrice)}</span></div>
+      ${restaurantHtml}
+      <div class="sep"></div>
+      ${data.restaurantTotal ? `<div class="total-row"><span>TOTAL GÉNÉRAL :</span><span>${fmt(totalGeneral)}</span></div>` : ''}
       <div class="row"><span>Acompte versé :</span><span>${fmt(data.depositPaid)}</span></div>
       <div class="row"><span>Solde payé :</span><span>${fmt(data.soldePaid)}</span></div>
       <div class="sep"></div>
@@ -224,7 +242,34 @@ const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
               <R label="Départ :" value={new Date(data.checkOut).toLocaleDateString('fr-FR')} />
               <R label="Durée :" value={`${data.nights} nuit${data.nights > 1 ? 's' : ''}`} />
               <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+              <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'inherit', display: 'block', mb: 0.5 }}>
+                HÉBERGEMENT
+              </Typography>
               <R label="Total séjour :" value={fmt(data.totalPrice)} />
+              {data.restaurantItems && data.restaurantItems.length > 0 && (
+                <>
+                  <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+                  <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'inherit', display: 'block', mb: 0.5 }}>
+                    RESTAURANT
+                  </Typography>
+                  {data.restaurantItems.map((item, i) => (
+                    <R key={i} label={`${item.name} x${item.quantity}`} value={fmt(item.total)} />
+                  ))}
+                  <R label="Sous-total restaurant :" value={fmt(data.restaurantTotal || 0)} />
+                </>
+              )}
+              {data.restaurantTotal ? (
+                <>
+                  <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
+                    <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>TOTAL GÉNÉRAL :</Typography>
+                    <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
+                      {fmt(data.totalPrice + data.restaurantTotal)}
+                    </Typography>
+                  </Box>
+                </>
+              ) : null}
+              <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
               <R label="Acompte versé :" value={fmt(data.depositPaid)} />
               <R label="Solde payé :" value={fmt(data.soldePaid)} />
             </>
