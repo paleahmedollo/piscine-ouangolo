@@ -118,9 +118,13 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
       <div class="row"><span>Total séjour :</span><span>${fmt(data.totalPrice)}</span></div>
       ${restaurantHtml}
       <div class="sep"></div>
-      ${data.restaurantTotal ? `<div class="total-row"><span>TOTAL GÉNÉRAL :</span><span>${fmt(totalGeneral)}</span></div>` : ''}
+      <div class="bold" style="margin-bottom:4px">RÉCAPITULATIF</div>
+      <div class="row"><span>Hébergement :</span><span>${fmt(data.totalPrice)}</span></div>
+      ${data.restaurantTotal ? `<div class="row"><span>Restaurant :</span><span>${fmt(data.restaurantTotal)}</span></div>` : ''}
+      <div class="sep"></div>
+      <div class="total-row"><span>TOTAL FACTURÉ :</span><span>${fmt(totalGeneral)}</span></div>
       <div class="row"><span>Acompte versé :</span><span>${fmt(data.depositPaid)}</span></div>
-      <div class="row"><span>Solde payé :</span><span>${fmt(data.soldePaid)}</span></div>
+      <div class="row"><span>Payé ce jour :</span><span>${fmt(data.soldePaid)}</span></div>
       <div class="sep"></div>
       <div class="total-row"><span>TOTAL ENCAISSÉ :</span><span>${fmt(data.depositPaid + data.soldePaid)}</span></div>
     `;
@@ -258,20 +262,21 @@ const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
                   <R label="Sous-total restaurant :" value={fmt(data.restaurantTotal || 0)} />
                 </>
               )}
-              {data.restaurantTotal ? (
-                <>
-                  <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
-                    <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>TOTAL GÉNÉRAL :</Typography>
-                    <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
-                      {fmt(data.totalPrice + data.restaurantTotal)}
-                    </Typography>
-                  </Box>
-                </>
-              ) : null}
               <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+              <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'inherit', display: 'block', mb: 0.5 }}>
+                RÉCAPITULATIF
+              </Typography>
+              <R label="Hébergement :" value={fmt(data.totalPrice)} />
+              {data.restaurantTotal ? <R label="Restaurant :" value={fmt(data.restaurantTotal)} /> : null}
+              <Divider sx={{ my: 0.5, borderColor: '#ccc' }} />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
+                <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>TOTAL FACTURÉ :</Typography>
+                <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>
+                  {fmt(data.totalPrice + (data.restaurantTotal || 0))}
+                </Typography>
+              </Box>
               <R label="Acompte versé :" value={fmt(data.depositPaid)} />
-              <R label="Solde payé :" value={fmt(data.soldePaid)} />
+              <R label="Payé ce jour :" value={fmt(data.soldePaid)} />
             </>
           )}
 

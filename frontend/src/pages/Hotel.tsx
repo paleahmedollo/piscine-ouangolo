@@ -152,7 +152,7 @@ const Hotel: React.FC = () => {
 
   // Checkout payment dialog (solde restant)
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
-  const [checkoutReservation, setCheckoutReservation] = useState<{ id: number; total_price: number; deposit_paid: number; client_name: string } | null>(null);
+  const [checkoutReservation, setCheckoutReservation] = useState<{ id: number; total_price: number; deposit_paid: number; client_name: string; restaurantTotal?: number } | null>(null);
   const [checkoutPaymentAmount, setCheckoutPaymentAmount] = useState<number>(0);
   const [checkoutNotes, setCheckoutNotes] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -321,19 +321,23 @@ const Hotel: React.FC = () => {
   };
 
   // Ouvre le dialog de paiement check-out (après décision restaurant)
-  const proceedCheckOut = (id: number) => {
+  const proceedCheckOut = (id: number, includeRestaurant?: boolean) => {
     const reservation = allReservations.find(r => r.id === id);
     if (!reservation) return;
 
-    const remaining = reservation.total_price - (reservation.deposit_paid || 0);
-    if (remaining > 0) {
+    const hotelRemaining = reservation.total_price - (reservation.deposit_paid || 0);
+    const restaurantExtra = (includeRestaurant && restaurantAlertData) ? restaurantAlertData.total : 0;
+    const totalRemaining = hotelRemaining + restaurantExtra;
+
+    if (totalRemaining > 0 || hotelRemaining > 0) {
       setCheckoutReservation({
         id: reservation.id,
         total_price: reservation.total_price,
         deposit_paid: reservation.deposit_paid || 0,
-        client_name: reservation.client_name
+        client_name: reservation.client_name,
+        restaurantTotal: restaurantExtra
       });
-      setCheckoutPaymentAmount(remaining);
+      setCheckoutPaymentAmount(totalRemaining > 0 ? totalRemaining : 0);
       setCheckoutNotes('');
       setCheckoutDialogOpen(true);
     } else {
@@ -356,14 +360,14 @@ const Hotel: React.FC = () => {
     }
 
     // Pas de dépenses restaurant → checkout direct
-    proceedCheckOut(id);
+    proceedCheckOut(id, false);
   };
 
   const handleRestaurantAlertDecision = (include: boolean) => {
     setRestaurantIncluded(include);
     setRestaurantAlertOpen(false);
     if (pendingCheckoutId !== null) {
-      proceedCheckOut(pendingCheckoutId);
+      proceedCheckOut(pendingCheckoutId, include);  // passer include directement (évite async state)
     }
   };
 
@@ -1234,17 +1238,22 @@ const Hotel: React.FC = () => {
         <DialogTitle>Paiement du solde — Check-out</DialogTitle>
         <DialogContent>
           {checkoutReservation && (() => {
-            const remaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
-            const ecart = checkoutPaymentAmount - remaining;
-            const hasEcart = checkoutPaymentAmount !== remaining;
+            const hotelRemaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
+            const restaurantExtra = checkoutReservation.restaurantTotal || 0;
+            const totalDu = hotelRemaining + restaurantExtra;
+            const ecart = checkoutPaymentAmount - totalDu;
+            const hasEcart = checkoutPaymentAmount !== totalDu;
             return (
               <>
                 <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
                   Client : <strong>{checkoutReservation.client_name}</strong><br />
-                  Total séjour : <strong>{formatCurrency(checkoutReservation.total_price)}</strong><br />
-                  Acompte déjà versé : <strong>{formatCurrency(checkoutReservation.deposit_paid)}</strong><br />
+                  Solde hébergement : <strong>{formatCurrency(hotelRemaining)}</strong>
+                  {restaurantExtra > 0 && (
+                    <><br />Frais restaurant : <strong style={{ color: '#e65100' }}>{formatCurrency(restaurantExtra)}</strong></>
+                  )}
+                  <br />
                   <Typography component="span" fontWeight="bold" color="error.main">
-                    Reste à payer : {formatCurrency(remaining)}
+                    TOTAL À ENCAISSER : {formatCurrency(totalDu)}
                   </Typography>
                 </Alert>
                 <TextField
@@ -1283,8 +1292,9 @@ const Hotel: React.FC = () => {
           <Button
             onClick={() => {
               if (!checkoutReservation) return;
-              const remaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
-              const hasEcart = checkoutPaymentAmount !== remaining;
+              const hotelRemaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
+              const totalDu = hotelRemaining + (checkoutReservation.restaurantTotal || 0);
+              const hasEcart = checkoutPaymentAmount !== totalDu;
               if (hasEcart && !checkoutNotes.trim()) return;
               doCheckOut(checkoutReservation.id, checkoutPaymentAmount, checkoutNotes || undefined);
             }}
@@ -1292,8 +1302,9 @@ const Hotel: React.FC = () => {
             color="primary"
             disabled={checkoutLoading || (() => {
               if (!checkoutReservation) return true;
-              const remaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
-              const hasEcart = checkoutPaymentAmount !== remaining;
+              const hotelRemaining = checkoutReservation.total_price - checkoutReservation.deposit_paid;
+              const totalDu = hotelRemaining + (checkoutReservation.restaurantTotal || 0);
+              const hasEcart = checkoutPaymentAmount !== totalDu;
               return hasEcart && !checkoutNotes.trim();
             })()}
           >

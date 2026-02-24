@@ -18,6 +18,7 @@ router.put('/rooms/:id/status', checkPermission('hotel', 'gestion_chambres'), ho
 // Réservations
 router.post('/reservations', checkPermission('hotel', 'reservations'), hotelController.createReservation);
 router.get('/reservations', checkPermission('hotel', 'lecture'), hotelController.getReservations);
+router.get('/reservations/:id/full-receipt', checkPermission('hotel', 'lecture'), hotelController.getFullReceipt);
 router.get('/reservations/:id', checkPermission('hotel', 'lecture'), hotelController.getReservationById);
 router.put('/reservations/:id', checkPermission('hotel', 'reservations'), hotelController.updateReservation);
 router.put('/reservations/:id/checkin', checkPermission('hotel', 'reservations'), hotelController.checkIn);

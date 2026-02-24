@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Room, Reservation, User } = require('../models');
+const { Room, Reservation, User, Sale } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 
 // =====================================================
@@ -539,6 +539,9 @@ const checkOut = async (req, res) => {
     const { payment_amount, payment_notes } = req.body || {};
     if (payment_amount && parseFloat(payment_amount) > 0) {
       reservation.deposit_paid = parseFloat(reservation.deposit_paid || 0) + parseFloat(payment_amount);
+      reservation.payment_at_checkout = parseFloat(payment_amount);
+    } else {
+      reservation.payment_at_checkout = 0;
     }
     if (payment_notes) {
       reservation.notes = [reservation.notes, `[Solde checkout] ${payment_notes}`].filter(Boolean).join('\n');
@@ -788,6 +791,74 @@ const getHotelStats = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/hotel/reservations/:id/full-receipt
+ * Retourner toutes les données nécessaires pour réimprimer le reçu client
+ */
+const getFullReceipt = async (req, res) => {
+  try {
+    const reservation = await Reservation.findByPk(req.params.id, {
+      include: [{ model: Room, as: 'room' }]
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ success: false, message: 'Réservation non trouvée' });
+    }
+
+    // Chercher les ventes restaurant fermées liées à cette chambre pendant le séjour
+    let restaurantSales = [];
+    let restaurantTotal = 0;
+    let restaurantItems = [];
+
+    if (reservation.room?.number) {
+      const checkOutDate = reservation.check_out ? new Date(reservation.check_out) : new Date();
+      // Ajouter 1 jour pour inclure les ventes du jour du checkout
+      checkOutDate.setDate(checkOutDate.getDate() + 1);
+
+      restaurantSales = await Sale.findAll({
+        where: {
+          room_number: reservation.room.number,
+          status: 'ferme',
+          payment_method: 'chambre',
+          created_at: {
+            [Op.between]: [new Date(reservation.check_in), checkOutDate]
+          }
+        },
+        order: [['created_at', 'ASC']]
+      });
+
+      restaurantTotal = restaurantSales.reduce((sum, s) => sum + parseFloat(s.total || 0), 0);
+      restaurantItems = restaurantSales.flatMap(s => s.items_json || []);
+    }
+
+    // Recalculer acompte initial et solde au checkout
+    const paymentAtCheckout = parseFloat(reservation.payment_at_checkout || 0);
+    const totalDeposit = parseFloat(reservation.deposit_paid || 0);
+    const initialDeposit = totalDeposit - paymentAtCheckout;
+
+    res.json({
+      success: true,
+      data: {
+        clientName: reservation.client_name,
+        clientPhone: reservation.client_phone || null,
+        roomNumber: reservation.room?.number || '',
+        roomType: reservation.room?.type || '',
+        checkIn: reservation.check_in,
+        checkOut: reservation.check_out,
+        nights: reservation.nights,
+        totalPrice: parseFloat(reservation.total_price),
+        depositPaid: Math.max(0, initialDeposit),
+        soldePaid: paymentAtCheckout,
+        restaurantItems: restaurantItems.length > 0 ? restaurantItems : undefined,
+        restaurantTotal: restaurantTotal > 0 ? restaurantTotal : undefined
+      }
+    });
+  } catch (error) {
+    console.error('Get full receipt error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération du reçu' });
+  }
+};
+
 module.exports = {
   getRooms,
   getRoomById,
@@ -802,5 +873,6 @@ module.exports = {
   checkIn,
   checkOut,
   cancelReservation,
-  getHotelStats
+  getHotelStats,
+  getFullReceipt
 };

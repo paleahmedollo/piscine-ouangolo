@@ -36,7 +36,8 @@ import {
   AttachMoney
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
-import { reportsApi } from '../services/api';
+import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
+import { reportsApi, hotelApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Transaction {
@@ -179,6 +180,11 @@ const Reports: React.FC = () => {
 
   // View mode
   const [viewMode, setViewMode] = useState<'transactions' | 'summary'>('transactions');
+
+  // Reçu hôtel depuis les rapports
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<ClientReceiptData | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInitialData();
@@ -352,6 +358,43 @@ const Reports: React.FC = () => {
     selected.forEach((t, i) => {
       setTimeout(() => printReceipt(t), i * 600);
     });
+  };
+
+  const handlePrintHotelReceipt = async (t: Transaction) => {
+    // Extraire l'ID de réservation depuis reference = 'RES-123'
+    const match = t.reference?.match(/^RES-(\d+)$/);
+    if (!match) {
+      printReceipt(t); // fallback reçu générique
+      return;
+    }
+    const resId = parseInt(match[1]);
+    setReceiptLoading(t.id);
+    try {
+      const res = await hotelApi.getFullReceipt(resId);
+      const d = res.data.data;
+      setReceiptData({
+        type: 'hotel',
+        clientName: d.clientName,
+        clientPhone: d.clientPhone || undefined,
+        roomNumber: d.roomNumber,
+        roomType: d.roomType,
+        checkIn: d.checkIn,
+        checkOut: d.checkOut,
+        nights: d.nights,
+        totalPrice: d.totalPrice,
+        depositPaid: d.depositPaid,
+        soldePaid: d.soldePaid,
+        cashierName: user?.full_name || user?.username || 'Caissier',
+        restaurantItems: d.restaurantItems,
+        restaurantTotal: d.restaurantTotal
+      });
+      setReceiptDialogOpen(true);
+    } catch (e) {
+      console.error('Erreur chargement reçu hôtel:', e);
+      printReceipt(t); // fallback reçu générique
+    } finally {
+      setReceiptLoading(null);
+    }
   };
 
   const renderCellValue = (transaction: Transaction, columnId: string) => {
@@ -654,6 +697,7 @@ const Reports: React.FC = () => {
                         </TableCell>
                       );
                     })}
+                    <TableCell sx={{ fontWeight: 'bold', width: 50 }}>Reçu</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -678,11 +722,26 @@ const Reports: React.FC = () => {
                           {renderCellValue(transaction, colId)}
                         </TableCell>
                       ))}
+                      <TableCell>
+                        {transaction.module === 'Hotel' && (
+                          <IconButton
+                            size="small"
+                            title="Imprimer le reçu hôtel"
+                            onClick={(e) => { e.stopPropagation(); handlePrintHotelReceipt(transaction); }}
+                            disabled={receiptLoading === transaction.id}
+                            color="primary"
+                          >
+                            {receiptLoading === transaction.id
+                              ? <CircularProgress size={16} />
+                              : <PrintIcon fontSize="small" />}
+                          </IconButton>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {transactions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={visibleColumns.length + 1} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={visibleColumns.length + 2} align="center" sx={{ py: 4 }}>
                         Aucune transaction trouvee
                       </TableCell>
                     </TableRow>
@@ -842,6 +901,12 @@ const Reports: React.FC = () => {
           </Grid>
         )
       )}
+      {/* Reçu hôtel structuré depuis les rapports */}
+      <ClientReceiptDialog
+        open={receiptDialogOpen}
+        data={receiptData}
+        onClose={() => { setReceiptDialogOpen(false); setReceiptData(null); }}
+      />
     </Layout>
   );
 };
