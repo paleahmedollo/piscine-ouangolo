@@ -184,7 +184,7 @@ const Reports: React.FC = () => {
   // Reçu hôtel depuis les rapports
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ClientReceiptData | null>(null);
-  const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
+  const [, setReceiptLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInitialData();
@@ -277,10 +277,6 @@ const Reports: React.FC = () => {
     link.click();
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -354,9 +350,15 @@ const Reports: React.FC = () => {
   const printSelectedReceipts = () => {
     const selected = transactions.filter(t => selectedIds.has(t.id));
     if (selected.length === 0) return;
-    // Un reçu individuel par transaction sélectionnée
+    // Reçu structuré pour Hotel, générique pour les autres
     selected.forEach((t, i) => {
-      setTimeout(() => printReceipt(t), i * 600);
+      setTimeout(() => {
+        if (t.module === 'Hotel') {
+          handlePrintHotelReceipt(t);
+        } else {
+          printReceipt(t);
+        }
+      }, i * 600);
     });
   };
 
@@ -503,9 +505,6 @@ const Reports: React.FC = () => {
           </Button>
           <Button variant="outlined" startIcon={<ExportIcon />} onClick={handleExportCSV}>
             Exporter
-          </Button>
-          <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint}>
-            Imprimer
           </Button>
           <IconButton onClick={() => viewMode === 'transactions' ? fetchTransactions() : fetchSummary()}>
             <RefreshIcon />
@@ -697,7 +696,6 @@ const Reports: React.FC = () => {
                         </TableCell>
                       );
                     })}
-                    <TableCell sx={{ fontWeight: 'bold', width: 50 }}>Reçu</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -722,26 +720,11 @@ const Reports: React.FC = () => {
                           {renderCellValue(transaction, colId)}
                         </TableCell>
                       ))}
-                      <TableCell>
-                        {transaction.module === 'Hotel' && (
-                          <IconButton
-                            size="small"
-                            title="Imprimer le reçu hôtel"
-                            onClick={(e) => { e.stopPropagation(); handlePrintHotelReceipt(transaction); }}
-                            disabled={receiptLoading === transaction.id}
-                            color="primary"
-                          >
-                            {receiptLoading === transaction.id
-                              ? <CircularProgress size={16} />
-                              : <PrintIcon fontSize="small" />}
-                          </IconButton>
-                        )}
-                      </TableCell>
                     </TableRow>
                   ))}
                   {transactions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={visibleColumns.length + 2} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={visibleColumns.length + 1} align="center" sx={{ py: 4 }}>
                         Aucune transaction trouvee
                       </TableCell>
                     </TableRow>
