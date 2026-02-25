@@ -102,14 +102,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Create default superadmin account if not exists
+// Create (or repair) superadmin account at every startup
 const createDefaultSuperAdmin = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
   try {
     const existing = await User.findOne({ where: { username: 'superadmin' } });
+    const hashedPassword = await bcrypt.hash('Gestix@2024', 10);
+
     if (!existing) {
-      const hashedPassword = await bcrypt.hash('Gestix@2024', 10);
+      // Création initiale
       await User.create({
         username: 'superadmin',
         password_hash: hashedPassword,
@@ -119,9 +121,15 @@ const createDefaultSuperAdmin = async () => {
         company_id: null
       }, { hooks: false });
       console.log('✅ Compte superadmin créé (username: superadmin, password: Gestix@2024)');
+    } else if (!existing.password_hash || !existing.password_hash.startsWith('$2')) {
+      // Hash corrompu → réparation automatique
+      await existing.update({ password_hash: hashedPassword, is_active: true, role: 'super_admin' }, { hooks: false });
+      console.log('🔧 Compte superadmin réparé (hash corrompu détecté et corrigé)');
+    } else {
+      console.log('✅ Compte superadmin OK');
     }
   } catch (error) {
-    console.error('Erreur lors de la création du superadmin:', error);
+    console.error('Erreur lors de la création/réparation du superadmin:', error);
   }
 };
 
