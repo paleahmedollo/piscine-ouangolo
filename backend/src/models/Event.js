@@ -70,6 +70,11 @@ const Event = sequelize.define('Event', {
   synced: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'events',

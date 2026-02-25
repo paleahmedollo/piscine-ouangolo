@@ -17,6 +17,7 @@ const employeesRoutes = require('./routes/employees.routes');
 const expensesRoutes = require('./routes/expenses.routes');
 const receiptsRoutes = require('./routes/receipts.routes');
 const reportsRoutes = require('./routes/reports.routes');
+const companiesRoutes = require('./routes/companies.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -65,6 +66,7 @@ app.use('/api/employees', employeesRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/receipts', receiptsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/companies', companiesRoutes);
 
 // Servir le frontend React si le dossier dist existe (mode local)
 const fs = require('fs');
@@ -106,17 +108,20 @@ const createDefaultAdmin = async () => {
   const bcrypt = require('bcryptjs');
 
   try {
-    const existingAdmin = await User.findOne({ where: { username: 'admin' } });
+    // Chercher par le nouveau nom (admin_po) ou l'ancien (admin) pour la rétrocompatibilité
+    const existingAdmin = await User.findOne({ where: { username: 'admin_po' } })
+      || await User.findOne({ where: { username: 'admin' } });
     if (!existingAdmin) {
       const hashedPassword = await bcrypt.hash('admin123', 10);
       await User.create({
-        username: 'admin',
+        username: 'admin_po',
         password_hash: hashedPassword,
         full_name: 'Administrateur',
         role: 'admin',
-        is_active: true
+        is_active: true,
+        company_id: 1
       }, { hooks: false });
-      console.log('✅ Compte admin par défaut créé (username: admin, password: admin123)');
+      console.log('✅ Compte admin par défaut créé (username: admin_po, password: admin123)');
     }
   } catch (error) {
     console.error('Erreur lors de la création du compte admin:', error);
@@ -129,18 +134,19 @@ const createDefaultGerant = async () => {
   const bcrypt = require('bcryptjs');
 
   try {
-    const existingGerant = await User.findOne({ where: { username: 'gerant' } });
+    const existingGerant = await User.findOne({ where: { username: 'gerant_po' } })
+      || await User.findOne({ where: { username: 'gerant' } });
     if (!existingGerant) {
-      // Hasher le mot de passe manuellement et desactiver les hooks pour eviter le double hashage
       const hashedPassword = await bcrypt.hash('gerant123', 10);
       await User.create({
-        username: 'gerant',
+        username: 'gerant_po',
         password_hash: hashedPassword,
         full_name: 'Gérant Principal',
         role: 'gerant',
-        is_active: true
+        is_active: true,
+        company_id: 1
       }, { hooks: false });
-      console.log('✅ Compte gérant par défaut créé (username: gerant, password: gerant123)');
+      console.log('✅ Compte gérant par défaut créé (username: gerant_po, password: gerant123)');
     }
   } catch (error) {
     console.error('Erreur lors de la création du compte gérant:', error);
@@ -170,7 +176,36 @@ const runMigrations = async () => {
       `ALTER TABLE employees ADD COLUMN IF NOT EXISTS dependents_count INTEGER DEFAULT 0`,
       `ALTER TABLE employees ADD COLUMN IF NOT EXISTS notes TEXT`,
       `ALTER TABLE sales ADD COLUMN IF NOT EXISTS room_number VARCHAR(10)`,
-      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ferme'`
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ferme'`,
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_operator VARCHAR(20)`,
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(200)`,
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS synced BOOLEAN DEFAULT true`,
+      `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS payment_operator VARCHAR(20)`,
+      `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(200)`,
+      `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS photo_url TEXT`,
+      `ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cni_number VARCHAR(50)`,
+      `ALTER TABLE reservations ADD COLUMN IF NOT EXISTS origin_city VARCHAR(100)`,
+      `ALTER TABLE reservations ADD COLUMN IF NOT EXISTS destination_city VARCHAR(100)`,
+      `ALTER TABLE reservations ADD COLUMN IF NOT EXISTS payment_operator VARCHAR(20)`,
+      `ALTER TABLE reservations ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(200)`,
+      `CREATE TABLE IF NOT EXISTS companies (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, code VARCHAR(50) UNIQUE NOT NULL, address TEXT, phone VARCHAR(50), email VARCHAR(255), logo_url TEXT, plan VARCHAR(50) DEFAULT 'basic', is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE reservations ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE quotes ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE cash_registers ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE payrolls ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE receipts ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      `ALTER TABLE user_layouts ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`
     ];
     for (const sql of migrations) {
       await sequelize.query(sql);

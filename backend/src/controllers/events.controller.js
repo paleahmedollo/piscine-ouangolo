@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { Event, Quote, User } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // =====================================================
 // ÉVÉNEMENTS
@@ -37,6 +38,7 @@ const createEvent = async (req, res) => {
     // Vérifier la disponibilité de l'espace
     const conflictingEvent = await Event.findOne({
       where: {
+        ...getCompanyFilter(req),
         space,
         status: { [Op.in]: ['demande', 'confirme', 'en_cours'] },
         [Op.or]: [
@@ -71,7 +73,8 @@ const createEvent = async (req, res) => {
       description,
       price: price || 0,
       deposit_paid: deposit_paid || 0,
-      user_id: req.user.id
+      user_id: req.user.id,
+      company_id: req.user.company_id
     });
 
     await logAction(req, 'CREATE_EVENT', 'events', 'event', event.id, {
@@ -103,8 +106,9 @@ const getEvents = async (req, res) => {
   try {
     const { status, space, start_date, end_date, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
+    const cf = getCompanyFilter(req);
 
-    let whereClause = {};
+    let whereClause = { ...cf };
 
     if (status) whereClause.status = status;
     if (space) whereClause.space = space;
@@ -161,8 +165,10 @@ const getCalendar = async (req, res) => {
     const startDate = new Date(targetYear, targetMonth, 1);
     const endDate = new Date(targetYear, targetMonth + 1, 0);
 
+    const cf = getCompanyFilter(req);
     const events = await Event.findAll({
       where: {
+        ...cf,
         event_date: {
           [Op.between]: [startDate, endDate]
         },
@@ -322,7 +328,7 @@ const createQuote = async (req, res) => {
     const { eventId } = req.params;
     const { items, deposit_required, valid_until, notes } = req.body;
 
-    const event = await Event.findByPk(eventId);
+    const event = await Event.findOne({ where: { id: eventId, ...getCompanyFilter(req) } });
     if (!event) {
       return res.status(404).json({
         success: false,

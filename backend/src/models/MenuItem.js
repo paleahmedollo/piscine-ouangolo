@@ -26,6 +26,11 @@ const MenuItem = sequelize.define('MenuItem', {
   is_available: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'menu_items',

@@ -3,6 +3,7 @@ const {
   User, Ticket, Subscription, Sale, Reservation,
   Event, Quote, CashRegister, Expense, UserLayout
 } = require('../models');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // Roles avec acces complet aux rapports
 const FULL_ACCESS_ROLES = ['admin', 'gerant', 'responsable', 'directeur', 'maire'];
@@ -41,6 +42,7 @@ const getTransactionsReport = async (req, res) => {
     const startDate = start_date ? new Date(start_date) : new Date(new Date().setHours(0, 0, 0, 0));
     const endDate = end_date ? new Date(end_date) : new Date();
     endDate.setHours(23, 59, 59, 999);
+    const cf = getCompanyFilter(req);
 
     // Determiner les restrictions basees sur le role
     const userRole = req.user.role;
@@ -63,6 +65,7 @@ const getTransactionsReport = async (req, res) => {
     if (!restrictedModule || restrictedModule === 'piscine') {
       const tickets = await Ticket.findAll({
         where: {
+          ...cf,
           created_at: { [Op.between]: [startDate, endDate] },
           ...(restrictedUserId && { user_id: restrictedUserId }),
           ...(payment_method && { payment_method })
@@ -96,6 +99,7 @@ const getTransactionsReport = async (req, res) => {
     if (!restrictedModule || restrictedModule === 'piscine') {
       const subscriptions = await Subscription.findAll({
         where: {
+          ...cf,
           created_at: { [Op.between]: [startDate, endDate] },
           ...(restrictedUserId && { user_id: restrictedUserId })
         },
@@ -129,6 +133,7 @@ const getTransactionsReport = async (req, res) => {
     if (!restrictedModule || restrictedModule === 'restaurant') {
       const sales = await Sale.findAll({
         where: {
+          ...cf,
           created_at: { [Op.between]: [startDate, endDate] },
           ...(restrictedUserId && { user_id: restrictedUserId }),
           ...(payment_method && { payment_method })
@@ -165,6 +170,7 @@ const getTransactionsReport = async (req, res) => {
     if (!restrictedModule || restrictedModule === 'hotel') {
       const reservations = await Reservation.findAll({
         where: {
+          ...cf,
           created_at: { [Op.between]: [startDate, endDate] },
           ...(restrictedUserId && { user_id: restrictedUserId }),
           status: { [Op.ne]: 'annulee' }
@@ -200,6 +206,7 @@ const getTransactionsReport = async (req, res) => {
     if (!restrictedModule || restrictedModule === 'events') {
       const events = await Event.findAll({
         where: {
+          ...cf,
           created_at: { [Op.between]: [startDate, endDate] },
           ...(restrictedUserId && { user_id: restrictedUserId })
         },
@@ -333,6 +340,7 @@ const getSummaryReport = async (req, res) => {
     const hasFullAccess = FULL_ACCESS_ROLES.includes(userRole);
     const restrictedModule = !hasFullAccess ? ROLE_MODULE_MAP[userRole] : null;
     const restrictedUserId = !hasFullAccess ? req.user.id : null;
+    const cf = getCompanyFilter(req);
 
     // Construire les filtres selon le role
     const userFilter = restrictedUserId ? { user_id: restrictedUserId } : {};
@@ -341,17 +349,17 @@ const getSummaryReport = async (req, res) => {
     // Récupérer toutes les transactions (filtrées selon le role)
     const [tickets, subscriptions, sales, reservations, events, expenses] = await Promise.all([
       (!restrictedModule || restrictedModule === 'piscine') ?
-        Ticket.findAll({ where: { ...dateFilter, ...userFilter } }) : [],
+        Ticket.findAll({ where: { ...cf, ...dateFilter, ...userFilter } }) : [],
       (!restrictedModule || restrictedModule === 'piscine') ?
-        Subscription.findAll({ where: { ...dateFilter, ...userFilter } }) : [],
+        Subscription.findAll({ where: { ...cf, ...dateFilter, ...userFilter } }) : [],
       (!restrictedModule || restrictedModule === 'restaurant') ?
-        Sale.findAll({ where: { ...dateFilter, ...userFilter } }) : [],
+        Sale.findAll({ where: { ...cf, ...dateFilter, ...userFilter } }) : [],
       (!restrictedModule || restrictedModule === 'hotel') ?
-        Reservation.findAll({ where: { ...dateFilter, ...userFilter, status: { [Op.ne]: 'annulee' } } }) : [],
+        Reservation.findAll({ where: { ...cf, ...dateFilter, ...userFilter, status: { [Op.ne]: 'annulee' } } }) : [],
       (!restrictedModule || restrictedModule === 'events') ?
-        Event.findAll({ where: { ...dateFilter, ...userFilter }, include: [{ model: Quote, as: 'quotes' }] }) : [],
+        Event.findAll({ where: { ...cf, ...dateFilter, ...userFilter }, include: [{ model: Quote, as: 'quotes' }] }) : [],
       hasFullAccess ?
-        Expense.findAll({ where: { expense_date: { [Op.between]: [startDate, endDate] } } }) : []
+        Expense.findAll({ where: { ...cf, expense_date: { [Op.between]: [startDate, endDate] } } }) : []
     ]);
 
     // Calculer les totaux
@@ -612,9 +620,10 @@ const getReportUsers = async (req, res) => {
       return;
     }
 
+    const cfUsers = getCompanyFilter(req);
     const users = await User.findAll({
       attributes: ['id', 'full_name', 'username', 'role'],
-      where: { is_active: true },
+      where: { is_active: true, ...cfUsers },
       order: [['full_name', 'ASC']]
     });
 

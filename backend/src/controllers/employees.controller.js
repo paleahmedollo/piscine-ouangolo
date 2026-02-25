@@ -1,5 +1,6 @@
 const { Employee, Payroll, User, Expense } = require('../models');
 const { Op } = require('sequelize');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // Position labels
 const positionLabels = {
@@ -25,7 +26,8 @@ const positionLabels = {
 const getEmployees = async (req, res) => {
   try {
     const { position, is_active } = req.query;
-    const where = {};
+    const cf = getCompanyFilter(req);
+    const where = { ...cf };
 
     if (position) where.position = position;
     if (is_active !== undefined) where.is_active = is_active === 'true';
@@ -131,7 +133,8 @@ const createEmployee = async (req, res) => {
       emergency_contact_name, emergency_contact_phone,
       marital_status, dependents_count: dependents_count || 0,
       notes,
-      is_active: true
+      is_active: true,
+      company_id: req.user.company_id
     });
 
     res.status(201).json({
@@ -268,6 +271,7 @@ const deleteEmployee = async (req, res) => {
 const getPayrolls = async (req, res) => {
   try {
     const { month, year, status, employee_id } = req.query;
+    const cf = getCompanyFilter(req);
     const where = {};
 
     if (month) where.period_month = parseInt(month);
@@ -279,7 +283,8 @@ const getPayrolls = async (req, res) => {
       where,
       include: [{
         model: Employee,
-        as: 'employee'
+        as: 'employee',
+        where: { ...cf }
       }, {
         model: User,
         as: 'paidByUser',
@@ -310,7 +315,7 @@ const createPayroll = async (req, res) => {
     const { employee_id, period_month, period_year, bonus, deductions, notes } = req.body;
 
     // Verifier l'employe
-    const employee = await Employee.findByPk(employee_id);
+    const employee = await Employee.findOne({ where: { id: employee_id, ...getCompanyFilter(req) } });
     if (!employee) {
       return res.status(404).json({
         success: false,
@@ -348,7 +353,8 @@ const createPayroll = async (req, res) => {
       deductions: deductionsAmount,
       net_salary,
       status: 'en_attente',
-      notes
+      notes,
+      company_id: req.user.company_id
     });
 
     // Recharger avec les associations
@@ -420,7 +426,8 @@ const payPayroll = async (req, res) => {
       expense_date: paymentDateValue,
       payroll_id: payroll.id,
       user_id: req.user.id,
-      notes: notes
+      notes: notes,
+      company_id: req.user.company_id
     });
 
     const fullPayroll = await Payroll.findByPk(payroll.id, {
@@ -491,13 +498,14 @@ const getPayrollStats = async (req, res) => {
     const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
     const currentYear = year ? parseInt(year) : new Date().getFullYear();
 
+    const cf = getCompanyFilter(req);
     // Total des paies du mois
     const monthPayrolls = await Payroll.findAll({
       where: {
         period_month: currentMonth,
         period_year: currentYear
       },
-      include: [{ model: Employee, as: 'employee' }]
+      include: [{ model: Employee, as: 'employee', where: { ...cf } }]
     });
 
     const totalBase = monthPayrolls.reduce((sum, p) => sum + parseFloat(p.base_salary), 0);
@@ -512,7 +520,7 @@ const getPayrollStats = async (req, res) => {
       .reduce((sum, p) => sum + parseFloat(p.net_salary), 0);
 
     // Employes actifs
-    const activeEmployees = await Employee.count({ where: { is_active: true } });
+    const activeEmployees = await Employee.count({ where: { is_active: true, ...cf } });
 
     res.json({
       success: true,

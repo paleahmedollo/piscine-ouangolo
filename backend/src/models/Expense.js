@@ -53,6 +53,11 @@ const Expense = sequelize.define('Expense', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'expenses',

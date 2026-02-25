@@ -66,6 +66,11 @@ const Payroll = sequelize.define('Payroll', {
       model: 'users',
       key: 'id'
     }
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'payrolls',

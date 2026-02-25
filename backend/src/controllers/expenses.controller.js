@@ -1,5 +1,6 @@
 const { Expense, User, Payroll, Employee } = require('../models');
 const { Op } = require('sequelize');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // Categories labels
 const categoryLabels = {
@@ -23,7 +24,8 @@ const categoryLabels = {
 const getExpenses = async (req, res) => {
   try {
     const { category, start_date, end_date, month, year } = req.query;
-    const where = {};
+    const cf = getCompanyFilter(req);
+    const where = { ...cf };
 
     if (category) where.category = category;
 
@@ -89,9 +91,11 @@ const getExpenseStats = async (req, res) => {
     const startOfMonth = new Date(currentYear, currentMonth - 1, 1);
     const endOfMonth = new Date(currentYear, currentMonth, 0);
 
+    const cf = getCompanyFilter(req);
     // Depenses du mois
     const monthExpenses = await Expense.findAll({
       where: {
+        ...cf,
         expense_date: {
           [Op.between]: [startOfMonth, endOfMonth]
         }
@@ -165,7 +169,8 @@ const createExpense = async (req, res) => {
       reference,
       expense_date: expense_date || new Date(),
       user_id: req.user.id,
-      notes
+      notes,
+      company_id: req.user.company_id
     });
 
     const fullExpense = await Expense.findByPk(expense.id, {

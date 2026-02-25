@@ -48,6 +48,11 @@ const UserLayout = sequelize.define('UserLayout', {
   is_default: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'user_layouts',

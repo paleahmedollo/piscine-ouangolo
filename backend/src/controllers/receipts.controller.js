@@ -1,5 +1,6 @@
 const { Receipt, CashRegister, User } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 /**
  * Génère un reçu pour une clôture de caisse validée
@@ -205,7 +206,8 @@ const getReceipts = async (req, res) => {
     const offset = (page - 1) * limit;
     const { Op } = require('sequelize');
 
-    let whereClause = {};
+    const cf = getCompanyFilter(req);
+    let whereClause = { ...cf };
 
     if (module) whereClause.module = module;
 

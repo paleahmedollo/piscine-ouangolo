@@ -8,9 +8,10 @@ import {
   Button,
   Typography,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Divider
 } from '@mui/material';
-import { Pool as PoolIcon } from '@mui/icons-material';
+import GestixLogo from '../components/GestixLogo';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
@@ -25,13 +26,12 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       await login(username, password);
       navigate('/');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Erreur de connexion');
+      setError(error.response?.data?.message || 'Identifiants incorrects');
     } finally {
       setLoading(false);
     }
@@ -44,37 +44,92 @@ const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)'
+        background: 'linear-gradient(145deg, #0F1F5C 0%, #1565C0 60%, #1E3A8A 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          width: '600px',
+          height: '600px',
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.03)',
+          top: '-200px',
+          right: '-150px',
+          pointerEvents: 'none'
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          width: '400px',
+          height: '400px',
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.03)',
+          bottom: '-100px',
+          left: '-100px',
+          pointerEvents: 'none'
+        }
       }}
     >
-      <Card sx={{ maxWidth: 400, width: '100%', mx: 2 }}>
+      <Card
+        elevation={24}
+        sx={{
+          maxWidth: 420,
+          width: '100%',
+          mx: 2,
+          borderRadius: 3,
+          overflow: 'visible'
+        }}
+      >
         <CardContent sx={{ p: 4 }}>
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <PoolIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Ouangolo
+
+          {/* ── Logo + Titre ── */}
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Box sx={{ display: 'inline-block', mb: 2, filter: 'drop-shadow(0 4px 12px rgba(21,101,192,0.4))' }}>
+              <GestixLogo size={72} variant="color" />
+            </Box>
+
+            <Typography
+              variant="h3"
+              fontWeight={900}
+              letterSpacing={4}
+              sx={{
+                background: 'linear-gradient(135deg, #1E3A8A, #1565C0)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 0.5
+              }}
+            >
+              GESTIX
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Système de Gestion du Complexe de Loisirs
+
+            <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 1 }}>
+              PLATEFORME DE GESTION
             </Typography>
           </Box>
 
+          <Divider sx={{ mb: 3 }} />
+
+          {/* ── Erreur ── */}
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {error}
             </Alert>
           )}
 
+          {/* ── Formulaire ── */}
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Nom d'utilisateur"
+              label="Identifiant"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               margin="normal"
               required
               autoFocus
               disabled={loading}
+              size="medium"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
             <TextField
               fullWidth
@@ -85,25 +140,39 @@ const Login: React.FC = () => {
               margin="normal"
               required
               disabled={loading}
+              size="medium"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               size="large"
-              sx={{ mt: 3, py: 1.5 }}
+              sx={{
+                mt: 3,
+                py: 1.5,
+                borderRadius: 2,
+                fontWeight: 700,
+                letterSpacing: 1,
+                background: 'linear-gradient(135deg, #1E3A8A, #1565C0)',
+                boxShadow: '0 4px 15px rgba(21,101,192,0.4)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #283593, #1976D2)',
+                  boxShadow: '0 6px 20px rgba(21,101,192,0.5)'
+                }
+              }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Connexion'}
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'SE CONNECTER'}
             </Button>
           </form>
 
           <Typography
             variant="caption"
-            color="text.secondary"
+            color="text.disabled"
             sx={{ display: 'block', textAlign: 'center', mt: 3 }}
           >
-            Contactez l'administrateur si vous avez oublié vos identifiants
+            Contactez votre administrateur pour récupérer vos accès
           </Typography>
         </CardContent>
       </Card>

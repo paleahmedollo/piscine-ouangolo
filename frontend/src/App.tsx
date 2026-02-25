@@ -16,6 +16,7 @@ import Users from './pages/Users';
 import Reports from './pages/Reports';
 import Employees from './pages/Employees';
 import Expenses from './pages/Expenses';
+import Companies from './pages/Companies';
 
 // Create theme
 const theme = createTheme({
@@ -238,6 +239,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute module="expenses">
             <Expenses />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/companies"
+        element={
+          <ProtectedRoute module="companies">
+            <Companies />
           </ProtectedRoute>
         }
       />

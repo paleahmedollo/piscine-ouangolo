@@ -66,6 +66,11 @@ const CashRegister = sequelize.define('CashRegister', {
   synced: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'cash_registers',

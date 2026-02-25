@@ -4,6 +4,7 @@ const authController = require('../controllers/auth.controller');
 const { authenticateToken } = require('../middlewares/auth.middleware');
 
 // Routes publiques
+router.get('/companies', authController.getCompanies);
 router.post('/login', authController.login);
 
 // Routes protégées

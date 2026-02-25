@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { Room, Reservation, User, Sale } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // =====================================================
 // CHAMBRES
@@ -13,8 +14,9 @@ const { logAction } = require('../middlewares/audit.middleware');
 const getRooms = async (req, res) => {
   try {
     const { status, type } = req.query;
+    const cf = getCompanyFilter(req);
 
-    let whereClause = {};
+    let whereClause = { ...cf };
     if (status) whereClause.status = status;
     if (type) whereClause.type = type;
 
@@ -273,7 +275,8 @@ const createReservation = async (req, res) => {
       destination_city: destination_city || null,
       payment_operator: payment_operator || null,
       payment_reference: payment_reference || null,
-      user_id: req.user.id
+      user_id: req.user.id,
+      company_id: req.user.company_id
     });
 
     // Mettre la chambre en occupée si la réservation commence aujourd'hui ou avant
@@ -323,8 +326,9 @@ const getReservations = async (req, res) => {
   try {
     const { status, date, start_date, end_date, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
+    const cf = getCompanyFilter(req);
 
-    let whereClause = {};
+    let whereClause = { ...cf };
 
     if (status) {
       whereClause.status = status;
@@ -725,7 +729,8 @@ const createRoom = async (req, res) => {
       capacity: capacity || 2,
       price_per_night,
       status: 'disponible',
-      amenities: amenities || {}
+      amenities: amenities || {},
+      company_id: req.user.company_id
     });
 
     await logAction(req, 'CREATE_ROOM', 'hotel', 'room', room.id, {
@@ -757,9 +762,11 @@ const getHotelStats = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const rooms = await Room.findAll();
+    const cf = getCompanyFilter(req);
+    const rooms = await Room.findAll({ where: { ...cf } });
     const todayReservations = await Reservation.findAll({
       where: {
+        ...cf,
         status: 'en_cours',
         check_in: { [Op.lte]: today },
         check_out: { [Op.gt]: today }

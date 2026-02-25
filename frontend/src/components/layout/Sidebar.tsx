@@ -22,9 +22,11 @@ import {
   People as UsersIcon,
   Assessment as ReportsIcon,
   Badge as EmployeesIcon,
-  Receipt as ExpensesIcon
+  Receipt as ExpensesIcon,
+  Business as BusinessIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import GestixLogo from '../GestixLogo';
 
 const drawerWidth = 240;
 
@@ -48,7 +50,8 @@ const menuItems: MenuItemType[] = [
 const adminItems: MenuItemType[] = [
   { text: 'Utilisateurs', icon: <UsersIcon />, path: '/users', module: 'users' },
   { text: 'Employes & Paie', icon: <EmployeesIcon />, path: '/employees', module: 'employees' },
-  { text: 'Depenses', icon: <ExpensesIcon />, path: '/expenses', module: 'expenses' }
+  { text: 'Depenses', icon: <ExpensesIcon />, path: '/expenses', module: 'expenses' },
+  { text: 'Entreprises', icon: <BusinessIcon />, path: '/companies', module: 'companies' }
 ];
 
 interface SidebarProps {
@@ -71,11 +74,17 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onDrawerToggle })
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PoolIcon />
-          <Typography variant="h6" noWrap>
-            Ouangolo
+      <Toolbar sx={{ py: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <GestixLogo size={34} variant="white" />
+          <Typography
+            variant="h6"
+            noWrap
+            fontWeight={800}
+            letterSpacing={2.5}
+            sx={{ color: 'white', fontSize: '1.1rem' }}
+          >
+            GESTIX
           </Typography>
         </Box>
       </Toolbar>
@@ -139,8 +148,18 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onDrawerToggle })
           {user?.full_name}
         </Typography>
         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-          {user?.role.replace('_', ' ')}
+          {user?.role.replace(/_/g, ' ')}
         </Typography>
+        {user?.role !== 'super_admin' && user?.company && (
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block' }}>
+            {(user.company as { name: string }).name}
+          </Typography>
+        )}
+        {user?.role === 'super_admin' && (
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,0,0.6)', display: 'block' }}>
+            ★ Accès global
+          </Typography>
+        )}
       </Box>
     </Box>
   );

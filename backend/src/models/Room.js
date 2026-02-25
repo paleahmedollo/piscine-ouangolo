@@ -34,6 +34,11 @@ const Room = sequelize.define('Room', {
     type: DataTypes.JSON,
     allowNull: true,
     comment: 'Object with amenities like wifi, climatisation, tv, minibar, etc.'
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'rooms',

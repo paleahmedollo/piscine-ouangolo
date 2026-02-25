@@ -1,4 +1,5 @@
 const { sequelize } = require('../config/database');
+const Company = require('./Company');
 const User = require('./User');
 const Ticket = require('./Ticket');
 const Subscription = require('./Subscription');
@@ -22,7 +23,11 @@ const PriceSetting = require('./PriceSetting');
 // Associations / Relations
 // =====================================================
 
+// Company associations
+Company.hasMany(User, { foreignKey: 'company_id', as: 'users' });
+
 // User associations
+User.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
 User.hasMany(Ticket, { foreignKey: 'user_id', as: 'tickets' });
 User.hasMany(Subscription, { foreignKey: 'user_id', as: 'subscriptions' });
 User.hasMany(Sale, { foreignKey: 'user_id', as: 'sales' });
@@ -94,6 +99,7 @@ User.hasMany(UserLayout, { foreignKey: 'user_id', as: 'layouts' });
 
 module.exports = {
   sequelize,
+  Company,
   User,
   Ticket,
   Subscription,

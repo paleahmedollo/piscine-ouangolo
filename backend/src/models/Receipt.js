@@ -104,6 +104,11 @@ const Receipt = sequelize.define('Receipt', {
   modification_details: {
     type: DataTypes.JSON,
     allowNull: true
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'receipts',

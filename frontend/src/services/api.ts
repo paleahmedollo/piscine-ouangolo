@@ -36,6 +36,7 @@ api.interceptors.response.use(
 
 // Auth API
 export const authApi = {
+  getCompanies: () => api.get('/auth/companies'),
   login: (username: string, password: string) =>
     api.post('/auth/login', { username, password }),
   logout: () => api.post('/auth/logout'),
@@ -334,6 +335,26 @@ export const reportsApi = {
   updateLayout: (id: number, data: Record<string, unknown>) =>
     api.put(`/reports/layouts/${id}`, data),
   deleteLayout: (id: number) => api.delete(`/reports/layouts/${id}`)
+};
+
+// Companies API (super_admin seulement)
+export const companiesApi = {
+  getCompanies: (params?: Record<string, string>) => api.get('/companies', { params }),
+  getCompany: (id: number) => api.get(`/companies/${id}`),
+  createCompany: (data: {
+    name: string;
+    code: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    plan?: string;
+    admin_username: string;
+    admin_password: string;
+    admin_full_name: string;
+  }) => api.post('/companies', data),
+  updateCompany: (id: number, data: Record<string, unknown>) => api.put(`/companies/${id}`, data),
+  deleteCompany: (id: number) => api.delete(`/companies/${id}`),
+  getCompanyStats: (id: number) => api.get(`/companies/${id}/stats`)
 };
 
 // Employees API

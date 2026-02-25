@@ -1,4 +1,4 @@
-// Types pour l'application Ouangolo
+// Types pour l'application GESTIX
 
 export type UserRole =
   | 'admin'
@@ -10,7 +10,21 @@ export type UserRole =
   | 'gerant'
   | 'responsable'
   | 'directeur'
-  | 'maire';
+  | 'maire'
+  | 'super_admin';
+
+export interface Company {
+  id: number;
+  name: string;
+  code: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  logo_url?: string;
+  plan: string;
+  is_active: boolean;
+  created_at: string;
+}
 
 export interface User {
   id: number;
@@ -18,6 +32,8 @@ export interface User {
   full_name: string;
   role: UserRole;
   is_active: boolean;
+  company_id?: number | null;
+  company?: Company | null;
   created_at: string;
 }
 

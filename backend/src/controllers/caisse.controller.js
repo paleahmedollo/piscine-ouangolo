@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { CashRegister, User, Ticket, Sale, Reservation, Event, Quote } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 const { generateReceipt } = require('./receipts.controller');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // Mapping module -> rôles des employés
 const moduleRoles = {
@@ -156,7 +157,8 @@ const closeCashRegister = async (req, res) => {
       actual_amount: parseFloat(actual_amount),
       difference,
       transactions_count,
-      notes
+      notes,
+      company_id: req.user.company_id
     });
 
     await logAction(req, 'CLOSE_CASH_REGISTER', 'caisse', 'cash_register', cashRegister.id, {
@@ -190,8 +192,9 @@ const getCashRegisters = async (req, res) => {
   try {
     const { module, status, start_date, end_date, user_id, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
+    const cf = getCompanyFilter(req);
 
-    let whereClause = {};
+    let whereClause = { ...cf };
 
     if (module) whereClause.module = module;
     if (status) whereClause.status = status;
@@ -349,8 +352,9 @@ const validateCashRegister = async (req, res) => {
  */
 const getPendingCashRegisters = async (req, res) => {
   try {
+    const cf = getCompanyFilter(req);
     const cashRegisters = await CashRegister.findAll({
-      where: { status: 'en_attente' },
+      where: { status: 'en_attente', ...cf },
       include: [
         { model: User, as: 'user', attributes: ['id', 'full_name', 'role'] }
       ],
@@ -428,7 +432,8 @@ const getCaisseStats = async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
 
-    let whereClause = {};
+    const cf = getCompanyFilter(req);
+    let whereClause = { ...cf };
     if (start_date && end_date) {
       whereClause.date = { [Op.between]: [start_date, end_date] };
     }
@@ -496,8 +501,10 @@ const getEmployeesByModule = async (req, res) => {
 
     const roles = moduleRoles[module];
 
+    const cfEmp = getCompanyFilter(req);
     const employees = await User.findAll({
       where: {
+        ...cfEmp,
         role: { [Op.in]: roles },
         is_active: true
       },

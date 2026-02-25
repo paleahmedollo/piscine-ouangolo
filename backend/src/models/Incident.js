@@ -54,6 +54,11 @@ const Incident = sequelize.define('Incident', {
   photo_url: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'incidents',

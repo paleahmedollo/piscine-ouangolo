@@ -36,12 +36,13 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Attacher l'utilisateur à la requête
+    // Attacher l'utilisateur à la requête avec company_id
     req.user = {
       id: user.id,
       username: user.username,
       full_name: user.full_name,
-      role: user.role
+      role: user.role,
+      company_id: user.company_id || null
     };
 
     next();
@@ -69,6 +70,19 @@ const authenticateToken = async (req, res, next) => {
 };
 
 /**
+ * Middleware super_admin uniquement
+ */
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'super_admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Accès réservé au super administrateur'
+    });
+  }
+  next();
+};
+
+/**
  * Middleware optionnel - Ajoute l'utilisateur si token présent, sinon continue
  */
 const optionalAuth = async (req, res, next) => {
@@ -85,19 +99,30 @@ const optionalAuth = async (req, res, next) => {
           id: user.id,
           username: user.username,
           full_name: user.full_name,
-          role: user.role
+          role: user.role,
+          company_id: user.company_id || null
         };
       }
     }
 
     next();
   } catch (error) {
-    // En cas d'erreur, on continue sans utilisateur
     next();
   }
 };
 
+/**
+ * Helper : retourne le filtre company pour les requêtes Sequelize
+ * Super admin voit tout, les autres voient uniquement leur company
+ */
+const getCompanyFilter = (req) => {
+  if (req.user && req.user.role === 'super_admin') return {};
+  return { company_id: req.user ? req.user.company_id : null };
+};
+
 module.exports = {
   authenticateToken,
-  optionalAuth
+  requireSuperAdmin,
+  optionalAuth,
+  getCompanyFilter
 };

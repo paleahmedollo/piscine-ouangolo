@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { User } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 const { roles } = require('../config/auth');
 
 /**
@@ -11,8 +12,9 @@ const getUsers = async (req, res) => {
   try {
     const { role, is_active, search, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
+    const cf = getCompanyFilter(req);
 
-    let whereClause = {};
+    let whereClause = { ...cf };
 
     // Si l'utilisateur connecté est un gérant (pas admin), ne pas afficher les comptes admin
     if (req.user.role === 'gerant') {
@@ -125,7 +127,7 @@ const createUser = async (req, res) => {
     }
 
     // Vérifier si le username existe déjà
-    const existingUser = await User.findOne({ where: { username } });
+    const existingUser = await User.findOne({ where: { username, ...getCompanyFilter(req) } });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -137,7 +139,8 @@ const createUser = async (req, res) => {
       username,
       password_hash: password, // Sera hashé par le hook beforeCreate
       full_name,
-      role
+      role,
+      company_id: req.user.company_id
     });
 
     await logAction(req, 'CREATE_USER', 'users', 'user', user.id, {

@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { MenuItem, Sale, User, Room, Reservation } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // =====================================================
 // MENU
@@ -13,8 +14,9 @@ const { logAction } = require('../middlewares/audit.middleware');
 const getMenu = async (req, res) => {
   try {
     const { category, available_only } = req.query;
+    const cf = getCompanyFilter(req);
 
-    let whereClause = {};
+    let whereClause = { ...cf };
 
     if (category) {
       whereClause.category = category;
@@ -74,7 +76,8 @@ const createMenuItem = async (req, res) => {
       category,
       price,
       description,
-      is_available: true
+      is_available: true,
+      company_id: req.user.company_id
     });
 
     await logAction(req, 'CREATE_MENU_ITEM', 'restaurant', 'menu_item', menuItem.id, { name, category, price });
@@ -280,7 +283,8 @@ const createSale = async (req, res) => {
       payment_reference: null,
       table_number: table_number || null,
       room_number: room_number || null,
-      status: 'ouvert'
+      status: 'ouvert',
+      company_id: req.user.company_id
     });
 
     await logAction(req, 'CREATE_SALE', 'restaurant', 'sale', sale.id, {
@@ -310,7 +314,8 @@ const createSale = async (req, res) => {
  */
 const getOpenSales = async (req, res) => {
   try {
-    let whereClause = { status: 'ouvert' };
+    const cf = getCompanyFilter(req);
+    let whereClause = { status: 'ouvert', ...cf };
 
     // Les serveurs/serveuses voient seulement leurs tickets ouverts
     if (!['directeur', 'maire', 'gerant', 'responsable', 'admin'].includes(req.user.role)) {
@@ -394,8 +399,9 @@ const getSales = async (req, res) => {
   try {
     const { date, start_date, end_date, status, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
+    const cf = getCompanyFilter(req);
 
-    let whereClause = {};
+    let whereClause = { ...cf };
 
     // Par défaut on ne montre que les ventes fermées (encaissées)
     whereClause.status = status || 'ferme';
@@ -498,12 +504,14 @@ const getSaleStats = async (req, res) => {
     const nextDay = new Date(targetDate);
     nextDay.setDate(nextDay.getDate() + 1);
 
+    const cf = getCompanyFilter(req);
     let whereClause = {
       status: 'ferme',  // Seulement les tickets encaissés dans les stats
       created_at: {
         [Op.gte]: targetDate,
         [Op.lt]: nextDay
-      }
+      },
+      ...cf
     };
 
     if (!['directeur', 'maire', 'gerant', 'responsable', 'admin'].includes(req.user.role)) {

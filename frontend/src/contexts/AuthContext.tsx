@@ -59,7 +59,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 };
 
 // Permissions configuration
-// ADMIN = super admin (acces complet a tout, y compris paie)
+// SUPER_ADMIN = accès total inter-entreprises (gestion multi-sociétés)
+// ADMIN = super admin de l'entreprise (acces complet a tout, y compris paie)
 // GERANT = gestion (acces complet sauf paie)
 // DIRECTEUR/RESPONSABLE/MAIRE = lecture seule (tous les rapports)
 // Employes (maitre_nageur, serveur, receptionniste, gestionnaire_events) = leur module + leurs propres transactions
@@ -70,10 +71,11 @@ const moduleAccess: Record<string, UserRole[]> = {
   events: ['gestionnaire_events', 'gerant', 'admin', 'directeur', 'maire'],
   caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur'],
   dashboard: ['gerant', 'admin', 'responsable', 'directeur', 'maire'],
-  users: ['gerant', 'admin'],  // Gerant et admin
-  employees: ['admin', 'directeur', 'gerant'],  // Admin/directeur pour la paie, gerant pour la gestion
+  users: ['gerant', 'admin'],
+  employees: ['admin', 'directeur', 'gerant'],
   expenses: ['gerant', 'admin', 'directeur'],
-  reports: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
+  reports: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
+  companies: ['super_admin']  // Gestion multi-entreprises
 };
 
 const permissions: Record<string, Record<string, UserRole[]>> = {
@@ -185,12 +187,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const hasPermission = (module: string, action: string): boolean => {
     if (!state.user) return false;
+    // Le super_admin a tous les droits
+    if (state.user.role === 'super_admin') return true;
     const allowedRoles = permissions[module]?.[action] || [];
     return allowedRoles.includes(state.user.role);
   };
 
   const canAccessModule = (module: string): boolean => {
     if (!state.user) return false;
+    // Le super_admin a accès à tous les modules
+    if (state.user.role === 'super_admin') return true;
     const allowedRoles = moduleAccess[module] || [];
     return allowedRoles.includes(state.user.role);
   };
