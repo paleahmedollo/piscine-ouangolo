@@ -427,6 +427,7 @@ export const superadminApi = {
 
   // 3. Utilisateurs
   getUsers: (params?: Record<string, string>) => api.get('/superadmin/users', { params }),
+  createUser: (data: Record<string, unknown>) => api.post('/superadmin/users', data),
   updateUser: (id: number, data: Record<string, unknown>) => api.put(`/superadmin/users/${id}`, data),
   resetUserPassword: (id: number, password: string) => api.put(`/superadmin/users/${id}/reset-password`, { password }),
   deleteUser: (id: number) => api.delete(`/superadmin/users/${id}`),

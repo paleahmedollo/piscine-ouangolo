@@ -5,7 +5,7 @@ const {
   // Dashboard
   getDashboardStats,
   // Users
-  getAllUsers, updateUser, resetUserPassword, deleteUser,
+  getAllUsers, createUser, updateUser, resetUserPassword, deleteUser,
   // Subscriptions
   getSubscriptions, createSubscription, updateSubscription,
   // Billing
@@ -29,6 +29,7 @@ router.get('/dashboard', getDashboardStats);
 
 // ─── 3. Utilisateurs ───────────────────────────────────
 router.get('/users', getAllUsers);
+router.post('/users', createUser);
 router.put('/users/:id', updateUser);
 router.put('/users/:id/reset-password', resetUserPassword);
 router.delete('/users/:id', deleteUser);

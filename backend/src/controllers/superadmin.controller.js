@@ -164,6 +164,41 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const createUser = async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const { username, full_name, password, role, company_id } = req.body;
+
+    if (!username || !full_name || !password || !role) {
+      return res.status(400).json({ success: false, message: 'Champs requis : username, full_name, password, role' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 6 caractères' });
+    }
+
+    const existing = await User.findOne({ where: { username } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: `L'identifiant "${username}" est déjà utilisé` });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const user = await User.create({
+      username,
+      full_name,
+      password_hash,
+      role,
+      company_id: company_id || null,
+      is_active: true
+    });
+
+    await logAction(req, 'CREATE_USER', 'users', 'User', user.id, { username, role, company_id });
+    res.json({ success: true, data: user, message: `Utilisateur "${username}" créé avec succès` });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la création de l\'utilisateur' });
+  }
+};
+
 const updateUser = async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
@@ -744,7 +779,7 @@ module.exports = {
   // Dashboard
   getDashboardStats,
   // Users
-  getAllUsers, updateUser, resetUserPassword, deleteUser,
+  getAllUsers, createUser, updateUser, resetUserPassword, deleteUser,
   // Subscriptions
   getSubscriptions, createSubscription, updateSubscription,
   // Billing
