@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: gestix-backend
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: |
+      cd frontend && npm install && npm run build
+      cd ../backend && npm install
+    startCommand: cd backend && node src/app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        value: ouangolo_super_secret_key_change_in_production_2024
+      - key: JWT_EXPIRES_IN
+        value: 24h

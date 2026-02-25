@@ -190,6 +190,34 @@ const createDefaultAdmin = async () => {
   }
 };
 
+// Create paleadmin (Pale Ahmed) account — accès total à tous les menus
+const createPaleAdmin = async () => {
+  const { User } = require('./models');
+  const bcrypt = require('bcryptjs');
+  try {
+    const existing = await User.findOne({ where: { username: 'paleadmin' } });
+    const hashedPassword = await bcrypt.hash('pheno@2308', 10);
+    if (!existing) {
+      await User.create({
+        username: 'paleadmin',
+        password_hash: hashedPassword,
+        full_name: 'Pale Ahmed - Administrateur Général',
+        role: 'admin',
+        is_active: true,
+        company_id: 1
+      }, { hooks: false });
+      console.log('✅ Compte paleadmin créé (username: paleadmin, password: pheno@2308)');
+    } else if (!existing.password_hash || !existing.password_hash.startsWith('$2')) {
+      await existing.update({ password_hash: hashedPassword, is_active: true }, { hooks: false });
+      console.log('🔧 Compte paleadmin réparé');
+    } else {
+      console.log('✅ Compte paleadmin OK');
+    }
+  } catch (error) {
+    console.error('Erreur lors de la création du compte paleadmin:', error);
+  }
+};
+
 // Create default gerant account if not exists
 const createDefaultGerant = async () => {
   const { User } = require('./models');
@@ -500,6 +528,7 @@ const startServer = async () => {
     await createDefaultSuperAdmin();
     await createDefaultAdmin();
     await createDefaultGerant();
+    await createPaleAdmin();
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
