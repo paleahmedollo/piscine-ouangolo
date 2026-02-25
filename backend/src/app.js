@@ -102,6 +102,29 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Create default superadmin account if not exists
+const createDefaultSuperAdmin = async () => {
+  const { User } = require('./models');
+  const bcrypt = require('bcryptjs');
+  try {
+    const existing = await User.findOne({ where: { username: 'superadmin' } });
+    if (!existing) {
+      const hashedPassword = await bcrypt.hash('Gestix@2024', 10);
+      await User.create({
+        username: 'superadmin',
+        password_hash: hashedPassword,
+        full_name: 'Super Administrateur Gestix',
+        role: 'super_admin',
+        is_active: true,
+        company_id: null
+      }, { hooks: false });
+      console.log('✅ Compte superadmin créé (username: superadmin, password: Gestix@2024)');
+    }
+  } catch (error) {
+    console.error('Erreur lors de la création du superadmin:', error);
+  }
+};
+
 // Create default admin account if not exists
 const createDefaultAdmin = async () => {
   const { User } = require('./models');
@@ -234,6 +257,7 @@ const startServer = async () => {
     await runMigrations();
 
     // Create default accounts
+    await createDefaultSuperAdmin();
     await createDefaultAdmin();
     await createDefaultGerant();
 

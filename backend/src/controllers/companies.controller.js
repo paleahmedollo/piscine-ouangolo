@@ -199,11 +199,104 @@ const getCompanyStats = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/companies/:id/bulk-users
+ * Création en masse d'utilisateurs via fichier Excel/CSV (super_admin uniquement)
+ * Colonnes attendues : full_name, username, password, role
+ */
+const bulkCreateUsers = async (req, res) => {
+  const companyId = parseInt(req.params.id);
+
+  try {
+    const company = await Company.findByPk(companyId);
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Fichier Excel requis' });
+    }
+
+    const XLSX = require('xlsx');
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Le fichier est vide ou mal formaté' });
+    }
+
+    const results = { created: [], failed: [], skipped: [] };
+    const validRoles = ['admin', 'gerant', 'directeur', 'responsable', 'maire', 'maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events'];
+
+    for (const row of rows) {
+      const full_name = String(row['full_name'] || row['Nom complet'] || row['nom_complet'] || '').trim();
+      const username  = String(row['username']  || row['Identifiant']   || row['identifiant']   || '').trim().toLowerCase();
+      const password  = String(row['password']  || row['Mot de passe']  || row['mot_de_passe']  || '').trim();
+      const role      = String(row['role']       || row['Role']          || row['rôle']          || '').trim().toLowerCase();
+
+      // Validation
+      if (!full_name || !username || !password || !role) {
+        results.failed.push({ username: username || '?', reason: 'Champs manquants (full_name, username, password, role)' });
+        continue;
+      }
+      if (!validRoles.includes(role)) {
+        results.failed.push({ username, reason: `Rôle invalide: "${role}"` });
+        continue;
+      }
+      if (password.length < 6) {
+        results.failed.push({ username, reason: 'Mot de passe trop court (min 6 caractères)' });
+        continue;
+      }
+
+      // Vérifier si l'username existe déjà
+      const existing = await User.findOne({ where: { username } });
+      if (existing) {
+        results.skipped.push({ username, reason: 'Nom d\'utilisateur déjà utilisé' });
+        continue;
+      }
+
+      try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await User.create({
+          username,
+          password_hash: hashedPassword,
+          full_name,
+          role,
+          is_active: true,
+          company_id: companyId
+        }, { hooks: false });
+
+        results.created.push({ id: newUser.id, username, full_name, role });
+      } catch (err) {
+        results.failed.push({ username, reason: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Import terminé : ${results.created.length} créés, ${results.skipped.length} ignorés, ${results.failed.length} erreurs`,
+      data: {
+        company: { id: company.id, name: company.name },
+        total_rows: rows.length,
+        created: results.created,
+        skipped: results.skipped,
+        failed: results.failed
+      }
+    });
+  } catch (error) {
+    console.error('Bulk create users error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de l\'import', detail: error.message });
+  }
+};
+
 module.exports = {
   getCompanies,
   createCompany,
   getCompany,
   updateCompany,
   deleteCompany,
-  getCompanyStats
+  getCompanyStats,
+  bulkCreateUsers
 };

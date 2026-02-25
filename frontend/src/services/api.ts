@@ -354,7 +354,14 @@ export const companiesApi = {
   }) => api.post('/companies', data),
   updateCompany: (id: number, data: Record<string, unknown>) => api.put(`/companies/${id}`, data),
   deleteCompany: (id: number) => api.delete(`/companies/${id}`),
-  getCompanyStats: (id: number) => api.get(`/companies/${id}/stats`)
+  getCompanyStats: (id: number) => api.get(`/companies/${id}/stats`),
+  bulkCreateUsers: (companyId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/companies/${companyId}/bulk-users`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
 };
 
 // Employees API

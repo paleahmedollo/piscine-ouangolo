@@ -85,9 +85,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; module?: string; red
   return <>{children}</>;
 };
 
-// Route for dashboard - redirects employees to reports
+// Route for dashboard - redirects superadmin to companies, employees to reports
 const DashboardRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, canAccessModule } = useAuth();
+  const { isAuthenticated, isLoading, canAccessModule, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -106,7 +106,12 @@ const DashboardRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
 
-  // Si l'utilisateur n'a pas acces au dashboard, le rediriger vers ses rapports
+  // Le super_admin n'a pas d'entreprise → on le dirige vers la gestion des entreprises
+  if (user?.role === 'super_admin') {
+    return <Navigate to="/companies" replace />;
+  }
+
+  // Si l'utilisateur n'a pas accès au dashboard, le rediriger vers ses rapports
   if (!canAccessModule('dashboard')) {
     return <Navigate to="/reports" replace />;
   }
