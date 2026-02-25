@@ -227,9 +227,9 @@ const Companies: React.FC = () => {
         ].map(({ label, value, color }) => (
           <Grid item xs={12} sm={4} key={label}>
             <Card>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Typography variant="h3" sx={{ color }} fontWeight="bold">{value}</Typography>
-                <Typography variant="body2" color="text.secondary">{label}</Typography>
+              <CardContent sx={{ textAlign: 'center', py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="h5" sx={{ color }} fontWeight="bold">{value}</Typography>
+                <Typography variant="caption" color="text.secondary">{label}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -238,7 +238,7 @@ const Companies: React.FC = () => {
 
       {/* ── Tableau ── */}
       <TableContainer component={Paper}>
-        <Table>
+        <Table size="small">
           <TableHead>
             <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
               <TableCell><strong>ID</strong></TableCell>

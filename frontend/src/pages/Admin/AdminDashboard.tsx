@@ -34,21 +34,21 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon, color, bgColor, chip }) => (
-  <Card sx={{ height: '100%', border: `1px solid ${bgColor}`, borderTop: `4px solid ${color}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-    <CardContent>
+  <Card sx={{ height: '100%', border: `1px solid ${bgColor}`, borderTop: `3px solid ${color}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
             {title}
           </Typography>
-          <Typography variant="h4" fontWeight={700} sx={{ color, mt: 0.5 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ color, mt: 0.3, lineHeight: 1.2 }}>
             {value}
           </Typography>
-          {subtitle && <Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
-          {chip && <Chip label={chip.label} color={chip.color} size="small" sx={{ mt: 0.5 }} />}
+          {subtitle && <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>{subtitle}</Typography>}
+          {chip && <Chip label={chip.label} color={chip.color} size="small" sx={{ mt: 0.3, height: 18, fontSize: '0.62rem' }} />}
         </Box>
-        <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: bgColor }}>
-          <Box sx={{ color }}>{icon}</Box>
+        <Box sx={{ p: 0.8, borderRadius: 1.5, bgcolor: bgColor }}>
+          <Box sx={{ color, '& svg': { fontSize: 20 } }}>{icon}</Box>
         </Box>
       </Box>
     </CardContent>
@@ -117,7 +117,7 @@ const AdminDashboard: React.FC = () => {
       )}
 
       {/* Cartes principales */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+      <Grid container spacing={1.5} sx={{ mb: 2 }}>
         {/* Entreprises */}
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
@@ -161,7 +161,7 @@ const AdminDashboard: React.FC = () => {
       </Grid>
 
       {/* Revenus */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+      <Grid container spacing={1.5} sx={{ mb: 2 }}>
         <Grid item xs={12} md={4}>
           <StatCard
             title="Revenu du mois"
@@ -193,23 +193,23 @@ const AdminDashboard: React.FC = () => {
       </Grid>
 
       {/* Vue synthétique statut entreprises */}
-      <Grid container spacing={2.5}>
+      <Grid container spacing={1.5}>
         <Grid item xs={12} md={6}>
-          <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+          <Card sx={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Typography variant="subtitle2" fontWeight={700} gutterBottom>
                 📊 Statut des entreprises
               </Typography>
-              <Divider sx={{ mb: 2 }} />
+              <Divider sx={{ mb: 1.5 }} />
               {[
                 { label: 'Actives', value: stats?.companies.active || 0, total: stats?.companies.total || 1, color: '#2e7d32', bg: '#e8f5e9' },
                 { label: 'Suspendues', value: stats?.companies.suspended || 0, total: stats?.companies.total || 1, color: '#e65100', bg: '#fff3e0' },
                 { label: 'Expirées', value: stats?.companies.expired || 0, total: stats?.companies.total || 1, color: '#b71c1c', bg: '#ffebee' },
               ].map(({ label, value, total, color, bg }) => (
-                <Box key={label} sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">{label}</Typography>
-                    <Typography variant="body2" fontWeight={600} sx={{ color }}>{value}</Typography>
+                <Box key={label} sx={{ mb: 1.2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
+                    <Typography variant="body2" fontSize="0.8rem">{label}</Typography>
+                    <Typography variant="body2" fontWeight={600} fontSize="0.8rem" sx={{ color }}>{value}</Typography>
                   </Box>
                   <LinearProgress
                     variant="determinate"
@@ -222,23 +222,23 @@ const AdminDashboard: React.FC = () => {
           </Card>
         </Grid>
         <Grid item xs={12} md={6}>
-          <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+          <Card sx={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Typography variant="subtitle2" fontWeight={700} gutterBottom>
                 🎟 Tickets d'assistance
               </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Grid container spacing={2}>
+              <Divider sx={{ mb: 1.5 }} />
+              <Grid container spacing={1}>
                 {[
                   { label: 'Ouverts', value: stats?.tickets.open, icon: <TicketIcon />, color: '#e65100' },
                   { label: 'Urgents', value: stats?.tickets.urgent, icon: <WarningIcon />, color: '#b71c1c' },
                   { label: 'Résolus cette semaine', value: stats?.tickets.resolved_week, icon: <OkIcon />, color: '#2e7d32' },
                 ].map(({ label, value, icon, color }) => (
                   <Grid item xs={12} key={label}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: '#f9f9f9' }}>
-                      <Box sx={{ color }}>{icon}</Box>
-                      <Typography variant="body2" sx={{ flex: 1 }}>{label}</Typography>
-                      <Typography variant="h6" fontWeight={700} sx={{ color }}>{value ?? 0}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, borderRadius: 1.5, bgcolor: '#f9f9f9' }}>
+                      <Box sx={{ color, '& svg': { fontSize: 18 } }}>{icon}</Box>
+                      <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{label}</Typography>
+                      <Typography variant="subtitle1" fontWeight={700} sx={{ color }}>{value ?? 0}</Typography>
                     </Box>
                   </Grid>
                 ))}

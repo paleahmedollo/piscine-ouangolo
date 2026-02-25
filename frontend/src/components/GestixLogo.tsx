@@ -6,36 +6,44 @@ interface GestixLogoProps {
 }
 
 /**
- * Logo GESTIX — "GT" géométrique en blocs
- * Lettres G et T construites en rectangles, style app-icon moderne
+ * Logo GESTIX — Bouclier avec coche + flèche montante
+ * Shield shape with white check-arrow icon inside
  */
 const GestixLogo: React.FC<GestixLogoProps> = ({ size = 60, variant = 'color' }) => {
   const uid = `gx-${size}-${variant}`;
 
-  /* ─── Géométrie des lettres (viewBox 60×60) ───────────────────
-     G  : x 3-25, y 9-51  (largeur 22, hauteur 42)
-     Gap: 5px
-     T  : x 30-57, y 9-51 (largeur 27, hauteur 42)
-  ─────────────────────────────────────────────────────────────── */
-  const shapes = (fill: string, midFill: string) => (
-    <>
-      {/* ── G ── */}
-      <rect x="3"  y="9"  width="22" height="7"  rx="2.5" fill={fill}/>    {/* haut */}
-      <rect x="3"  y="9"  width="7"  height="35" rx="2.5" fill={fill}/>    {/* gauche */}
-      <rect x="3"  y="44" width="22" height="7"  rx="2.5" fill={fill}/>    {/* bas */}
-      <rect x="18" y="27" width="7"  height="24" rx="2.5" fill={fill}/>    {/* droite basse */}
-      <rect x="12" y="27" width="13" height="7"  rx="2.5" fill={midFill}/> {/* bras central */}
+  // Shield path in 60×60 viewBox
+  const shieldPath = 'M30,3 L56,13 L56,34 C56,48 44,56 30,59 C16,56 4,48 4,34 L4,13 Z';
 
-      {/* ── T ── */}
-      <rect x="30" y="9"  width="27" height="7"  rx="2.5" fill={fill}/>    {/* haut */}
-      <rect x="40" y="9"  width="7"  height="42" rx="2.5" fill={fill}/>    {/* montant */}
+  // Check+arrow icon: checkmark whose right arm ends with an arrowhead pointing up-right
+  const CheckArrow = ({ color }: { color: string }) => (
+    <>
+      {/* Checkmark body: left dip then rising right arm */}
+      <polyline
+        points="13,30 22,39 46,13"
+        stroke={color}
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* Arrowhead at top-right (46,13): horizontal and vertical bars */}
+      <polyline
+        points="34,13 46,13 46,25"
+        stroke={color}
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </>
   );
 
   if (variant === 'white') {
     return (
       <svg width={size} height={size} viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-        {shapes('white', 'rgba(255,255,255,0.72)')}
+        <path d={shieldPath} fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
+        <CheckArrow color="white" />
       </svg>
     );
   }
@@ -43,18 +51,23 @@ const GestixLogo: React.FC<GestixLogoProps> = ({ size = 60, variant = 'color' })
   return (
     <svg width={size} height={size} viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id={uid} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%"   stopColor="#1A2F7A"/>
-          <stop offset="100%" stopColor="#1565C0"/>
+        {/* Main gradient: dark navy → bright blue */}
+        <linearGradient id={uid} x1="0" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stopColor="#1A2F7A" />
+          <stop offset="100%" stopColor="#1565C0" />
         </linearGradient>
-        <radialGradient id={`${uid}-sh`} cx="28%" cy="22%" r="52%">
-          <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.10"/>
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0"/>
+        {/* Shine overlay */}
+        <radialGradient id={`${uid}-sh`} cx="35%" cy="20%" r="55%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <rect width="60" height="60" rx="13" fill={`url(#${uid})`}/>
-      <rect width="60" height="60" rx="13" fill={`url(#${uid}-sh)`}/>
-      {shapes('white', 'rgba(255,255,255,0.80)')}
+      {/* Shield body */}
+      <path d={shieldPath} fill={`url(#${uid})`} />
+      {/* Shine */}
+      <path d={shieldPath} fill={`url(#${uid}-sh)`} />
+      {/* Icon */}
+      <CheckArrow color="white" />
     </svg>
   );
 };

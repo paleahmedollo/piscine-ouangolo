@@ -105,14 +105,14 @@ const AdminReports: React.FC = () => {
             { label: 'Abonnements actifs', value: overviewData.active_subscriptions, icon: <BusinessIcon />, color: '#4a148c' },
           ].map(({ label, value, icon, color }) => (
             <Grid item xs={12} sm={6} md={4} key={label}>
-              <Card sx={{ borderTop: `4px solid ${color}` }}>
-                <CardContent>
+              <Card sx={{ borderTop: `3px solid ${color}` }}>
+                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase' }}>{label}</Typography>
-                      <Typography variant="h4" fontWeight={700} sx={{ color }}>{String(value ?? 0)}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>{label}</Typography>
+                      <Typography variant="h6" fontWeight={700} sx={{ color }}>{String(value ?? 0)}</Typography>
                     </Box>
-                    <Box sx={{ color, opacity: 0.3, fontSize: 40 }}>{icon}</Box>
+                    <Box sx={{ color, opacity: 0.25, '& svg': { fontSize: 30 } }}>{icon}</Box>
                   </Box>
                 </CardContent>
               </Card>

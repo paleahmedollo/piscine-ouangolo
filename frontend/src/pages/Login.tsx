@@ -85,8 +85,8 @@ const Login: React.FC = () => {
 
           {/* ── Logo + Titre ── */}
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Box sx={{ display: 'inline-block', mb: 2, filter: 'drop-shadow(0 4px 12px rgba(21,101,192,0.4))' }}>
-              <GestixLogo size={72} variant="color" />
+            <Box sx={{ display: 'inline-block', mb: 1.5, filter: 'drop-shadow(0 6px 16px rgba(21,101,192,0.45))' }}>
+              <GestixLogo size={84} variant="color" />
             </Box>
 
             <Typography
