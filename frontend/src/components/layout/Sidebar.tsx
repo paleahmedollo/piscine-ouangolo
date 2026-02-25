@@ -25,6 +25,7 @@ import {
   Receipt as ExpensesIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import GestixLogo from '../GestixLogo';
 
 const drawerWidth = 240;
 
@@ -71,11 +72,17 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onDrawerToggle })
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PoolIcon />
-          <Typography variant="h6" noWrap>
-            Ouangolo
+      <Toolbar sx={{ py: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <GestixLogo size={34} variant="white" />
+          <Typography
+            variant="h6"
+            noWrap
+            fontWeight={800}
+            letterSpacing={2.5}
+            sx={{ color: 'white', fontSize: '1.1rem' }}
+          >
+            GESTIX
           </Typography>
         </Box>
       </Toolbar>

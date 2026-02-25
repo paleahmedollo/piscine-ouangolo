@@ -17,6 +17,16 @@ const Incident = require('./Incident');
 const Receipt = require('./Receipt');
 const UserLayout = require('./UserLayout');
 const PriceSetting = require('./PriceSetting');
+// ── Nouveaux modules ──────────────────────────────────
+const VehicleType = require('./VehicleType');
+const CarWash = require('./CarWash');
+const CustomerTab = require('./CustomerTab');
+const TabItem = require('./TabItem');
+const Product = require('./Product');
+const StockMovement = require('./StockMovement');
+const Supplier = require('./Supplier');
+const Purchase = require('./Purchase');
+const PurchaseItem = require('./PurchaseItem');
 
 // =====================================================
 // Associations / Relations
@@ -88,6 +98,27 @@ CashRegister.hasOne(Receipt, { foreignKey: 'cash_register_id', as: 'receipt' });
 UserLayout.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(UserLayout, { foreignKey: 'user_id', as: 'layouts' });
 
+// ── Lavage Auto associations ──────────────────────────
+CarWash.belongsTo(VehicleType, { foreignKey: 'vehicle_type_id', as: 'vehicleType' });
+VehicleType.hasMany(CarWash, { foreignKey: 'vehicle_type_id', as: 'carWashes' });
+CarWash.belongsTo(CustomerTab, { foreignKey: 'tab_id', as: 'tab' });
+
+// ── Customer Tabs (cross-service) ─────────────────────
+CustomerTab.hasMany(TabItem, { foreignKey: 'tab_id', as: 'items' });
+TabItem.belongsTo(CustomerTab, { foreignKey: 'tab_id', as: 'tab' });
+
+// ── Stock / Produits associations ─────────────────────
+StockMovement.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+Product.hasMany(StockMovement, { foreignKey: 'product_id', as: 'movements' });
+
+// ── Achats / Approvisionnements ──────────────────────
+Purchase.hasMany(PurchaseItem, { foreignKey: 'purchase_id', as: 'items' });
+PurchaseItem.belongsTo(Purchase, { foreignKey: 'purchase_id', as: 'purchase' });
+PurchaseItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+Product.hasMany(PurchaseItem, { foreignKey: 'product_id', as: 'purchaseItems' });
+Purchase.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier' });
+Supplier.hasMany(Purchase, { foreignKey: 'supplier_id', as: 'purchases' });
+
 // =====================================================
 // Export
 // =====================================================
@@ -111,5 +142,15 @@ module.exports = {
   Incident,
   Receipt,
   UserLayout,
-  PriceSetting
+  PriceSetting,
+  // Nouveaux modules
+  VehicleType,
+  CarWash,
+  CustomerTab,
+  TabItem,
+  Product,
+  StockMovement,
+  Supplier,
+  Purchase,
+  PurchaseItem
 };
