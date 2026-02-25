@@ -17,6 +17,9 @@ import Reports from './pages/Reports';
 import Employees from './pages/Employees';
 import Expenses from './pages/Expenses';
 import Companies from './pages/Companies';
+import LavageAuto from './pages/LavageAuto';
+import Maquis from './pages/Maquis';
+import Superette from './pages/Superette';
 
 // Super Admin pages
 import SuperAdminLayout from './pages/Admin/SuperAdminLayout';
@@ -152,6 +155,10 @@ const AppRoutes: React.FC = () => {
       <Route path="/reports" element={<ProtectedRoute module="reports"><Reports /></ProtectedRoute>} />
       <Route path="/employees" element={<ProtectedRoute module="employees"><Employees /></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute module="expenses"><Expenses /></ProtectedRoute>} />
+
+      <Route path="/lavage" element={<ProtectedRoute module="lavage"><LavageAuto /></ProtectedRoute>} />
+      <Route path="/maquis" element={<ProtectedRoute module="maquis"><Maquis /></ProtectedRoute>} />
+      <Route path="/superette" element={<ProtectedRoute module="superette"><Superette /></ProtectedRoute>} />
 
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/" replace />} />

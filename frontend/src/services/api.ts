@@ -462,3 +462,100 @@ export const superadminApi = {
 };
 
 export default api;
+
+// Lavage Auto API
+export const lavageApi = {
+  getVehicleTypes: () => api.get('/lavage/vehicle-types'),
+  createVehicleType: (data: { name: string; price: number }) =>
+    api.post('/lavage/vehicle-types', data),
+  updateVehicleType: (id: number, data: { name?: string; price?: number; is_active?: boolean }) =>
+    api.put(`/lavage/vehicle-types/${id}`, data),
+  deleteVehicleType: (id: number) => api.delete(`/lavage/vehicle-types/${id}`),
+  createCarWash: (data: {
+    vehicle_type_id: number; plate_number?: string; customer_name?: string;
+    customer_phone?: string; payment_method?: string; payment_operator?: string;
+    payment_reference?: string; tab_id?: number; notes?: string;
+  }) => api.post('/lavage/washes', data),
+  getCarWashes: (params?: { date?: string; start_date?: string; end_date?: string }) =>
+    api.get('/lavage/washes', { params }),
+  getStats: () => api.get('/lavage/stats')
+};
+
+// Customer Tabs API (cross-service billing)
+export const tabsApi = {
+  createTab: (data: { customer_name: string; customer_info?: string; notes?: string }) =>
+    api.post('/tabs', data),
+  getOpenTabs: () => api.get('/tabs/open'),
+  getTab: (id: number) => api.get(`/tabs/${id}`),
+  addItemToTab: (id: number, data: {
+    service_type: string; item_name: string; quantity: number;
+    unit_price: number; reference_id?: number; notes?: string;
+  }) => api.post(`/tabs/${id}/items`, data),
+  closeTab: (id: number, data: {
+    payment_method: string; payment_operator?: string; payment_reference?: string;
+  }) => api.put(`/tabs/${id}/close`, data),
+  getTabs: (params?: { date?: string; status?: string; start_date?: string; end_date?: string }) =>
+    api.get('/tabs', { params })
+};
+
+// Maquis API
+export const maquisApi = {
+  getStats: () => api.get('/maquis/stats'),
+  getProducts: (params?: { category?: string; active_only?: string }) =>
+    api.get('/maquis/products', { params }),
+  createProduct: (data: {
+    name: string; category: string; sell_price: number;
+    buy_price?: number; unit?: string; min_stock?: number; description?: string;
+  }) => api.post('/maquis/products', data),
+  updateProduct: (id: number, data: Record<string, unknown>) => api.put(`/maquis/products/${id}`, data),
+  deleteProduct: (id: number) => api.delete(`/maquis/products/${id}`),
+  createOrder: (data: {
+    items: Array<{ product_id: number; quantity: number }>;
+    tab_id?: number; payment_method?: string; payment_operator?: string;
+    payment_reference?: string; table_number?: string; notes?: string;
+  }) => api.post('/maquis/orders', data),
+  getStock: () => api.get('/maquis/stock'),
+  getStockMovements: (params?: Record<string, string>) => api.get('/maquis/stock/movements', { params }),
+  addStock: (data: {
+    supplier_id?: number;
+    items: Array<{ product_id: number; quantity: number; unit_price?: number }>;
+    payment_method?: string; notes?: string; purchase_date?: string;
+  }) => api.post('/maquis/stock/add', data),
+  getPurchases: () => api.get('/maquis/purchases'),
+  getSuppliers: () => api.get('/maquis/suppliers'),
+  createSupplier: (data: { name: string; contact?: string; phone?: string; address?: string }) =>
+    api.post('/maquis/suppliers', data),
+  updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/maquis/suppliers/${id}`, data)
+};
+
+// Superette API
+export const superetteApi = {
+  getStats: () => api.get('/superette/stats'),
+  getProducts: (params?: { category?: string; active_only?: string; search?: string }) =>
+    api.get('/superette/products', { params }),
+  createProduct: (data: {
+    name: string; category: string; sell_price: number;
+    buy_price?: number; unit?: string; min_stock?: number; description?: string;
+  }) => api.post('/superette/products', data),
+  updateProduct: (id: number, data: Record<string, unknown>) => api.put(`/superette/products/${id}`, data),
+  deleteProduct: (id: number) => api.delete(`/superette/products/${id}`),
+  createSale: (data: {
+    items: Array<{ product_id: number; quantity: number }>;
+    tab_id?: number; payment_method?: string; payment_operator?: string;
+    payment_reference?: string; notes?: string;
+  }) => api.post('/superette/sales', data),
+  getStock: () => api.get('/superette/stock'),
+  getStockMovements: (params?: Record<string, string>) => api.get('/superette/stock/movements', { params }),
+  adjustStock: (data: { product_id: number; new_quantity: number; reason?: string }) =>
+    api.post('/superette/stock/adjust', data),
+  addStock: (data: {
+    supplier_id?: number;
+    items: Array<{ product_id: number; quantity: number; unit_price?: number }>;
+    payment_method?: string; notes?: string; purchase_date?: string;
+  }) => api.post('/superette/stock/add', data),
+  getPurchases: () => api.get('/superette/purchases'),
+  getSuppliers: () => api.get('/superette/suppliers'),
+  createSupplier: (data: { name: string; contact?: string; phone?: string; address?: string }) =>
+    api.post('/superette/suppliers', data),
+  updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/superette/suppliers/${id}`, data)
+};

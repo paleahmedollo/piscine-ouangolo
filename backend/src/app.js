@@ -19,6 +19,11 @@ const receiptsRoutes = require('./routes/receipts.routes');
 const reportsRoutes = require('./routes/reports.routes');
 const companiesRoutes = require('./routes/companies.routes');
 const superadminRoutes = require('./routes/superadmin.routes');
+// Nouveaux modules
+const lavageRoutes = require('./routes/lavage.routes');
+const tabsRoutes = require('./routes/tabs.routes');
+const maquisRoutes = require('./routes/maquis.routes');
+const superetteRoutes = require('./routes/superette.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -69,6 +74,11 @@ app.use('/api/receipts', receiptsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/companies', companiesRoutes);
 app.use('/api/superadmin', superadminRoutes);
+// Nouveaux modules
+app.use('/api/lavage', lavageRoutes);
+app.use('/api/tabs', tabsRoutes);
+app.use('/api/maquis', maquisRoutes);
+app.use('/api/superette', superetteRoutes);
 
 // Servir le frontend React si le dossier dist existe (mode local)
 const fs = require('fs');
@@ -317,12 +327,134 @@ const runMigrations = async () => {
         status VARCHAR(20) DEFAULT 'success',
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      // ── Lavage Auto (PostgreSQL) ──────────────────────────────
+      `CREATE TABLE IF NOT EXISTS vehicle_types (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        price DECIMAL(12,0) NOT NULL DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS customer_tabs (
+        id SERIAL PRIMARY KEY,
+        customer_name VARCHAR(150) NOT NULL,
+        customer_info VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'ouvert',
+        total_amount DECIMAL(12,0) DEFAULT 0,
+        payment_method VARCHAR(50),
+        payment_operator VARCHAR(50),
+        payment_reference VARCHAR(200),
+        user_id INTEGER,
+        notes TEXT,
+        closed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS car_washes (
+        id SERIAL PRIMARY KEY,
+        vehicle_type_id INTEGER,
+        plate_number VARCHAR(30),
+        customer_name VARCHAR(150),
+        customer_phone VARCHAR(30),
+        amount DECIMAL(12,0) NOT NULL,
+        payment_method VARCHAR(50),
+        payment_operator VARCHAR(50),
+        payment_reference VARCHAR(200),
+        status VARCHAR(20) DEFAULT 'paye',
+        tab_id INTEGER,
+        user_id INTEGER,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS tab_items (
+        id SERIAL PRIMARY KEY,
+        tab_id INTEGER NOT NULL,
+        service_type VARCHAR(30) NOT NULL,
+        item_name VARCHAR(200) NOT NULL,
+        quantity DECIMAL(12,2) DEFAULT 1,
+        unit_price DECIMAL(12,0) DEFAULT 0,
+        subtotal DECIMAL(12,0) DEFAULT 0,
+        reference_id INTEGER,
+        notes VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      // ── Produits maquis / supérette ───────────────────────────
+      `CREATE TABLE IF NOT EXISTS suppliers (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        contact VARCHAR(200),
+        phone VARCHAR(50),
+        address TEXT,
+        service_type VARCHAR(20) DEFAULT 'both',
+        is_active BOOLEAN DEFAULT true,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        service_type VARCHAR(20) NOT NULL,
+        buy_price DECIMAL(12,0) DEFAULT 0,
+        sell_price DECIMAL(12,0) NOT NULL DEFAULT 0,
+        unit VARCHAR(50) DEFAULT 'unité',
+        current_stock DECIMAL(12,2) DEFAULT 0,
+        min_stock DECIMAL(12,2) DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        description TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS stock_movements (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER NOT NULL,
+        type VARCHAR(10) NOT NULL,
+        quantity DECIMAL(12,2) NOT NULL,
+        unit_price DECIMAL(12,0) DEFAULT 0,
+        reason VARCHAR(200),
+        reference_id INTEGER,
+        reference_type VARCHAR(50),
+        user_id INTEGER,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS purchases (
+        id SERIAL PRIMARY KEY,
+        supplier_id INTEGER,
+        service_type VARCHAR(20) NOT NULL,
+        total_amount DECIMAL(12,0) DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT 'especes',
+        notes TEXT,
+        user_id INTEGER,
+        purchase_date DATE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS purchase_items (
+        id SERIAL PRIMARY KEY,
+        purchase_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity DECIMAL(12,2) NOT NULL,
+        unit_price DECIMAL(12,0) DEFAULT 0,
+        subtotal DECIMAL(12,0) DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
       )`
     ];
     for (const sql of migrations) {
       await sequelize.query(sql);
     }
-    console.log('✅ Migrations appliquées (employees, sales room_number, sales status)');
+    // Insert default vehicle types if table is empty
+    const [vtRows] = await sequelize.query('SELECT COUNT(*) as cnt FROM vehicle_types');
+    if (parseInt(vtRows[0].cnt) === 0) {
+      await sequelize.query(`INSERT INTO vehicle_types (name, price) VALUES
+        ('Moto', 500), ('Tricycle', 750), ('Voiture', 1000), ('Camion', 2000), ('Bus', 2500)`);
+      console.log('✅ Types de véhicules par défaut créés');
+    }
+    console.log('✅ Migrations appliquées (employees, sales, lavage, tabs, produits, stock, fournisseurs)');
   } catch (error) {
     console.error('Erreur migration:', error.message);
   }

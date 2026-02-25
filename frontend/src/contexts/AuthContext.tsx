@@ -75,7 +75,11 @@ const moduleAccess: Record<string, UserRole[]> = {
   employees: ['admin', 'directeur', 'gerant'],
   expenses: ['gerant', 'admin', 'directeur'],
   reports: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
-  companies: ['super_admin']  // Gestion multi-entreprises
+  companies: ['super_admin'],  // Gestion multi-entreprises
+  // Nouveaux modules
+  lavage: ['gerant', 'admin', 'serveur', 'serveuse', 'receptionniste', 'maitre_nageur'],
+  maquis: ['gerant', 'admin', 'serveur', 'serveuse'],
+  superette: ['gerant', 'admin', 'serveur', 'serveuse', 'receptionniste']
 };
 
 const permissions: Record<string, Record<string, UserRole[]>> = {
