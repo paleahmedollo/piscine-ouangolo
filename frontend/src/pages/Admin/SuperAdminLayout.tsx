@@ -18,10 +18,10 @@ import {
   Menu as MenuIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
-  Security as SecurityIcon,
   ChevronLeft as ChevronLeftIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import GestixLogo from '../../components/GestixLogo';
 
 const DRAWER_WIDTH = 260;
 
@@ -59,13 +59,8 @@ const SuperAdminLayout: React.FC = () => {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg, #0d1b4b 0%, #1a237e 100%)' }}>
       {/* Logo */}
       <Box sx={{ p: 2.5, pb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Box sx={{
-          width: 40, height: 40, borderRadius: 2,
-          background: 'linear-gradient(135deg, #42a5f5, #1565c0)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-        }}>
-          <SecurityIcon sx={{ color: '#fff', fontSize: 22 }} />
+        <Box sx={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}>
+          <GestixLogo size={42} variant="white" />
         </Box>
         <Box>
           <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1.2, fontSize: '1rem' }}>
