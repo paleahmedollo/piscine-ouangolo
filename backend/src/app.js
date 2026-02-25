@@ -507,22 +507,44 @@ const runMigrations = async () => {
   }
 };
 
+// Create default company (id=1) if no company exists
+const createDefaultCompany = async () => {
+  const { Company } = require('./models');
+  try {
+    const count = await Company.count();
+    if (count === 0) {
+      await Company.create({
+        name: 'Piscine de Ouangolo',
+        code: 'OUANGOLO',
+        address: 'Ouangolodougou, Côte d\'Ivoire',
+        plan: 'basic',
+        is_active: true
+      });
+      console.log('✅ Entreprise par défaut créée (Piscine de Ouangolo, id=1)');
+    } else {
+      console.log(`✅ ${count} entreprise(s) existante(s) — OK`);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la création de l\'entreprise par défaut:', error.message);
+  }
+};
+
 // Start server
 const startServer = async () => {
   try {
     // Test database connection
     await testConnection();
 
-    // Tables are managed via setupDb.js script - no auto sync in production
-    if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ alter: false });
-      console.log('✅ Database models synchronized');
-    } else {
-      console.log('✅ Production mode - skipping sync');
-    }
+    // Sync models — crée les tables manquantes sans toucher aux données existantes
+    // force: false = jamais de DROP, alter: false = jamais de modification de colonnes
+    await sequelize.sync({ force: false });
+    console.log('✅ Database models synchronized (tables créées si manquantes)');
 
-    // Run migrations
+    // Run migrations (ajoute colonnes et tables manquantes)
     await runMigrations();
+
+    // Create default company first (les comptes admin en dépendent)
+    await createDefaultCompany();
 
     // Create default accounts
     await createDefaultSuperAdmin();
