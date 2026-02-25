@@ -18,6 +18,11 @@ const Incident = require('./Incident');
 const Receipt = require('./Receipt');
 const UserLayout = require('./UserLayout');
 const PriceSetting = require('./PriceSetting');
+// Super Admin modules
+const SupportTicket = require('./SupportTicket');
+const Invoice = require('./Invoice');
+const SaasSubscription = require('./SaasSubscription');
+const SystemLog = require('./SystemLog');
 
 // =====================================================
 // Associations / Relations
@@ -25,6 +30,9 @@ const PriceSetting = require('./PriceSetting');
 
 // Company associations
 Company.hasMany(User, { foreignKey: 'company_id', as: 'users' });
+Company.hasMany(SupportTicket, { foreignKey: 'company_id', as: 'supportTickets' });
+Company.hasMany(Invoice, { foreignKey: 'company_id', as: 'invoices' });
+Company.hasMany(SaasSubscription, { foreignKey: 'company_id', as: 'saasSubscriptions' });
 
 // User associations
 User.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
@@ -36,6 +44,8 @@ User.hasMany(Event, { foreignKey: 'user_id', as: 'events' });
 User.hasMany(CashRegister, { foreignKey: 'user_id', as: 'cashRegisters' });
 User.hasMany(CashRegister, { foreignKey: 'validated_by', as: 'validatedCashRegisters' });
 User.hasMany(AuditLog, { foreignKey: 'user_id', as: 'auditLogs' });
+User.hasMany(SupportTicket, { foreignKey: 'user_id', as: 'supportTickets' });
+User.hasMany(SystemLog, { foreignKey: 'user_id', as: 'systemLogs' });
 
 // Ticket associations
 Ticket.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -93,6 +103,21 @@ CashRegister.hasOne(Receipt, { foreignKey: 'cash_register_id', as: 'receipt' });
 UserLayout.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(UserLayout, { foreignKey: 'user_id', as: 'layouts' });
 
+// SupportTicket associations
+SupportTicket.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+SupportTicket.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+SupportTicket.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignedUser' });
+
+// Invoice associations
+Invoice.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// SaasSubscription associations
+SaasSubscription.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// SystemLog associations
+SystemLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+SystemLog.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
 // =====================================================
 // Export
 // =====================================================
@@ -117,5 +142,9 @@ module.exports = {
   Incident,
   Receipt,
   UserLayout,
-  PriceSetting
+  PriceSetting,
+  SupportTicket,
+  Invoice,
+  SaasSubscription,
+  SystemLog
 };

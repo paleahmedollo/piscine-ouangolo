@@ -418,4 +418,46 @@ export const employeesApi = {
   cancelPayroll: (id: number) => api.delete(`/employees/payroll/${id}`)
 };
 
+// ═══════════════════════════════════════════════════════
+// Super Admin API — 9 modules
+// ═══════════════════════════════════════════════════════
+export const superadminApi = {
+  // 1. Tableau de bord
+  getDashboardStats: () => api.get('/superadmin/dashboard'),
+
+  // 3. Utilisateurs
+  getUsers: (params?: Record<string, string>) => api.get('/superadmin/users', { params }),
+  updateUser: (id: number, data: Record<string, unknown>) => api.put(`/superadmin/users/${id}`, data),
+  resetUserPassword: (id: number, password: string) => api.put(`/superadmin/users/${id}/reset-password`, { password }),
+  deleteUser: (id: number) => api.delete(`/superadmin/users/${id}`),
+
+  // 4. Abonnements
+  getSubscriptions: (params?: Record<string, string>) => api.get('/superadmin/subscriptions', { params }),
+  createSubscription: (data: Record<string, unknown>) => api.post('/superadmin/subscriptions', data),
+  updateSubscription: (id: number, data: Record<string, unknown>) => api.put(`/superadmin/subscriptions/${id}`, data),
+
+  // 5. Facturation
+  getInvoices: (params?: Record<string, string>) => api.get('/superadmin/invoices', { params }),
+  createInvoice: (data: Record<string, unknown>) => api.post('/superadmin/invoices', data),
+  updateInvoice: (id: number, data: Record<string, unknown>) => api.put(`/superadmin/invoices/${id}`, data),
+  getInvoiceStats: () => api.get('/superadmin/invoices-stats'),
+
+  // 6. Assistance (Billets)
+  getTickets: (params?: Record<string, string>) => api.get('/superadmin/tickets', { params }),
+  createTicket: (data: Record<string, unknown>) => api.post('/superadmin/tickets', data),
+  updateTicket: (id: number, data: Record<string, unknown>) => api.put(`/superadmin/tickets/${id}`, data),
+  getTicketStats: () => api.get('/superadmin/tickets-stats'),
+
+  // 7. Rapports
+  getReports: (params?: Record<string, string>) => api.get('/superadmin/reports', { params }),
+
+  // 8. Paramètres
+  getSettings: () => api.get('/superadmin/settings'),
+  updateSettings: (data: Record<string, unknown>) => api.put('/superadmin/settings', data),
+
+  // 9. Journaux
+  getSystemLogs: (params?: Record<string, string>) => api.get('/superadmin/logs', { params }),
+  getAuditLogs: (params?: Record<string, string>) => api.get('/superadmin/audit', { params }),
+};
+
 export default api;

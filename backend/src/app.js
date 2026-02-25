@@ -18,6 +18,7 @@ const expensesRoutes = require('./routes/expenses.routes');
 const receiptsRoutes = require('./routes/receipts.routes');
 const reportsRoutes = require('./routes/reports.routes');
 const companiesRoutes = require('./routes/companies.routes');
+const superadminRoutes = require('./routes/superadmin.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -67,6 +68,7 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/receipts', receiptsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/companies', companiesRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // Servir le frontend React si le dossier dist existe (mode local)
 const fs = require('fs');
@@ -236,7 +238,86 @@ const runMigrations = async () => {
       `ALTER TABLE receipts ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
       `ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
       `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
-      `ALTER TABLE user_layouts ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`
+      `ALTER TABLE user_layouts ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      // Nouvelles colonnes Company (superadmin)
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS locality VARCHAR(255)`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Côte d''Ivoire'`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS activity_type VARCHAR(100)`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS manager_name VARCHAR(255)`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS manager_phone VARCHAR(50)`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'actif'`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS subscription_start DATE`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS subscription_end DATE`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS notes TEXT`,
+      // Nouvelles tables superadmin
+      `CREATE TABLE IF NOT EXISTS support_tickets (
+        id SERIAL PRIMARY KEY,
+        ticket_number VARCHAR(20) UNIQUE NOT NULL,
+        company_id INTEGER REFERENCES companies(id),
+        user_id INTEGER REFERENCES users(id),
+        category VARCHAR(50) NOT NULL DEFAULT 'assistance',
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        attachment_url TEXT,
+        priority VARCHAR(20) NOT NULL DEFAULT 'moyenne',
+        status VARCHAR(30) NOT NULL DEFAULT 'ouvert',
+        assigned_to INTEGER REFERENCES users(id),
+        opened_at TIMESTAMPTZ DEFAULT NOW(),
+        resolved_at TIMESTAMPTZ,
+        resolution_notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS invoices (
+        id SERIAL PRIMARY KEY,
+        invoice_number VARCHAR(30) UNIQUE NOT NULL,
+        company_id INTEGER NOT NULL REFERENCES companies(id),
+        amount DECIMAL(12,2) NOT NULL,
+        currency VARCHAR(10) DEFAULT 'XOF',
+        description TEXT,
+        plan VARCHAR(50),
+        period_start DATE,
+        period_end DATE,
+        status VARCHAR(20) NOT NULL DEFAULT 'impayee',
+        due_date DATE,
+        paid_at TIMESTAMPTZ,
+        payment_method VARCHAR(50),
+        payment_reference VARCHAR(200),
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS saas_subscriptions (
+        id SERIAL PRIMARY KEY,
+        company_id INTEGER NOT NULL REFERENCES companies(id),
+        plan VARCHAR(50) NOT NULL DEFAULT 'basic',
+        price DECIMAL(12,2) NOT NULL DEFAULT 0,
+        currency VARCHAR(10) DEFAULT 'XOF',
+        billing_cycle VARCHAR(20) DEFAULT 'mensuel',
+        start_date DATE NOT NULL,
+        end_date DATE,
+        next_billing_date DATE,
+        status VARCHAR(20) NOT NULL DEFAULT 'actif',
+        auto_renew BOOLEAN DEFAULT true,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS system_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        company_id INTEGER REFERENCES companies(id),
+        action VARCHAR(100) NOT NULL,
+        module VARCHAR(50),
+        entity_type VARCHAR(50),
+        entity_id INTEGER,
+        details JSONB,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        status VARCHAR(20) DEFAULT 'success',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`
     ];
     for (const sql of migrations) {
       await sequelize.query(sql);

@@ -18,6 +18,17 @@ import Employees from './pages/Employees';
 import Expenses from './pages/Expenses';
 import Companies from './pages/Companies';
 
+// Super Admin pages
+import SuperAdminLayout from './pages/Admin/SuperAdminLayout';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import AdminUsers from './pages/Admin/AdminUsers';
+import AdminSubscriptions from './pages/Admin/AdminSubscriptions';
+import AdminBilling from './pages/Admin/AdminBilling';
+import AdminTickets from './pages/Admin/AdminTickets';
+import AdminReports from './pages/Admin/AdminReports';
+import AdminSettings from './pages/Admin/AdminSettings';
+import AdminLogs from './pages/Admin/AdminLogs';
+
 // Create theme
 const theme = createTheme({
   palette: {
@@ -53,93 +64,50 @@ const theme = createTheme({
   },
 }, frFR);
 
-// Protected Route Component
+// Loading Component
+const LoadingScreen: React.FC = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    Chargement...
+  </div>
+);
+
+// Protected Route Component (for regular users)
 const ProtectedRoute: React.FC<{ children: React.ReactNode; module?: string; redirectTo?: string }> = ({
-  children,
-  module,
-  redirectTo = '/'
+  children, module, redirectTo = '/'
 }) => {
   const { isAuthenticated, isLoading, canAccessModule } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh'
-      }}>
-        Chargement...
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (module && !canAccessModule(module)) {
-    return <Navigate to={redirectTo} replace />;
-  }
-
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (module && !canAccessModule(module)) return <Navigate to={redirectTo} replace />;
   return <>{children}</>;
 };
 
-// Route for dashboard - redirects superadmin to companies, employees to reports
+// Super Admin Protected Route
+const SuperAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'super_admin') return <Navigate to="/" replace />;
+  return <>{children}</>;
+};
+
+// Route for dashboard - redirects superadmin to admin dashboard
 const DashboardRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading, canAccessModule, user } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh'
-      }}>
-        Chargement...
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Le super_admin n'a pas d'entreprise → on le dirige vers la gestion des entreprises
-  if (user?.role === 'super_admin') {
-    return <Navigate to="/companies" replace />;
-  }
-
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Le super_admin va vers son dashboard dédié
+  if (user?.role === 'super_admin') return <Navigate to="/admin/dashboard" replace />;
   // Si l'utilisateur n'a pas accès au dashboard, le rediriger vers ses rapports
-  if (!canAccessModule('dashboard')) {
-    return <Navigate to="/reports" replace />;
-  }
-
+  if (!canAccessModule('dashboard')) return <Navigate to="/reports" replace />;
   return <>{children}</>;
 };
 
 // Public Route (redirect to dashboard if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh'
-      }}>
-        Chargement...
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
+  if (isLoading) return <LoadingScreen />;
+  if (isAuthenticated) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
@@ -147,117 +115,45 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        }
-      />
+      {/* ─── Public Routes ────────────────────────────── */}
+      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
 
-      {/* Protected Routes */}
+      {/* ─── Super Admin Routes ───────────────────────── */}
       <Route
-        path="/"
-        element={
-          <DashboardRoute>
-            <Dashboard />
-          </DashboardRoute>
-        }
-      />
+        path="/admin"
+        element={<SuperAdminRoute><SuperAdminLayout /></SuperAdminRoute>}
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="companies" element={<Companies />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="subscriptions" element={<AdminSubscriptions />} />
+        <Route path="billing" element={<AdminBilling />} />
+        <Route path="tickets" element={<AdminTickets />} />
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="logs" element={<AdminLogs />} />
+      </Route>
 
-      <Route
-        path="/piscine"
-        element={
-          <ProtectedRoute module="piscine">
-            <Piscine />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/restaurant"
-        element={
-          <ProtectedRoute module="restaurant">
-            <Restaurant />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/hotel"
-        element={
-          <ProtectedRoute module="hotel">
-            <Hotel />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/events"
-        element={
-          <ProtectedRoute module="events">
-            <Events />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/caisse"
-        element={
-          <ProtectedRoute module="caisse">
-            <Caisse />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/users"
-        element={
-          <ProtectedRoute module="users">
-            <Users />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute module="reports">
-            <Reports />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/employees"
-        element={
-          <ProtectedRoute module="employees">
-            <Employees />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/expenses"
-        element={
-          <ProtectedRoute module="expenses">
-            <Expenses />
-          </ProtectedRoute>
-        }
-      />
-
+      {/* Legacy /companies route → redirect vers admin layout */}
       <Route
         path="/companies"
-        element={
-          <ProtectedRoute module="companies">
-            <Companies />
-          </ProtectedRoute>
-        }
+        element={<SuperAdminRoute><Navigate to="/admin/companies" replace /></SuperAdminRoute>}
       />
 
-      {/* Catch all - redirect to dashboard */}
+      {/* ─── Regular User Routes ──────────────────────── */}
+      <Route path="/" element={<DashboardRoute><Dashboard /></DashboardRoute>} />
+      <Route path="/piscine" element={<ProtectedRoute module="piscine"><Piscine /></ProtectedRoute>} />
+      <Route path="/restaurant" element={<ProtectedRoute module="restaurant"><Restaurant /></ProtectedRoute>} />
+      <Route path="/hotel" element={<ProtectedRoute module="hotel"><Hotel /></ProtectedRoute>} />
+      <Route path="/events" element={<ProtectedRoute module="events"><Events /></ProtectedRoute>} />
+      <Route path="/caisse" element={<ProtectedRoute module="caisse"><Caisse /></ProtectedRoute>} />
+      <Route path="/users" element={<ProtectedRoute module="users"><Users /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute module="reports"><Reports /></ProtectedRoute>} />
+      <Route path="/employees" element={<ProtectedRoute module="employees"><Employees /></ProtectedRoute>} />
+      <Route path="/expenses" element={<ProtectedRoute module="expenses"><Expenses /></ProtectedRoute>} />
+
+      {/* Catch all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
