@@ -64,8 +64,12 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onDrawerToggle })
   const location = useLocation();
   const { canAccessModule, user } = useAuth();
 
-  const visibleMenuItems = menuItems.filter(item => canAccessModule(item.module));
-  const visibleAdminItems = adminItems.filter(item => canAccessModule(item.module));
+  // Le super_admin ne voit QUE la gestion des entreprises
+  const isSuperAdmin = user?.role === 'super_admin';
+  const visibleMenuItems  = isSuperAdmin ? [] : menuItems.filter(item => canAccessModule(item.module));
+  const visibleAdminItems = isSuperAdmin
+    ? adminItems.filter(item => item.module === 'companies')
+    : adminItems.filter(item => canAccessModule(item.module));
 
   const handleNavigate = (path: string) => {
     navigate(path);
