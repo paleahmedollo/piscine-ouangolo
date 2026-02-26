@@ -67,7 +67,27 @@
       "Bash(git remote add:*)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "Bash(/d/Piscine_de_Ouangolo/database/schema_postgresql.sql:*)"
+      "Bash(/d/Piscine_de_Ouangolo/database/schema_postgresql.sql:*)",
+      "WebFetch(domain:ouangolo-backend.onrender.com)",
+      "Bash(\"D:/Piscine_de_Ouangolo/backend/src/scripts/fixEventsTable.js\":*)",
+      "Bash(ls:*)",
+      "Bash(git checkout:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(PGPASSWORD=Pheno1989 psql:*)",
+      "Bash(PGPASSWORD=Pheno1989 \"/c/Program Files/PostgreSQL/18/bin/psql.exe\":*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIxLCJ1c2VybmFtZSI6ImJlcnRyYW5kLm91YXR0YXJhIiwicm9sZSI6ImdlcmFudCIsImlhdCI6MTc3MTY3MDU5MywiZXhwIjoxNzcxNzU2OTkzfQ.qFwDABenGP0L5mlDxCi0z4KgBcQl-ZjNskdOTf0rihg\")",
+      "Bash(python3:*)",
+      "Bash(pm2 show:*)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -d ouangolo_db -c \"SELECT id, full_name, position FROM employees ORDER BY id;\")",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/psql.exe\":*)",
+      "Bash(PGPASSWORD=Pheno1989 \"C:/Program Files/PostgreSQL/18/bin/psql.exe\":*)",
+      "Bash(PGPASSWORD=Pheno1989 \"C:/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -d ouangolo_db -c \":*)",
+      "Bash(netsh advfirewall firewall show rule:*)",
+      "Bash(netsh advfirewall firewall add rule:*)",
+      "Bash(pm2 stop:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:ouangolo-frontend.onrender.com)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NzE2NzUxMTYsImV4cCI6MTc3MTc2MTUxNn0.NfOfzSLTHQS4Kvtvq6FGG7yqqc8L_zeYe3N4_ipp6Xc\")"
     ]
   }
 }

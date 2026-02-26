@@ -1,4 +1,5 @@
 const { sequelize } = require('../config/database');
+const { Op } = require('sequelize');
 const Company = require('./Company');
 const User = require('./User');
 const Ticket = require('./Ticket');
@@ -168,6 +169,8 @@ DepotClient.hasMany(DepotSale, { foreignKey: 'depot_client_id', as: 'sales' });
 DepotSale.hasMany(DepotSaleItem, { foreignKey: 'depot_sale_id', as: 'items' });
 DepotSaleItem.belongsTo(DepotSale, { foreignKey: 'depot_sale_id', as: 'sale' });
 DepotSaleItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+DepotSale.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(DepotSale, { foreignKey: 'user_id', as: 'depotSales' });
 
 // ── Manquants caisse ──────────────────────────────────
 CashShortage.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -179,6 +182,7 @@ User.hasMany(CashShortage, { foreignKey: 'user_id', as: 'cashShortages' });
 
 module.exports = {
   sequelize,
+  Op,
   Company,
   User,
   Ticket,

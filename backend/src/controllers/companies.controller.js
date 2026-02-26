@@ -41,7 +41,11 @@ const getCompanies = async (req, res) => {
 const createCompany = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { name, code, address, phone, email, plan, admin_username, admin_password, admin_full_name, modules } = req.body;
+    const {
+      name, code, address, phone, email, plan,
+      founder_name, city, country,
+      admin_username, admin_password, admin_full_name, modules
+    } = req.body;
 
     if (!name || !code) {
       await t.rollback();
@@ -59,12 +63,15 @@ const createCompany = async (req, res) => {
     // Créer l'entreprise
     const company = await Company.create({
       name,
-      code: code.toUpperCase(),
+      code: (code || '').toLowerCase().trim(),
       address,
       phone,
       email,
       plan: plan || 'basic',
       modules: modulesValue,
+      manager_name: founder_name || null,   // fondateur → manager_name en DB
+      locality: city || null,               // ville → locality en DB
+      country: country || "Côte d'Ivoire",
       is_active: true
     }, { transaction: t });
 
@@ -140,7 +147,8 @@ const updateCompany = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
     }
 
-    const { name, address, phone, email, logo_url, plan, is_active, modules } = req.body;
+    const { name, address, phone, email, logo_url, plan, is_active, modules,
+            founder_name, city, country } = req.body;
 
     await company.update({
       ...(name && { name }),
@@ -150,7 +158,10 @@ const updateCompany = async (req, res) => {
       ...(logo_url !== undefined && { logo_url }),
       ...(plan && { plan }),
       ...(is_active !== undefined && { is_active }),
-      ...(modules !== undefined && { modules })
+      ...(modules !== undefined && { modules }),
+      ...(founder_name !== undefined && { manager_name: founder_name }),
+      ...(city !== undefined && { locality: city }),
+      ...(country !== undefined && { country })
     });
 
     res.json({ success: true, message: 'Entreprise mise à jour', data: company.toJSON() });

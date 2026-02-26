@@ -182,20 +182,21 @@ const createDefaultAdmin = async () => {
   const bcrypt = require('bcryptjs');
 
   try {
-    // Chercher par le nouveau nom (admin_po) ou l'ancien (admin) pour la rétrocompatibilité
-    const existingAdmin = await User.findOne({ where: { username: 'admin_po' } })
+    // Chercher par les différents formats de noms (nouveau format .pmdo, ancien _po, ou admin simple)
+    const existingAdmin = await User.findOne({ where: { username: 'admin.pmdo' } })
+      || await User.findOne({ where: { username: 'admin_po' } })
       || await User.findOne({ where: { username: 'admin' } });
     if (!existingAdmin) {
       const hashedPassword = await bcrypt.hash('admin123', 10);
       await User.create({
-        username: 'admin_po',
+        username: 'admin.pmdo',
         password_hash: hashedPassword,
         full_name: 'Administrateur',
         role: 'admin',
         is_active: true,
         company_id: 1
       }, { hooks: false });
-      console.log('✅ Compte admin par défaut créé (username: admin_po, password: admin123)');
+      console.log('✅ Compte admin par défaut créé (username: admin.pmdo, password: admin123)');
     }
   } catch (error) {
     console.error('Erreur lors de la création du compte admin:', error);
@@ -247,19 +248,20 @@ const createDefaultGerant = async () => {
   const bcrypt = require('bcryptjs');
 
   try {
-    const existingGerant = await User.findOne({ where: { username: 'gerant_po' } })
+    const existingGerant = await User.findOne({ where: { username: 'gerant.pmdo' } })
+      || await User.findOne({ where: { username: 'gerant_po' } })
       || await User.findOne({ where: { username: 'gerant' } });
     if (!existingGerant) {
       const hashedPassword = await bcrypt.hash('gerant123', 10);
       await User.create({
-        username: 'gerant_po',
+        username: 'gerant.pmdo',
         password_hash: hashedPassword,
         full_name: 'Gérant Principal',
         role: 'gerant',
         is_active: true,
         company_id: 1
       }, { hooks: false });
-      console.log('✅ Compte gérant par défaut créé (username: gerant_po, password: gerant123)');
+      console.log('✅ Compte gérant par défaut créé (username: gerant.pmdo, password: gerant123)');
     }
   } catch (error) {
     console.error('Erreur lors de la création du compte gérant:', error);

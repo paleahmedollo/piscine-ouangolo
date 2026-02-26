@@ -16,7 +16,8 @@ const Company = sequelize.define('Company', {
     allowNull: false,
     unique: true,
     set(value) {
-      this.setDataValue('code', value ? value.toUpperCase() : value);
+      // Code en minuscules — c'est le suffixe des noms d'utilisateurs (ex: pmdo → serveuse.pmdo)
+      this.setDataValue('code', value ? value.toLowerCase().trim() : value);
     }
   },
   // Informations de localisation

@@ -31,6 +31,9 @@ interface Company {
   created_at: string;
   users_count?: number;
   modules?: string[] | null;
+  manager_name?: string;   // fondateur
+  locality?: string;       // ville
+  country?: string;        // pays
 }
 
 const ALL_MODULES = [
@@ -63,11 +66,13 @@ interface BulkResult {
 interface CreateCompanyForm {
   name: string; code: string; address: string; phone: string; email: string;
   plan: string; admin_username: string; admin_password: string; admin_full_name: string;
+  founder_name: string; city: string; country: string;
 }
 
 const defaultForm: CreateCompanyForm = {
   name: '', code: '', address: '', phone: '', email: '',
-  plan: 'standard', admin_username: '', admin_password: '', admin_full_name: ''
+  plan: 'standard', admin_username: '', admin_password: '', admin_full_name: '',
+  founder_name: '', city: '', country: "Côte d'Ivoire"
 };
 
 const planLabel = (p: string) => ({ basic: 'Basique', standard: 'Standard', premium: 'Premium' }[p] || p);
@@ -177,7 +182,12 @@ const Companies: React.FC = () => {
     if (!editCompany) return;
     setSaving(true);
     try {
-      await companiesApi.updateCompany(editCompany.id, { ...editForm, modules: editModules });
+      await companiesApi.updateCompany(editCompany.id, {
+        ...editForm,
+        founder_name: editForm.manager_name,
+        city: editForm.locality,
+        modules: editModules
+      });
       setSuccess('Entreprise mise à jour'); setOpenEdit(false); setEditCompany(null); loadCompanies();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
@@ -194,7 +204,16 @@ const Companies: React.FC = () => {
 
   const openEditDialog = (company: Company) => {
     setEditCompany(company);
-    setEditForm({ name: company.name, address: company.address || '', phone: company.phone || '', email: company.email || '', plan: company.plan });
+    setEditForm({
+      name: company.name,
+      address: company.address || '',
+      phone: company.phone || '',
+      email: company.email || '',
+      plan: company.plan,
+      manager_name: company.manager_name || '',
+      locality: company.locality || '',
+      country: company.country || "Côte d'Ivoire"
+    });
     // Si modules null → tous activés (rétrocompat), si tableau → charger
     setEditModules(
       company.modules === null || company.modules === undefined
@@ -302,8 +321,13 @@ const Companies: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight="bold">{company.name}</Typography>
-                  {company.address && <Typography variant="caption" color="text.secondary">{company.address}</Typography>}
-                  {company.phone   && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{company.phone}</Typography>}
+                  {company.manager_name && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>👤 {company.manager_name}</Typography>}
+                  {(company.locality || company.country) && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      📍 {[company.locality, company.country].filter(Boolean).join(', ')}
+                    </Typography>
+                  )}
+                  {company.phone && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>📞 {company.phone}</Typography>}
                 </TableCell>
                 <TableCell><Chip label={company.code} size="small" variant="outlined" /></TableCell>
                 <TableCell><Chip label={planLabel(company.plan)} size="small" color={planColor(company.plan)} /></TableCell>
@@ -372,13 +396,28 @@ const Companies: React.FC = () => {
                 value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             </Grid>
             <Grid item xs={4}>
-              <TextField fullWidth label="Code *" size="small"
+              <TextField fullWidth label="Code ID *" size="small"
                 value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                inputProps={{ maxLength: 20 }} helperText="Ex: OUANGOLO" />
+                onChange={(e) => setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                inputProps={{ maxLength: 20 }}
+                helperText={formData.code ? `→ users: serveuse.${formData.code}` : 'Ex: pmdo'} />
             </Grid>
             <Grid item xs={12}>
-              <TextField fullWidth label="Adresse" size="small"
+              <TextField fullWidth label="Nom du fondateur" size="small"
+                value={formData.founder_name}
+                onChange={(e) => setFormData({ ...formData, founder_name: e.target.value })}
+                helperText="Nom du fondateur ou directeur général" />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Ville" size="small"
+                value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Pays" size="small"
+                value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField fullWidth label="Adresse complète" size="small"
                 value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
             </Grid>
             <Grid item xs={6}>
@@ -485,7 +524,20 @@ const Companies: React.FC = () => {
                 value={editForm.name || ''} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
             </Grid>
             <Grid item xs={12}>
-              <TextField fullWidth label="Adresse" size="small"
+              <TextField fullWidth label="Fondateur / Directeur général" size="small"
+                value={editForm.manager_name || ''}
+                onChange={(e) => setEditForm({ ...editForm, manager_name: e.target.value })} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Ville" size="small"
+                value={editForm.locality || ''} onChange={(e) => setEditForm({ ...editForm, locality: e.target.value })} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Pays" size="small"
+                value={editForm.country || ''} onChange={(e) => setEditForm({ ...editForm, country: e.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField fullWidth label="Adresse complète" size="small"
                 value={editForm.address || ''} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
             </Grid>
             <Grid item xs={6}>
