@@ -7,7 +7,7 @@ databases:
 
 services:
   - type: web
-    name: gestix-backend
+    name: gestix
     env: node
     region: frankfurt
     plan: free
