@@ -3,7 +3,7 @@ const router = express.Router();
 const { authenticateToken } = require('../middlewares/auth.middleware');
 const {
   getVehicleTypes, createVehicleType, updateVehicleType, deleteVehicleType,
-  createCarWash, getCarWashes, getLavageStats
+  createCarWash, payCarWash, getCarWashes, getLavageStats
 } = require('../controllers/lavage.controller');
 
 router.use(authenticateToken);
@@ -16,6 +16,7 @@ router.delete('/vehicle-types/:id', deleteVehicleType);
 
 // Lavages
 router.post('/washes', createCarWash);
+router.put('/washes/:id/pay', payCarWash);
 router.get('/washes', getCarWashes);
 router.get('/stats', getLavageStats);
 

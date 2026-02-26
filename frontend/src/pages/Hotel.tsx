@@ -296,6 +296,19 @@ const Hotel: React.FC = () => {
       return;
     }
 
+    if (!resForm.client_name.trim()) {
+      setSnackbar({ open: true, message: 'Le nom du client est obligatoire', severity: 'error' });
+      return;
+    }
+    if (!resForm.client_phone.trim()) {
+      setSnackbar({ open: true, message: 'Le numéro de téléphone est obligatoire', severity: 'error' });
+      return;
+    }
+    if (!resForm.cni_number.trim()) {
+      setSnackbar({ open: true, message: 'Le numéro CNI / pièce d\'identité est obligatoire', severity: 'error' });
+      return;
+    }
+
     const selectedRoomNow = availableRooms.find(r => r.id === resForm.room_id);
     const nights = resForm.check_in && resForm.check_out && resForm.check_in < resForm.check_out
       ? Math.ceil((new Date(resForm.check_out).getTime() - new Date(resForm.check_in).getTime()) / 86400000) : 0;
@@ -1134,9 +1147,10 @@ const Hotel: React.FC = () => {
             <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Téléphone"
+                label="Téléphone *"
                 value={resForm.client_phone}
                 onChange={(e) => setResForm({ ...resForm, client_phone: e.target.value })}
+                required
               />
             </Grid>
             <Grid item xs={6}>
@@ -1151,10 +1165,11 @@ const Hotel: React.FC = () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="N° CNI / Pièce d'identité"
+                label="N° CNI / Pièce d'identité *"
                 value={resForm.cni_number}
                 onChange={(e) => setResForm({ ...resForm, cni_number: e.target.value })}
                 placeholder="Ex: B1234567"
+                required
               />
             </Grid>
             <Grid item xs={6}>
@@ -1226,7 +1241,7 @@ const Hotel: React.FC = () => {
           <Button
             onClick={handleCreateReservation}
             variant="contained"
-            disabled={resLoading || !resForm.room_id || !resForm.client_name}
+            disabled={resLoading || !resForm.room_id || !resForm.client_name || !resForm.client_phone || !resForm.cni_number}
           >
             {resLoading ? <CircularProgress size={20} /> : 'Créer'}
           </Button>

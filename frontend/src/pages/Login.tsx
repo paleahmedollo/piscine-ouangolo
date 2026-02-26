@@ -172,7 +172,7 @@ const Login: React.FC = () => {
             color="text.disabled"
             sx={{ display: 'block', textAlign: 'center', mt: 3 }}
           >
-            Contactez votre administrateur pour récupérer vos accès
+            © 2026 GESTIX — Tous droits réservés
           </Typography>
         </CardContent>
       </Card>

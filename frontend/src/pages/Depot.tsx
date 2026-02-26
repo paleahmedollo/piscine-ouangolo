@@ -23,6 +23,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
+import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { depotApi } from '../services/api';
 
@@ -353,6 +354,7 @@ const Depot: React.FC = () => {
   };
 
   return (
+    <Layout>
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
@@ -926,6 +928,7 @@ const Depot: React.FC = () => {
         </DialogActions>
       </Dialog>
     </Box>
+    </Layout>
   );
 };
 

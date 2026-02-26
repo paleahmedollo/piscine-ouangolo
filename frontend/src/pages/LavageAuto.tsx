@@ -17,7 +17,7 @@ import { lavageApi, tabsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface VehicleType { id: number; name: string; price: number; is_active: boolean; }
-interface CarWash { id: number; vehicle_type_id: number; plate_number: string; customer_name: string; amount: number; status: string; tab_id: number; created_at: string; vehicleType?: VehicleType; }
+interface CarWash { id: number; vehicle_type_id: number; plate_number: string; customer_name: string; customer_phone?: string; amount: number; status: string; tab_id: number; payment_method?: string; created_at: string; updated_at?: string; vehicleType?: VehicleType; }
 interface CustomerTab { id: number; customer_name: string; customer_info: string; status: string; total_amount: number; items: TabItem[]; created_at: string; }
 interface TabItem { id: number; service_type: string; item_name: string; quantity: number; unit_price: number; subtotal: number; }
 interface Stats { today: { total_lavages: number; total_cash: number; tab_count: number }; by_vehicle: { name: string; price: number; nb_lavages: number; total: number }[]; }
@@ -41,6 +41,9 @@ const LavageAuto: React.FC = () => {
   const [tabDialog, setTabDialog] = useState(false);
   const [closeTabDialog, setCloseTabDialog] = useState<CustomerTab | null>(null);
   const [editTypeDialog, setEditTypeDialog] = useState<VehicleType | null>(null);
+  const [payWashDialog, setPayWashDialog] = useState<CarWash | null>(null);
+  const [payWashMethod, setPayWashMethod] = useState('especes');
+  const [receiptDialog, setReceiptDialog] = useState<CarWash | null>(null);
 
   // Forms
   const [washForm, setWashForm] = useState({ vehicle_type_id: '', plate_number: '', customer_name: '', customer_phone: '', payment_method: 'especes', tab_id: '' });
@@ -143,6 +146,21 @@ const LavageAuto: React.FC = () => {
       showAlert('success', 'Type désactivé');
       loadAll();
     } catch { showAlert('error', 'Erreur'); }
+  };
+
+  const handlePayWash = async () => {
+    if (!payWashDialog) return;
+    try {
+      const res = await lavageApi.payWash(payWashDialog.id, { payment_method: payWashMethod });
+      const paidWash: CarWash = { ...payWashDialog, ...res.data.data, payment_method: payWashMethod };
+      setReceiptDialog(paidWash);
+      setPayWashDialog(null);
+      setPayWashMethod('especes');
+      showAlert('success', res.data.message || 'Paiement confirmé');
+      loadAll();
+    } catch (e: unknown) {
+      showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
+    }
   };
 
   const selectedVehicle = vehicleTypes.find(v => v.id === parseInt(washForm.vehicle_type_id));
@@ -252,15 +270,27 @@ const LavageAuto: React.FC = () => {
                     <TableRow><TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun lavage aujourd'hui</TableCell></TableRow>
                   )}
                   {carWashes.map(w => (
-                    <TableRow key={w.id} hover>
+                    <TableRow key={w.id} hover sx={{ bgcolor: w.status === 'en_attente' ? 'warning.50' : 'inherit' }}>
                       <TableCell>{new Date(w.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</TableCell>
                       <TableCell>{w.vehicleType?.name || '—'}</TableCell>
                       <TableCell><Chip label={w.plate_number || '—'} size="small" variant="outlined" /></TableCell>
                       <TableCell>{w.customer_name || '—'}</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 600 }}>{fmt(w.amount)}</TableCell>
                       <TableCell>
-                        {w.status === 'paye' ? <Chip icon={<PaidIcon />} label="Payé" color="success" size="small" /> :
-                          <Chip icon={<TabIcon />} label="Onglet" color="warning" size="small" />}
+                        {w.status === 'paye' ? (
+                          <Chip icon={<PaidIcon />} label="Payé" color="success" size="small" />
+                        ) : w.status === 'en_attente' ? (
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Chip label="En attente" color="warning" size="small" variant="outlined" />
+                            <Button size="small" variant="contained" color="success"
+                              sx={{ minWidth: 'auto', px: 1, py: 0.2, fontSize: '0.7rem' }}
+                              onClick={() => { setPayWashDialog(w); setPayWashMethod('especes'); }}>
+                              Payer
+                            </Button>
+                          </Stack>
+                        ) : (
+                          <Chip icon={<TabIcon />} label="Onglet" color="warning" size="small" />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -433,15 +463,19 @@ const LavageAuto: React.FC = () => {
                   <MenuItem value="especes">Espèces</MenuItem>
                   <MenuItem value="mobile_money">Mobile Money</MenuItem>
                   <MenuItem value="carte">Carte bancaire</MenuItem>
+                  <MenuItem value="en_attente">🎫 Ticket — payer plus tard</MenuItem>
                 </Select>
               </FormControl>
+            )}
+            {washForm.payment_method === 'en_attente' && (
+              <Alert severity="info" sx={{ py: 0.5 }}>Un ticket sera créé. Le client paiera à la fin du lavage.</Alert>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWashDialog(false)}>Annuler</Button>
           <Button variant="contained" onClick={handleCreateWash} startIcon={<WashIcon />}>
-            {washForm.tab_id ? 'Ajouter à l\'onglet' : 'Encaisser'}
+            {washForm.tab_id ? 'Ajouter à l\'onglet' : washForm.payment_method === 'en_attente' ? '🎫 Ouvrir le ticket' : 'Encaisser'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -473,6 +507,72 @@ const LavageAuto: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setTabDialog(false)}>Annuler</Button>
           <Button variant="contained" onClick={handleCreateTab}>Ouvrir l'onglet</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Payer un lavage en attente */}
+      <Dialog open={!!payWashDialog} onClose={() => setPayWashDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white' }}>
+          💳 Encaisser le lavage
+        </DialogTitle>
+        <DialogContent>
+          {payWashDialog && (
+            <Stack spacing={2} sx={{ pt: 2 }}>
+              <Alert severity="info" sx={{ py: 0.5 }}>
+                <strong>{payWashDialog.vehicleType?.name || '—'}</strong>
+                {payWashDialog.plate_number ? ` — Plaque: ${payWashDialog.plate_number}` : ''}<br />
+                {payWashDialog.customer_name ? `Client: ${payWashDialog.customer_name}` : 'Client anonyme'}<br />
+                Montant: <strong>{fmt(payWashDialog.amount)}</strong>
+              </Alert>
+              <FormControl fullWidth required>
+                <InputLabel>Mode de paiement</InputLabel>
+                <Select value={payWashMethod} label="Mode de paiement" onChange={e => setPayWashMethod(e.target.value)}>
+                  <MenuItem value="especes">Espèces</MenuItem>
+                  <MenuItem value="mobile_money">Mobile Money</MenuItem>
+                  <MenuItem value="carte">Carte bancaire</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPayWashDialog(null)}>Annuler</Button>
+          <Button variant="contained" color="success" onClick={handlePayWash} startIcon={<PaidIcon />}>
+            Confirmer — {payWashDialog && fmt(payWashDialog.amount)}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Reçu de paiement */}
+      <Dialog open={!!receiptDialog} onClose={() => setReceiptDialog(null)} maxWidth="xs">
+        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white', textAlign: 'center' }}>
+          ✅ Reçu de paiement
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {receiptDialog && (
+            <Stack spacing={1.5} alignItems="center">
+              <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 2 }}>LAVAGE AUTO</Typography>
+              <Divider sx={{ width: '100%' }} />
+              <Typography>Type: <strong>{receiptDialog.vehicleType?.name || '—'}</strong></Typography>
+              {receiptDialog.plate_number && <Typography>Plaque: <strong>{receiptDialog.plate_number}</strong></Typography>}
+              {receiptDialog.customer_name && <Typography>Client: {receiptDialog.customer_name}</Typography>}
+              <Divider sx={{ width: '100%' }} />
+              <Typography variant="h4" color="success.main" fontWeight={700}>{fmt(receiptDialog.amount)}</Typography>
+              <Chip
+                label={receiptDialog.payment_method === 'especes' ? 'Espèces' : receiptDialog.payment_method === 'mobile_money' ? 'Mobile Money' : 'Carte'}
+                color="success" size="small"
+              />
+              <Typography variant="caption" color="text.secondary">
+                {new Date().toLocaleString('fr-FR')}
+              </Typography>
+              <Divider sx={{ width: '100%' }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>Merci de votre visite !</Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', gap: 1 }}>
+          <Button variant="outlined" startIcon={<ReceiptIcon />} onClick={() => window.print()}>Imprimer</Button>
+          <Button variant="contained" onClick={() => setReceiptDialog(null)}>Fermer</Button>
         </DialogActions>
       </Dialog>
 

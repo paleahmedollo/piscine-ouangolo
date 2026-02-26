@@ -3,7 +3,7 @@ import {
   Box, Card, CardContent, Typography, Button, Grid, Chip, Tab, Tabs,
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
-  Select, FormControl, InputLabel, Alert, IconButton, Stack
+  Select, FormControl, InputLabel, Alert, IconButton, Stack, Divider
 } from '@mui/material';
 import {
   Add as AddIcon, LocalLaundryService as PressingIcon,
@@ -38,6 +38,9 @@ const Pressing: React.FC = () => {
   const [typeDialog, setTypeDialog] = useState(false);
   const [editTypeDialog, setEditTypeDialog] = useState<PressingType | null>(null);
   const [tabDialog, setTabDialog] = useState(false);
+  const [payOrderDialog, setPayOrderDialog] = useState<PressingOrder | null>(null);
+  const [payOrderMethod, setPayOrderMethod] = useState('especes');
+  const [receiptDialog, setReceiptDialog] = useState<PressingOrder | null>(null);
 
   // Forms
   const [orderForm, setOrderForm] = useState({ pressing_type_id: '', customer_name: '', customer_phone: '', quantity: '1', payment_method: 'especes', tab_id: '' });
@@ -53,16 +56,19 @@ const Pressing: React.FC = () => {
     setLoading(true);
     try {
       const [types, ords, ot, st] = await Promise.all([
-        pressingApi.getTypes(),
+        pressingApi.getAllTypes(),
         pressingApi.getOrders({ date: new Date().toISOString().split('T')[0] }),
         tabsApi.getOpenTabs(),
         pressingApi.getStats()
       ]);
-      setPressingTypes(types.data.data || []);
-      setOrders(ords.data.data || []);
-      setOpenTabs(ot.data.data || []);
-      setStats(st.data.data || null);
-    } catch { /* silent */ }
+      setPressingTypes(types.data.data || types.data || []);
+      setOrders(ords.data.data || ords.data || []);
+      setOpenTabs(ot.data.data || ot.data || []);
+      setStats(st.data.data || st.data || null);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      showAlert('error', err?.response?.data?.message || err?.message || 'Erreur chargement données Pressing');
+    }
     setLoading(false);
   }, []);
 
@@ -124,6 +130,19 @@ const Pressing: React.FC = () => {
       showAlert('success', 'Onglet créé');
       setTabDialog(false);
       setTabForm({ customer_name: '', customer_info: '' });
+      loadAll();
+    } catch (err: any) { showAlert('error', err?.response?.data?.message || 'Erreur'); }
+  };
+
+  const handlePayOrder = async () => {
+    if (!payOrderDialog) return;
+    try {
+      const res = await pressingApi.payOrder(payOrderDialog.id, { payment_method: payOrderMethod });
+      const paidOrder: PressingOrder = { ...payOrderDialog, ...res.data.data, payment_method: payOrderMethod, status: 'paye' };
+      setReceiptDialog(paidOrder);
+      setPayOrderDialog(null);
+      setPayOrderMethod('especes');
+      showAlert('success', res.data.message || 'Paiement confirmé');
       loadAll();
     } catch (err: any) { showAlert('error', err?.response?.data?.message || 'Erreur'); }
   };
@@ -199,12 +218,20 @@ const Pressing: React.FC = () => {
                     <Chip size="small" label={o.payment_method || 'espèces'} variant="outlined" />
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      size="small"
-                      icon={o.status === 'paye' ? <PaidIcon /> : <TabIcon />}
-                      label={o.status === 'paye' ? 'Payé' : 'Onglet'}
-                      color={o.status === 'paye' ? 'success' : 'warning'}
-                    />
+                    {o.status === 'paye' ? (
+                      <Chip size="small" icon={<PaidIcon />} label="Payé" color="success" />
+                    ) : o.status === 'en_attente' ? (
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Chip size="small" label="En attente" color="warning" variant="outlined" />
+                        <Button size="small" variant="contained" color="success"
+                          sx={{ minWidth: 'auto', px: 1, py: 0.2, fontSize: '0.7rem' }}
+                          onClick={() => { setPayOrderDialog(o); setPayOrderMethod('especes'); }}>
+                          Encaisser
+                        </Button>
+                      </Stack>
+                    ) : (
+                      <Chip size="small" icon={<TabIcon />} label="Onglet" color="warning" />
+                    )}
                   </TableCell>
                   <TableCell>{new Date(o.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</TableCell>
                 </TableRow>
@@ -277,9 +304,9 @@ const Pressing: React.FC = () => {
             <TextField label="Téléphone" value={orderForm.customer_phone} onChange={e => setOrderForm(f => ({ ...f, customer_phone: e.target.value }))} fullWidth />
             <FormControl fullWidth>
               <InputLabel>Type de service *</InputLabel>
-              <Select value={orderForm.pressing_type_id} onChange={e => setOrderForm(f => ({ ...f, pressing_type_id: e.target.value as string }))} label="Type de service *">
-                {pressingTypes.map(t => (
-                  <MenuItem key={t.id} value={t.id}>{t.name} — {fmt(t.price)}</MenuItem>
+              <Select value={orderForm.pressing_type_id} onChange={e => setOrderForm(f => ({ ...f, pressing_type_id: String(e.target.value) }))} label="Type de service *">
+                {pressingTypes.filter(t => t.is_active).map(t => (
+                  <MenuItem key={t.id} value={String(t.id)}>{t.name} — {fmt(t.price)}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -295,8 +322,12 @@ const Pressing: React.FC = () => {
                 <MenuItem value="especes">Espèces</MenuItem>
                 <MenuItem value="mobile">Mobile Money</MenuItem>
                 <MenuItem value="onglet">Onglet client</MenuItem>
+                <MenuItem value="en_attente">🎫 Ticket — payer à la livraison</MenuItem>
               </Select>
             </FormControl>
+            {orderForm.payment_method === 'en_attente' && (
+              <Alert severity="info" sx={{ py: 0.5 }}>Un ticket sera ouvert. Le client paiera lors de la récupération des vêtements.</Alert>
+            )}
             {orderForm.payment_method === 'onglet' && (
               <FormControl fullWidth>
                 <InputLabel>Onglet client</InputLabel>
@@ -344,6 +375,64 @@ const Pressing: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setTypeDialog(false)}>Annuler</Button>
           <Button variant="contained" onClick={handleCreateType} sx={{ bgcolor: '#795548' }}>Créer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Payer une commande en attente */}
+      <Dialog open={!!payOrderDialog} onClose={() => setPayOrderDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ bgcolor: '#795548', color: 'white' }}>💳 Encaisser la commande</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {payOrderDialog && (
+            <Stack spacing={2}>
+              <Alert severity="info" sx={{ py: 0.5 }}>
+                Client: <strong>{payOrderDialog.customer_name}</strong>
+                {payOrderDialog.customer_phone && <><br />{payOrderDialog.customer_phone}</>}<br />
+                Service: <strong>{payOrderDialog.pressingType?.name || '—'}</strong> × {payOrderDialog.quantity}<br />
+                Montant: <strong>{fmt(payOrderDialog.amount)}</strong>
+              </Alert>
+              <FormControl fullWidth required>
+                <InputLabel>Mode de paiement</InputLabel>
+                <Select value={payOrderMethod} label="Mode de paiement" onChange={e => setPayOrderMethod(e.target.value)}>
+                  <MenuItem value="especes">Espèces</MenuItem>
+                  <MenuItem value="mobile">Mobile Money</MenuItem>
+                  <MenuItem value="carte">Carte bancaire</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPayOrderDialog(null)}>Annuler</Button>
+          <Button variant="contained" onClick={handlePayOrder} sx={{ bgcolor: '#795548' }}>
+            Confirmer — {payOrderDialog && fmt(payOrderDialog.amount)}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Reçu pressing */}
+      <Dialog open={!!receiptDialog} onClose={() => setReceiptDialog(null)} maxWidth="xs">
+        <DialogTitle sx={{ bgcolor: '#795548', color: 'white', textAlign: 'center' }}>✅ Reçu — Pressing</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {receiptDialog && (
+            <Stack spacing={1.5} alignItems="center">
+              <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 2 }}>PRESSING</Typography>
+              <Divider sx={{ width: '100%' }} />
+              <Typography>Client: <strong>{receiptDialog.customer_name}</strong></Typography>
+              {receiptDialog.customer_phone && <Typography variant="caption">{receiptDialog.customer_phone}</Typography>}
+              <Typography>Service: <strong>{receiptDialog.pressingType?.name || '—'}</strong></Typography>
+              <Typography>Quantité: {receiptDialog.quantity}</Typography>
+              <Divider sx={{ width: '100%' }} />
+              <Typography variant="h4" color="#795548" fontWeight={700}>{fmt(receiptDialog.amount)}</Typography>
+              <Chip label={receiptDialog.payment_method === 'especes' ? 'Espèces' : receiptDialog.payment_method === 'mobile' ? 'Mobile Money' : 'Carte'} size="small" />
+              <Typography variant="caption" color="text.secondary">{new Date().toLocaleString('fr-FR')}</Typography>
+              <Divider sx={{ width: '100%' }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>Merci de votre confiance !</Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', gap: 1 }}>
+          <Button variant="outlined" onClick={() => window.print()}>Imprimer</Button>
+          <Button variant="contained" sx={{ bgcolor: '#795548' }} onClick={() => setReceiptDialog(null)}>Fermer</Button>
         </DialogActions>
       </Dialog>
 

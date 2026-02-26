@@ -61,7 +61,7 @@ const createCarWash = async (req, res) => {
     const {
       vehicle_type_id, plate_number, customer_name, customer_phone,
       payment_method, payment_operator, payment_reference,
-      tab_id, notes
+      tab_id, notes, status: requestedStatus
     } = req.body;
 
     if (!vehicle_type_id) {
@@ -99,6 +99,15 @@ const createCarWash = async (req, res) => {
       return res.json({ success: true, data: wash, message: `Lavage ajouté à l'onglet de ${tab.customer_name}` });
     }
 
+    // ── Ticket en attente (entrée sans paiement immédiat) ──
+    if (requestedStatus === 'en_attente' || payment_method === 'en_attente') {
+      const wash = await CarWash.create({
+        vehicle_type_id, plate_number, customer_name, customer_phone,
+        amount, status: 'en_attente', user_id: req.user?.id, notes
+      });
+      return res.json({ success: true, data: wash, message: `🎫 Ticket ouvert — ${vehicleType.name}${plate_number ? ' (' + plate_number + ')' : ''}` });
+    }
+
     // ── Paiement direct ──
     const wash = await CarWash.create({
       vehicle_type_id, plate_number, customer_name, customer_phone,
@@ -108,6 +117,31 @@ const createCarWash = async (req, res) => {
     });
 
     res.json({ success: true, data: wash, message: `Lavage enregistré — ${amount.toLocaleString()} FCFA` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const payCarWash = async (req, res) => {
+  try {
+    const { payment_method, payment_operator, payment_reference } = req.body;
+    const wash = await CarWash.findByPk(req.params.id, {
+      include: [{ model: VehicleType, as: 'vehicleType' }]
+    });
+    if (!wash) return res.status(404).json({ success: false, message: 'Lavage non trouvé' });
+    if (wash.status === 'paye') return res.status(400).json({ success: false, message: 'Ce lavage est déjà payé' });
+    if (wash.status === 'tab') return res.status(400).json({ success: false, message: 'Ce lavage est sur un onglet, fermez l\'onglet' });
+
+    await wash.update({
+      status: 'paye',
+      payment_method: payment_method || 'especes',
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null,
+      updated_at: new Date()
+    });
+
+    await wash.reload({ include: [{ model: VehicleType, as: 'vehicleType' }] });
+    res.json({ success: true, data: wash, message: `✅ Payé — ${parseFloat(wash.amount).toLocaleString()} FCFA` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -173,5 +207,5 @@ const getLavageStats = async (req, res) => {
 
 module.exports = {
   getVehicleTypes, createVehicleType, updateVehicleType, deleteVehicleType,
-  createCarWash, getCarWashes, getLavageStats
+  createCarWash, payCarWash, getCarWashes, getLavageStats
 };

@@ -87,6 +87,18 @@ const createOrder = async (req, res) => {
 
     const qty = parseInt(quantity) || 1;
     const amount = parseFloat(pressingType.price) * qty;
+    const requestedStatus = req.body.status;
+
+    // ── Ticket en attente (vêtements déposés, pas encore payés) ──
+    if (requestedStatus === 'en_attente' || payment_method === 'en_attente') {
+      const order = await PressingOrder.create({
+        pressing_type_id, customer_name, customer_phone,
+        quantity: qty, amount,
+        status: 'en_attente',
+        user_id: req.user?.id, notes
+      });
+      return res.json({ success: true, data: order, message: `🎫 Ticket ouvert — ${pressingType.name} pour ${customer_name}` });
+    }
 
     if (tab_id) {
       // Ajouter à un onglet client
@@ -208,8 +220,31 @@ const getPressingStats = async (req, res) => {
   }
 };
 
+const payPressingOrder = async (req, res) => {
+  try {
+    const { payment_method } = req.body;
+    const order = await PressingOrder.findByPk(req.params.id, {
+      include: [{ model: PressingType, as: 'pressingType' }]
+    });
+    if (!order) return res.status(404).json({ success: false, message: 'Commande non trouvée' });
+    if (order.status === 'paye') return res.status(400).json({ success: false, message: 'Déjà payé' });
+    if (order.status === 'tab') return res.status(400).json({ success: false, message: 'Sur un onglet — fermez l\'onglet' });
+
+    await order.update({
+      status: 'paye',
+      payment_method: payment_method || 'especes',
+      updated_at: new Date()
+    });
+
+    await order.reload({ include: [{ model: PressingType, as: 'pressingType' }] });
+    res.json({ success: true, data: order, message: `✅ Payé — ${parseFloat(order.amount).toLocaleString()} FCFA` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getPressingTypes, getAllPressingTypes,
   createPressingType, updatePressingType, deletePressingType,
-  createOrder, getOrders, getPressingStats
+  createOrder, payPressingOrder, getOrders, getPressingStats
 };

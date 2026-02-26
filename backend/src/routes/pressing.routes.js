@@ -4,7 +4,7 @@ const { authenticateToken } = require('../middlewares/auth.middleware');
 const {
   getPressingTypes, getAllPressingTypes,
   createPressingType, updatePressingType, deletePressingType,
-  createOrder, getOrders, getPressingStats
+  createOrder, payPressingOrder, getOrders, getPressingStats
 } = require('../controllers/pressing.controller');
 
 router.use(authenticateToken);
@@ -18,6 +18,7 @@ router.delete('/types/:id', deletePressingType);
 
 // Commandes
 router.post('/orders', createOrder);
+router.put('/orders/:id/pay', payPressingOrder);
 router.get('/orders', getOrders);
 router.get('/stats', getPressingStats);
 

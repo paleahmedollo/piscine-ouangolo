@@ -475,8 +475,10 @@ export const lavageApi = {
   createCarWash: (data: {
     vehicle_type_id: number; plate_number?: string; customer_name?: string;
     customer_phone?: string; payment_method?: string; payment_operator?: string;
-    payment_reference?: string; tab_id?: number; notes?: string;
+    payment_reference?: string; tab_id?: number; notes?: string; status?: string;
   }) => api.post('/lavage/washes', data),
+  payWash: (id: number, data: { payment_method: string; payment_operator?: string; payment_reference?: string }) =>
+    api.put(`/lavage/washes/${id}/pay`, data),
   getCarWashes: (params?: { date?: string; start_date?: string; end_date?: string }) =>
     api.get('/lavage/washes', { params }),
   getStats: () => api.get('/lavage/stats')
@@ -571,8 +573,10 @@ export const pressingApi = {
   deleteType: (id: number) => api.delete(`/pressing/types/${id}`),
   createOrder: (data: {
     pressing_type_id: number; customer_name: string; customer_phone?: string;
-    quantity?: number; payment_method?: string; tab_id?: number; notes?: string;
+    quantity?: number; payment_method?: string; tab_id?: number; notes?: string; status?: string;
   }) => api.post('/pressing/orders', data),
+  payOrder: (id: number, data: { payment_method: string }) =>
+    api.put(`/pressing/orders/${id}/pay`, data),
   getOrders: (params?: { date?: string; start_date?: string; end_date?: string; status?: string }) =>
     api.get('/pressing/orders', { params }),
   getStats: () => api.get('/pressing/stats')

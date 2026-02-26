@@ -561,7 +561,14 @@ const Maquis: React.FC = () => {
             </Grid>
             <Grid container spacing={2}>
               <Grid item xs={6}>
-                <TextField fullWidth label="Unité" value={productForm.unit} onChange={e => setProductForm(f => ({ ...f, unit: e.target.value }))} placeholder="bouteille, casier..." />
+                <FormControl fullWidth>
+                  <InputLabel>Unité</InputLabel>
+                  <Select value={productForm.unit} label="Unité" onChange={e => setProductForm(f => ({ ...f, unit: e.target.value }))}>
+                    {['bouteille', 'casier', 'carton', 'litre', 'verre', 'sachet', 'pack', 'bidon', 'boîte'].map(u => (
+                      <MenuItem key={u} value={u}>{u.charAt(0).toUpperCase() + u.slice(1)}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={6}>
                 <TextField fullWidth label="Stock minimum (alerte)" type="number" value={productForm.min_stock} onChange={e => setProductForm(f => ({ ...f, min_stock: e.target.value }))} />
