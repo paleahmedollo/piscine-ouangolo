@@ -22,12 +22,32 @@ const getRooms = async (req, res) => {
 
     const rooms = await Room.findAll({
       where: whereClause,
+      include: [{
+        model: Reservation,
+        as: 'reservations',
+        where: { status: { [Op.in]: ['confirmee', 'en_cours'] } },
+        required: false,
+        attributes: ['id', 'client_name', 'check_in', 'check_out', 'status']
+      }],
       order: [['number', 'ASC']]
+    });
+
+    // Ajouter les infos du client (hôte actuel) directement sur chaque chambre
+    const data = rooms.map(room => {
+      const r = room.toJSON();
+      const activeRes = (r.reservations || [])
+        .sort((a, b) => new Date(b.check_in) - new Date(a.check_in))[0] || null;
+      return {
+        ...r,
+        guest_name: activeRes?.client_name || null,
+        check_in: activeRes?.check_in || null,
+        check_out: activeRes?.check_out || null
+      };
     });
 
     res.json({
       success: true,
-      data: rooms
+      data
     });
   } catch (error) {
     console.error('Get rooms error:', error);

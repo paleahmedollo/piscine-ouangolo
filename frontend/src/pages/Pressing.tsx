@@ -58,7 +58,7 @@ const Pressing: React.FC = () => {
       const [types, ords, ot, st] = await Promise.all([
         pressingApi.getAllTypes(),
         pressingApi.getOrders({ date: new Date().toISOString().split('T')[0] }),
-        tabsApi.getOpenTabs(),
+        tabsApi.getOpenTabs({ service_type: 'pressing' }),
         pressingApi.getStats()
       ]);
       setPressingTypes(types.data.data || types.data || []);
@@ -126,7 +126,7 @@ const Pressing: React.FC = () => {
   const handleCreateTab = async () => {
     if (!tabForm.customer_name) return showAlert('error', 'Nom requis');
     try {
-      await tabsApi.createTab({ customer_name: tabForm.customer_name, customer_info: tabForm.customer_info });
+      await tabsApi.createTab({ customer_name: tabForm.customer_name, customer_info: tabForm.customer_info, service_type: 'pressing' });
       showAlert('success', 'Onglet créé');
       setTabDialog(false);
       setTabForm({ customer_name: '', customer_info: '' });

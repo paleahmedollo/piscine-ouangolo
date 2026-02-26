@@ -321,6 +321,14 @@ const runMigrations = async () => {
       `ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
       `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
       `ALTER TABLE user_layouts ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      // customer_tabs: service_type pour séparer onglets par module
+      `ALTER TABLE customer_tabs ADD COLUMN IF NOT EXISTS service_type VARCHAR(50)`,
+      // products: ajouter 'depot' à l'enum service_type (si colonne de type enum)
+      `DO $$ BEGIN
+         IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_products_service_type') THEN
+           ALTER TYPE "enum_products_service_type" ADD VALUE IF NOT EXISTS 'depot';
+         END IF;
+       END $$`,
       // Nouvelles colonnes Company (superadmin)
       `ALTER TABLE companies ADD COLUMN IF NOT EXISTS locality VARCHAR(255)`,
       `ALTER TABLE companies ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Côte d''Ivoire'`,

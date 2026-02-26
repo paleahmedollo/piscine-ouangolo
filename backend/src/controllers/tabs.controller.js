@@ -25,8 +25,12 @@ const createTab = async (req, res) => {
 
 const getOpenTabs = async (req, res) => {
   try {
+    const { service_type } = req.query;
+    const where = { status: 'ouvert' };
+    // Filtrer par module si précisé (pressing, depot, lavage, maquis...)
+    if (service_type) where.service_type = service_type;
     const tabs = await CustomerTab.findAll({
-      where: { status: 'ouvert' },
+      where,
       include: [{ model: TabItem, as: 'items' }],
       order: [['created_at', 'DESC']]
     });

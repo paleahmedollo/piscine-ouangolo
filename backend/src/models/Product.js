@@ -16,8 +16,9 @@ const Product = sequelize.define('Product', {
     allowNull: false
   },
   service_type: {
-    type: DataTypes.ENUM('maquis', 'superette'),
+    type: DataTypes.STRING(20),
     allowNull: false
+    // maquis, superette, depot
   },
   buy_price: {
     type: DataTypes.DECIMAL(12, 0),

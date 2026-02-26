@@ -6,10 +6,10 @@ const { getCompanyFilter } = require('../middlewares/auth.middleware');
 const DEFAULT_TICKET_PRICES = { adulte: 2000, enfant: 1000 };
 const DEFAULT_SUBSCRIPTION_PRICES = { mensuel: 25000, trimestriel: 60000, annuel: 200000 };
 
-const getPricesFromDB = async (companyId) => {
+const getPricesFromDB = async (_companyId) => {
   try {
-    const where = companyId ? { company_id: companyId } : {};
-    const settings = await PriceSetting.findAll({ where });
+    // price_settings est une table globale (pas de company_id dans le modèle)
+    const settings = await PriceSetting.findAll();
     const map = {};
     settings.forEach(s => { map[s.key] = parseFloat(s.value); });
     return {
@@ -142,7 +142,7 @@ const updatePrices = async (req, res) => {
     if (updates.length === 0) return res.status(400).json({ success: false, message: 'Aucune valeur à modifier' });
 
     for (const u of updates) {
-      await PriceSetting.upsert({ key: u.key, value: u.value, company_id: req.user.company_id });
+      await PriceSetting.upsert({ key: u.key, value: u.value });
     }
 
     await logAction(req, 'UPDATE_PRICES', 'piscine', 'price_settings', null, { updates: updates.map(u => `${u.key}=${u.value}`) });

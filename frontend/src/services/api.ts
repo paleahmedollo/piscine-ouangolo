@@ -486,9 +486,9 @@ export const lavageApi = {
 
 // Customer Tabs API (cross-service billing)
 export const tabsApi = {
-  createTab: (data: { customer_name: string; customer_info?: string; notes?: string }) =>
+  createTab: (data: { customer_name: string; customer_info?: string; notes?: string; service_type?: string }) =>
     api.post('/tabs', data),
-  getOpenTabs: () => api.get('/tabs/open'),
+  getOpenTabs: (params?: { service_type?: string }) => api.get('/tabs/open', { params }),
   getTab: (id: number) => api.get(`/tabs/${id}`),
   addItemToTab: (id: number, data: {
     service_type: string; item_name: string; quantity: number;

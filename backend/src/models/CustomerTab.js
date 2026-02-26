@@ -40,6 +40,11 @@ const CustomerTab = sequelize.define('CustomerTab', {
   },
   closed_at: {
     type: DataTypes.DATE
+  },
+  service_type: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+    // pressing, depot, lavage, maquis, restaurant... null = global
   }
 }, {
   tableName: 'customer_tabs',

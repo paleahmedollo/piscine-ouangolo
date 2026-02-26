@@ -103,7 +103,7 @@ const Restaurant: React.FC = () => {
   // Facturation chambre
   const [billToRoom, setBillToRoom] = useState(false);
   const [roomNumberInput, setRoomNumberInput] = useState('');
-  const [occupiedRooms, setOccupiedRooms] = useState<{ id: number; number: string; type: string; current_guest?: string }[]>([]);
+  const [occupiedRooms, setOccupiedRooms] = useState<{ id: number; number: string; type: string; guest_name?: string; check_in?: string; check_out?: string }[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Encaissement d'un ticket ouvert
@@ -1024,7 +1024,13 @@ const Restaurant: React.FC = () => {
                       >
                         {occupiedRooms.map(room => (
                           <MenuItem key={room.id} value={room.number}>
-                            🛏 Chambre {room.number}{room.type ? ` — ${room.type}` : ''}
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">🛏 Chambre {room.number}{room.type ? ` (${room.type})` : ''}</Typography>
+                              {room.guest_name && <Typography variant="caption" color="text.secondary">👤 {room.guest_name}</Typography>}
+                              {room.check_in && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                📅 {new Date(room.check_in).toLocaleDateString('fr-FR')} → {room.check_out ? new Date(room.check_out).toLocaleDateString('fr-FR') : '?'}
+                              </Typography>}
+                            </Box>
                           </MenuItem>
                         ))}
                       </Select>
