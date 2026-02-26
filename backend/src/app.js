@@ -329,6 +329,13 @@ const runMigrations = async () => {
            ALTER TYPE "enum_products_service_type" ADD VALUE IF NOT EXISTS 'depot';
          END IF;
        END $$`,
+      // menu_items: convertir category ENUM → VARCHAR pour accepter toutes les catégories
+      `DO $$
+       BEGIN
+         IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_menu_items_category') THEN
+           ALTER TABLE menu_items ALTER COLUMN category TYPE VARCHAR(100) USING category::text;
+         END IF;
+       END $$`,
       // Nouvelles colonnes Company (superadmin)
       `ALTER TABLE companies ADD COLUMN IF NOT EXISTS locality VARCHAR(255)`,
       `ALTER TABLE companies ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Côte d''Ivoire'`,
@@ -604,24 +611,194 @@ const runMigrations = async () => {
     for (const sql of migrations) {
       await sequelize.query(sql);
     }
-    // Insert default vehicle types if table is empty
-    const [vtRows] = await sequelize.query('SELECT COUNT(*) as cnt FROM vehicle_types');
-    if (parseInt(vtRows[0].cnt) === 0) {
-      await sequelize.query(`INSERT INTO vehicle_types (name, price) VALUES
-        ('Moto', 500), ('Tricycle', 750), ('Voiture', 1000), ('Camion', 2000), ('Bus', 2500)`);
-      console.log('✅ Types de véhicules par défaut créés');
-    }
-    // Insert default pressing types if table is empty
-    const [ptRows] = await sequelize.query('SELECT COUNT(*) as cnt FROM pressing_types');
-    if (parseInt(ptRows[0].cnt) === 0) {
-      await sequelize.query(`INSERT INTO pressing_types (name, price) VALUES
-        ('Lavage simple', 500), ('Lavage + Repassage', 1000), ('Repassage seul', 500),
-        ('Nettoyage à sec', 2000), ('Couverture / Rideau', 1500), ('Costume / Tailleur', 1500)`);
-      console.log('✅ Types de pressing par défaut créés');
-    }
     console.log('✅ Migrations appliquées (pressing, dépôt, manquants, modules entreprises)');
   } catch (error) {
     console.error('Erreur migration:', error.message);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEED DONNÉES PAR DÉFAUT — s'exécute à chaque démarrage (idempotent)
+// ─────────────────────────────────────────────────────────────────────────────
+const seedDefaultData = async () => {
+  try {
+    // Helper : INSERT uniquement si la ligne n'existe pas déjà (par name)
+    const insertIfMissing = async (table, nameCol, rows) => {
+      for (const row of rows) {
+        const cols = Object.keys(row).join(', ');
+        const vals = Object.keys(row).map(k => `'${String(row[k]).replace(/'/g, "''")}'`).join(', ');
+        await sequelize.query(
+          `INSERT INTO ${table} (${cols}, created_at, updated_at)
+           SELECT ${vals}, NOW(), NOW()
+           WHERE NOT EXISTS (SELECT 1 FROM ${table} WHERE ${nameCol} = '${String(row[nameCol]).replace(/'/g, "''")}') `
+        );
+      }
+    };
+
+    // ── 1. Prix Piscine ────────────────────────────────────────────
+    const psPrices = [
+      { key: 'ticket_adulte', value: 2000, label: 'Ticket adulte' },
+      { key: 'ticket_enfant', value: 1000, label: 'Ticket enfant' },
+      { key: 'abonnement_mensuel', value: 25000, label: 'Abonnement mensuel' },
+      { key: 'abonnement_trimestriel', value: 60000, label: 'Abonnement trimestriel' },
+      { key: 'abonnement_annuel', value: 200000, label: 'Abonnement annuel' },
+    ];
+    for (const p of psPrices) {
+      await sequelize.query(
+        `INSERT INTO price_settings (key, value, label, updated_at) VALUES (:key,:value,:label,NOW())
+         ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, label=EXCLUDED.label, updated_at=NOW()`,
+        { replacements: p }
+      );
+    }
+
+    // ── 2. Types Lavage Auto ───────────────────────────────────────
+    await insertIfMissing('vehicle_types', 'name', [
+      { name: 'Moto / Vélo', price: 500, is_active: true },
+      { name: 'Voiture petite berline', price: 1500, is_active: true },
+      { name: 'Voiture standard', price: 2000, is_active: true },
+      { name: '4x4 / SUV', price: 3000, is_active: true },
+      { name: 'Camionnette / Pick-up', price: 3500, is_active: true },
+      { name: 'Minibus / Camion léger', price: 5000, is_active: true },
+      { name: 'Lavage complet (intérieur + extérieur)', price: 3500, is_active: true },
+      { name: 'Nettoyage siège unique', price: 500, is_active: true },
+    ]);
+
+    // ── 3. Types Pressing ─────────────────────────────────────────
+    await insertIfMissing('pressing_types', 'name', [
+      { name: 'T-Shirt / Maillot', price: 300, is_active: true },
+      { name: 'Chemise', price: 500, is_active: true },
+      { name: 'Pantalon', price: 500, is_active: true },
+      { name: 'Jupe', price: 500, is_active: true },
+      { name: 'Robe simple', price: 1000, is_active: true },
+      { name: 'Robe de soirée', price: 2000, is_active: true },
+      { name: 'Veste / Blazer', price: 1500, is_active: true },
+      { name: 'Costume complet (2 pièces)', price: 2500, is_active: true },
+      { name: 'Habit traditionnel', price: 2000, is_active: true },
+      { name: 'Boubou grand', price: 2500, is_active: true },
+      { name: 'Nettoyage à sec — standard', price: 2000, is_active: true },
+      { name: 'Couverture / Drap', price: 1500, is_active: true },
+      { name: 'Rideau (le mètre)', price: 1000, is_active: true },
+      { name: 'Repassage seul', price: 300, is_active: true },
+      { name: 'Lavage + Repassage', price: 800, is_active: true },
+    ]);
+
+    // ── 4. Produits Supérette ─────────────────────────────────────
+    await insertIfMissing('products', 'name', [
+      { name: 'Eau minérale 0,5L', category: 'Boissons', service_type: 'superette', buy_price: 200, sell_price: 350, unit: 'bouteille', current_stock: 48, min_stock: 12, is_active: true },
+      { name: 'Eau minérale 1,5L', category: 'Boissons', service_type: 'superette', buy_price: 350, sell_price: 500, unit: 'bouteille', current_stock: 36, min_stock: 10, is_active: true },
+      { name: 'Coca-Cola 33cl', category: 'Boissons', service_type: 'superette', buy_price: 400, sell_price: 600, unit: 'canette', current_stock: 24, min_stock: 6, is_active: true },
+      { name: 'Fanta Orange 33cl', category: 'Boissons', service_type: 'superette', buy_price: 400, sell_price: 600, unit: 'canette', current_stock: 24, min_stock: 6, is_active: true },
+      { name: 'Jus de fruit 1L', category: 'Boissons', service_type: 'superette', buy_price: 600, sell_price: 900, unit: 'litre', current_stock: 20, min_stock: 5, is_active: true },
+      { name: 'Lait concentré sucré', category: 'Épicerie', service_type: 'superette', buy_price: 450, sell_price: 650, unit: 'boite', current_stock: 30, min_stock: 10, is_active: true },
+      { name: 'Riz parfumé (kg)', category: 'Épicerie', service_type: 'superette', buy_price: 400, sell_price: 600, unit: 'kg', current_stock: 50, min_stock: 10, is_active: true },
+      { name: 'Huile végétale 1L', category: 'Épicerie', service_type: 'superette', buy_price: 1000, sell_price: 1500, unit: 'litre', current_stock: 20, min_stock: 5, is_active: true },
+      { name: 'Sucre (kg)', category: 'Épicerie', service_type: 'superette', buy_price: 450, sell_price: 650, unit: 'kg', current_stock: 25, min_stock: 5, is_active: true },
+      { name: 'Sel (kg)', category: 'Épicerie', service_type: 'superette', buy_price: 150, sell_price: 250, unit: 'kg', current_stock: 10, min_stock: 3, is_active: true },
+      { name: 'Pâtes alimentaires', category: 'Épicerie', service_type: 'superette', buy_price: 200, sell_price: 350, unit: 'paquet', current_stock: 30, min_stock: 8, is_active: true },
+      { name: 'Tomate concentrée', category: 'Épicerie', service_type: 'superette', buy_price: 300, sell_price: 500, unit: 'boite', current_stock: 24, min_stock: 6, is_active: true },
+      { name: 'Sardines en conserve', category: 'Conserves', service_type: 'superette', buy_price: 600, sell_price: 900, unit: 'boite', current_stock: 18, min_stock: 6, is_active: true },
+      { name: 'Boeuf en conserve', category: 'Conserves', service_type: 'superette', buy_price: 900, sell_price: 1300, unit: 'boite', current_stock: 12, min_stock: 4, is_active: true },
+      { name: 'Savon de ménage', category: 'Hygiene et Menage', service_type: 'superette', buy_price: 200, sell_price: 350, unit: 'barre', current_stock: 40, min_stock: 10, is_active: true },
+      { name: 'Lessive (kg)', category: 'Hygiene et Menage', service_type: 'superette', buy_price: 700, sell_price: 1000, unit: 'kg', current_stock: 15, min_stock: 4, is_active: true },
+      { name: 'Eau de Javel 1L', category: 'Hygiene et Menage', service_type: 'superette', buy_price: 500, sell_price: 750, unit: 'litre', current_stock: 12, min_stock: 4, is_active: true },
+      { name: 'Papier hygiénique', category: 'Hygiene et Menage', service_type: 'superette', buy_price: 300, sell_price: 500, unit: 'rouleau', current_stock: 30, min_stock: 8, is_active: true },
+      { name: 'Biscuits (paquet)', category: 'Snacks', service_type: 'superette', buy_price: 200, sell_price: 350, unit: 'paquet', current_stock: 20, min_stock: 5, is_active: true },
+      { name: 'Chips (sachet)', category: 'Snacks', service_type: 'superette', buy_price: 150, sell_price: 250, unit: 'sachet', current_stock: 24, min_stock: 6, is_active: true },
+    ]);
+
+    // ── 5. Produits Maquis / Bar ──────────────────────────────────
+    await insertIfMissing('products', 'name', [
+      { name: 'Bière Castel 65cl', category: 'Bieres', service_type: 'maquis', buy_price: 600, sell_price: 1000, unit: 'bouteille', current_stock: 48, min_stock: 12, is_active: true },
+      { name: 'Bière Solibra 65cl', category: 'Bieres', service_type: 'maquis', buy_price: 600, sell_price: 1000, unit: 'bouteille', current_stock: 48, min_stock: 12, is_active: true },
+      { name: 'Bière Flag 33cl', category: 'Bieres', service_type: 'maquis', buy_price: 400, sell_price: 700, unit: 'bouteille', current_stock: 36, min_stock: 10, is_active: true },
+      { name: 'Bière Heineken 33cl', category: 'Bieres', service_type: 'maquis', buy_price: 700, sell_price: 1200, unit: 'bouteille', current_stock: 24, min_stock: 6, is_active: true },
+      { name: 'Eau piscine 0,5L', category: 'Softs', service_type: 'maquis', buy_price: 200, sell_price: 500, unit: 'bouteille', current_stock: 36, min_stock: 10, is_active: true },
+      { name: 'Coca-Cola bar 33cl', category: 'Softs', service_type: 'maquis', buy_price: 400, sell_price: 700, unit: 'bouteille', current_stock: 30, min_stock: 8, is_active: true },
+      { name: 'Fanta bar 33cl', category: 'Softs', service_type: 'maquis', buy_price: 400, sell_price: 700, unit: 'bouteille', current_stock: 30, min_stock: 8, is_active: true },
+      { name: 'Sprite 33cl', category: 'Softs', service_type: 'maquis', buy_price: 400, sell_price: 700, unit: 'bouteille', current_stock: 24, min_stock: 6, is_active: true },
+      { name: 'Jus de bissap maison', category: 'Softs', service_type: 'maquis', buy_price: 100, sell_price: 500, unit: 'verre', current_stock: 20, min_stock: 5, is_active: true },
+      { name: 'Gnamakoudji gingembre', category: 'Softs', service_type: 'maquis', buy_price: 100, sell_price: 500, unit: 'verre', current_stock: 20, min_stock: 5, is_active: true },
+      { name: 'Vin rouge (verre)', category: 'Vins', service_type: 'maquis', buy_price: 400, sell_price: 1000, unit: 'verre', current_stock: 10, min_stock: 3, is_active: true },
+      { name: 'Pastis Whisky (verre)', category: 'Alcools', service_type: 'maquis', buy_price: 500, sell_price: 1500, unit: 'verre', current_stock: 10, min_stock: 3, is_active: true },
+      { name: 'Attiéké Poisson braisé', category: 'Plats', service_type: 'maquis', buy_price: 800, sell_price: 2000, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+      { name: 'Riz sauce graine', category: 'Plats', service_type: 'maquis', buy_price: 600, sell_price: 1500, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+      { name: 'Alloco banane frite', category: 'Plats', service_type: 'maquis', buy_price: 200, sell_price: 500, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+      { name: 'Brochettes de boeuf', category: 'Grillades', service_type: 'maquis', buy_price: 500, sell_price: 1500, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+      { name: 'Poulet braisé demi', category: 'Grillades', service_type: 'maquis', buy_price: 2000, sell_price: 4000, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+      { name: 'Garba attiéké thon', category: 'Plats', service_type: 'maquis', buy_price: 400, sell_price: 1000, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+      { name: 'Foutou banane sauce', category: 'Plats', service_type: 'maquis', buy_price: 700, sell_price: 1500, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+      { name: 'Omelette simple', category: 'Plats', service_type: 'maquis', buy_price: 300, sell_price: 700, unit: 'portion', current_stock: 0, min_stock: 0, is_active: true },
+    ]);
+
+    // ── 6. Produits Dépôt ─────────────────────────────────────────
+    await insertIfMissing('products', 'name', [
+      { name: 'Casier bière Castel 65cl 12 btl', category: 'Bieres', service_type: 'depot', buy_price: 6500, sell_price: 8000, unit: 'casier', current_stock: 20, min_stock: 5, is_active: true },
+      { name: 'Casier bière Solibra 65cl 12 btl', category: 'Bieres', service_type: 'depot', buy_price: 6500, sell_price: 8000, unit: 'casier', current_stock: 20, min_stock: 5, is_active: true },
+      { name: 'Casier Flag 33cl 24 btl', category: 'Bieres', service_type: 'depot', buy_price: 7000, sell_price: 9000, unit: 'casier', current_stock: 15, min_stock: 4, is_active: true },
+      { name: 'Casier Coca-Cola 33cl 24 btl', category: 'Softs', service_type: 'depot', buy_price: 7500, sell_price: 10000, unit: 'casier', current_stock: 10, min_stock: 3, is_active: true },
+      { name: 'Casier Fanta 33cl 24 btl', category: 'Softs', service_type: 'depot', buy_price: 7500, sell_price: 10000, unit: 'casier', current_stock: 10, min_stock: 3, is_active: true },
+      { name: 'Pack eau 0,5L 24 btl', category: 'Eau', service_type: 'depot', buy_price: 3500, sell_price: 5000, unit: 'carton', current_stock: 25, min_stock: 8, is_active: true },
+      { name: 'Pack eau 1,5L 12 btl', category: 'Eau', service_type: 'depot', buy_price: 3000, sell_price: 4500, unit: 'carton', current_stock: 20, min_stock: 6, is_active: true },
+      { name: 'Carton jus de fruit 1L 12 btl', category: 'Jus', service_type: 'depot', buy_price: 5500, sell_price: 8000, unit: 'carton', current_stock: 12, min_stock: 4, is_active: true },
+      { name: 'Sac riz 50kg', category: 'Alimentation', service_type: 'depot', buy_price: 18000, sell_price: 22000, unit: 'sac', current_stock: 10, min_stock: 2, is_active: true },
+      { name: 'Bidon huile végétale 20L', category: 'Alimentation', service_type: 'depot', buy_price: 18000, sell_price: 23000, unit: 'bidon', current_stock: 8, min_stock: 2, is_active: true },
+      { name: 'Carton savon 72 barres', category: 'Menage', service_type: 'depot', buy_price: 9000, sell_price: 12000, unit: 'carton', current_stock: 5, min_stock: 2, is_active: true },
+    ]);
+
+    // ── 7. Clients Dépôt ──────────────────────────────────────────
+    await insertIfMissing('depot_clients', 'name', [
+      { name: 'Bar Chez Maman Adjoua', phone: '0701234567', address: 'Quartier Commerce, Ouangolodougou', credit_balance: 0, is_active: true },
+      { name: 'Maquis La Détente', phone: '0770123456', address: 'Centre-ville, Ouangolodougou', credit_balance: 0, is_active: true },
+      { name: 'Restaurant Le Bivouac', phone: '0585432100', address: 'Route de Korhogo, Ouangolodougou', credit_balance: 0, is_active: true },
+      { name: 'Boutique Modou', phone: '0787654321', address: 'Marché central, Ouangolodougou', credit_balance: 0, is_active: true },
+      { name: 'Epicerie du Carrefour', phone: '0707654321', address: 'Carrefour principal, Ouangolodougou', credit_balance: 0, is_active: true },
+    ]);
+
+    // ── 8. Plats Restaurant ───────────────────────────────────────
+    await insertIfMissing('menu_items', 'name', [
+      { name: 'Salade verte', category: 'Entrées', price: 1000, is_available: true },
+      { name: 'Salade tomates-oignons', category: 'Entrées', price: 1000, is_available: true },
+      { name: 'Soupe de légumes', category: 'Entrées', price: 1500, is_available: true },
+      { name: 'Riz sauté au poulet', category: 'Plats', price: 3500, is_available: true },
+      { name: 'Riz sauce tomate', category: 'Plats', price: 2500, is_available: true },
+      { name: 'Riz sauce graine restaurant', category: 'Plats', price: 3000, is_available: true },
+      { name: 'Attiéké poisson braisé', category: 'Plats', price: 3000, is_available: true },
+      { name: 'Attiéké poulet braisé', category: 'Plats', price: 3500, is_available: true },
+      { name: 'Foutou banane arachide', category: 'Plats', price: 2500, is_available: true },
+      { name: 'Pâtes à la bolognaise', category: 'Plats', price: 3000, is_available: true },
+      { name: 'Poulet rôti demi', category: 'Grillades', price: 5000, is_available: true },
+      { name: 'Brochettes boeuf restaurant', category: 'Grillades', price: 3000, is_available: true },
+      { name: 'Poisson entier grillé', category: 'Grillades', price: 4000, is_available: true },
+      { name: 'Salade de fruits frais', category: 'Desserts', price: 1500, is_available: true },
+      { name: 'Glace 2 boules', category: 'Desserts', price: 1000, is_available: true },
+      { name: 'Eau restaurant 0,5L', category: 'Boissons', price: 500, is_available: true },
+      { name: 'Jus de fruits pressés', category: 'Boissons', price: 1500, is_available: true },
+      { name: 'Coca-Cola restaurant 33cl', category: 'Boissons', price: 700, is_available: true },
+      { name: 'Café ou Thé', category: 'Boissons', price: 500, is_available: true },
+    ]);
+
+    // ── 9. Chambres Hôtel ─────────────────────────────────────────
+    const hotelRooms = [
+      { number: '101', type: 'Simple', capacity: 1, price_per_night: 10000, status: 'disponible' },
+      { number: '102', type: 'Simple', capacity: 1, price_per_night: 10000, status: 'disponible' },
+      { number: '103', type: 'Standard', capacity: 2, price_per_night: 15000, status: 'disponible' },
+      { number: '104', type: 'Standard', capacity: 2, price_per_night: 15000, status: 'disponible' },
+      { number: '105', type: 'Standard', capacity: 2, price_per_night: 15000, status: 'disponible' },
+      { number: '201', type: 'Suite', capacity: 2, price_per_night: 25000, status: 'disponible' },
+      { number: '202', type: 'Suite', capacity: 3, price_per_night: 30000, status: 'disponible' },
+    ];
+    for (const room of hotelRooms) {
+      await sequelize.query(
+        `INSERT INTO rooms (number, type, capacity, price_per_night, status, created_at, updated_at)
+         SELECT :number, :type, :capacity, :price_per_night, :status, NOW(), NOW()
+         WHERE NOT EXISTS (SELECT 1 FROM rooms WHERE number = :number)`,
+        { replacements: room }
+      );
+    }
+
+    console.log('✅ Données par défaut vérifiées/insérées (prix, types, produits, restaurant, hôtel)');
+  } catch (err) {
+    console.error('⚠️  Erreur seedDefaultData:', err.message);
   }
 };
 
@@ -669,6 +846,9 @@ const startServer = async () => {
     await createDefaultAdmin();
     await createDefaultGerant();
     await createPaleAdmin();
+
+    // Seed données par défaut (idempotent — ne duplique pas les existants)
+    await seedDefaultData();
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
