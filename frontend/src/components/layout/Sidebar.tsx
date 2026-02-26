@@ -46,10 +46,10 @@ const menuItems: MenuItemType[] = [
   { text: 'Restaurant', icon: <RestaurantIcon />, path: '/restaurant', module: 'restaurant' },
   { text: 'Hôtel', icon: <HotelIcon />, path: '/hotel', module: 'hotel' },
   { text: 'Événements', icon: <EventIcon />, path: '/events', module: 'events' },
-  { text: 'Caisse', icon: <CaisseIcon />, path: '/caisse', module: 'caisse' },
   { text: 'Lavage Auto', icon: <LavageIcon />, path: '/lavage', module: 'lavage' },
   { text: 'Maquis / Bar', icon: <MaquisIcon />, path: '/maquis', module: 'maquis' },
   { text: 'Supérette', icon: <SuperetteIcon />, path: '/superette', module: 'superette' },
+  { text: 'Caisse', icon: <CaisseIcon />, path: '/caisse', module: 'caisse' },
   { text: 'Mes Rapports', icon: <ReportsIcon />, path: '/reports', module: 'reports' }
 ];
 

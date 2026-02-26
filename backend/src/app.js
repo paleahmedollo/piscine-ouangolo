@@ -137,12 +137,13 @@ app.use((err, req, res, next) => {
 const createDefaultSuperAdmin = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
+  const SUPERADMIN_PASSWORD = 'Gestix@2024';
   try {
     const existing = await User.findOne({ where: { username: 'superadmin' } });
-    const hashedPassword = await bcrypt.hash('Gestix@2024', 10);
+    const hashedPassword = await bcrypt.hash(SUPERADMIN_PASSWORD, 10);
 
     if (!existing) {
-      // Création initiale
+      // Création initiale — hooks: false évite le double-hashage
       await User.create({
         username: 'superadmin',
         password_hash: hashedPassword,
@@ -151,13 +152,20 @@ const createDefaultSuperAdmin = async () => {
         is_active: true,
         company_id: null
       }, { hooks: false });
-      console.log('✅ Compte superadmin créé (username: superadmin, password: Gestix@2024)');
-    } else if (!existing.password_hash || !existing.password_hash.startsWith('$2')) {
-      // Hash corrompu → réparation automatique
-      await existing.update({ password_hash: hashedPassword, is_active: true, role: 'super_admin' }, { hooks: false });
-      console.log('🔧 Compte superadmin réparé (hash corrompu détecté et corrigé)');
+      console.log('✅ Compte superadmin créé (password: Gestix@2024)');
     } else {
-      console.log('✅ Compte superadmin OK');
+      // Vérifier si le mot de passe fonctionne RÉELLEMENT (détecte le double-hashage)
+      const passwordWorks = await bcrypt.compare(SUPERADMIN_PASSWORD, existing.password_hash);
+      if (!passwordWorks || !existing.is_active || existing.role !== 'super_admin') {
+        // Hash invalide (double-hashé ou corrompu) → forcer la correction
+        await User.update(
+          { password_hash: hashedPassword, is_active: true, role: 'super_admin' },
+          { where: { username: 'superadmin' }, hooks: false }
+        );
+        console.log('🔧 Compte superadmin réparé (hash corrigé définitivement)');
+      } else {
+        console.log('✅ Compte superadmin OK');
+      }
     }
   } catch (error) {
     console.error('Erreur lors de la création/réparation du superadmin:', error);
@@ -194,24 +202,35 @@ const createDefaultAdmin = async () => {
 const createPaleAdmin = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
+  const PALEADMIN_PASSWORD = 'pheno@2308';
   try {
     const existing = await User.findOne({ where: { username: 'paleadmin' } });
-    const hashedPassword = await bcrypt.hash('pheno@2308', 10);
+    const hashedPassword = await bcrypt.hash(PALEADMIN_PASSWORD, 10);
     if (!existing) {
+      // Récupérer le premier company_id disponible
+      const { Company } = require('./models');
+      const company = await Company.findOne({ order: [['id', 'ASC']] });
       await User.create({
         username: 'paleadmin',
         password_hash: hashedPassword,
         full_name: 'Pale Ahmed - Administrateur Général',
         role: 'admin',
         is_active: true,
-        company_id: 1
+        company_id: company ? company.id : null
       }, { hooks: false });
-      console.log('✅ Compte paleadmin créé (username: paleadmin, password: pheno@2308)');
-    } else if (!existing.password_hash || !existing.password_hash.startsWith('$2')) {
-      await existing.update({ password_hash: hashedPassword, is_active: true }, { hooks: false });
-      console.log('🔧 Compte paleadmin réparé');
+      console.log('✅ Compte paleadmin créé (password: pheno@2308)');
     } else {
-      console.log('✅ Compte paleadmin OK');
+      // Vérifier si le mot de passe fonctionne RÉELLEMENT (détecte le double-hashage)
+      const passwordWorks = await bcrypt.compare(PALEADMIN_PASSWORD, existing.password_hash);
+      if (!passwordWorks || !existing.is_active) {
+        await User.update(
+          { password_hash: hashedPassword, is_active: true },
+          { where: { username: 'paleadmin' }, hooks: false }
+        );
+        console.log('🔧 Compte paleadmin réparé (hash corrigé définitivement)');
+      } else {
+        console.log('✅ Compte paleadmin OK');
+      }
     }
   } catch (error) {
     console.error('Erreur lors de la création du compte paleadmin:', error);
