@@ -154,19 +154,21 @@ const Depot: React.FC = () => {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
+    setError('');
+    const todayDate = new Date().toISOString().split('T')[0];
     try {
       const [statsRes, clientsRes, productsRes, salesRes] = await Promise.all([
         depotApi.getStats(),
         depotApi.getClients(),
         depotApi.getProducts(),
-        depotApi.getSales()
+        depotApi.getSales({ date: todayDate })
       ]);
-      setStats(statsRes.data);
-      setClients(clientsRes.data || []);
-      setProducts(productsRes.data || []);
-      setSales(salesRes.data || []);
+      setStats(statsRes.data?.data || statsRes.data || null);
+      setClients(clientsRes.data?.data || clientsRes.data || []);
+      setProducts(productsRes.data?.data || productsRes.data || []);
+      setSales(salesRes.data?.data || salesRes.data || []);
     } catch (e: any) {
-      setError('Erreur de chargement des données');
+      setError(e?.response?.data?.message || 'Erreur de chargement des données');
     } finally {
       setLoading(false);
     }
