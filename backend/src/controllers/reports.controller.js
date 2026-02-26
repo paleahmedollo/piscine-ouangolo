@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const {
   User, Ticket, Subscription, Sale, Reservation,
-  Event, Quote, CashRegister, Expense, UserLayout
+  Event, Quote, CashRegister, Expense, UserLayout, DepotSale, DepotClient
 } = require('../models');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
@@ -241,6 +241,48 @@ const getTransactionsReport = async (req, res) => {
       });
     }
 
+    // Récupérer les ventes dépôt
+    if (!restrictedModule || restrictedModule === 'depot') {
+      try {
+        const depotSales = await DepotSale.findAll({
+          where: {
+            ...cf,
+            created_at: { [Op.between]: [startDate, endDate] },
+            ...(restrictedUserId && { user_id: restrictedUserId }),
+            ...(payment_method && { payment_method })
+          },
+          include: [
+            { model: User, as: 'user', attributes: ['id', 'full_name', 'username'] },
+            { model: DepotClient, as: 'client', attributes: ['id', 'name'] }
+          ]
+        });
+
+        depotSales.forEach(ds => {
+          const amount = parseFloat(ds.total_amount);
+          if ((!min_amount || amount >= parseFloat(min_amount)) && (!max_amount || amount <= parseFloat(max_amount))) {
+            transactions.push({
+              id: `depot_${ds.id}`,
+              date: ds.created_at,
+              time: new Date(ds.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+              module: 'Dépôt',
+              type: ds.payment_method === 'credit' ? 'Vente à crédit' : 'Vente',
+              description: `Vente dépôt — ${ds.client?.name || 'Client'}`,
+              quantity: 1,
+              unit_price: amount,
+              amount: amount,
+              payment_method: ds.payment_method || 'cash',
+              user_id: ds.user_id,
+              user_name: ds.user?.full_name || 'N/A',
+              reference: `DEP-${ds.id}`,
+              client_name: ds.client?.name
+            });
+          }
+        });
+      } catch (e) {
+        // DepotSale model may not exist in all contexts — fail silently
+      }
+    }
+
     // Tri
     const sortField = sort_by === 'date' ? 'date' : sort_by === 'amount' ? 'amount' : sort_by === 'module' ? 'module' : 'date';
     transactions.sort((a, b) => {
@@ -347,6 +389,13 @@ const getSummaryReport = async (req, res) => {
     const dateFilter = { created_at: { [Op.between]: [startDate, endDate] } };
 
     // Récupérer toutes les transactions (filtrées selon le role)
+    let depotSalesForSummary = [];
+    try {
+      if (!restrictedModule || restrictedModule === 'depot') {
+        depotSalesForSummary = await DepotSale.findAll({ where: { ...cf, ...dateFilter, ...userFilter } });
+      }
+    } catch { depotSalesForSummary = []; }
+
     const [tickets, subscriptions, sales, reservations, events, expenses] = await Promise.all([
       (!restrictedModule || restrictedModule === 'piscine') ?
         Ticket.findAll({ where: { ...cf, ...dateFilter, ...userFilter } }) : [],
@@ -371,7 +420,8 @@ const getSummaryReport = async (req, res) => {
       events: events.reduce((sum, e) => {
         const quotesTotal = e.quotes?.reduce((s, q) => s + parseFloat(q.total || 0), 0) || 0;
         return sum + (quotesTotal || parseFloat(e.price || 0));
-      }, 0)
+      }, 0),
+      depot: depotSalesForSummary.reduce((sum, ds) => sum + parseFloat(ds.total_amount || 0), 0)
     };
 
     const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
@@ -407,13 +457,14 @@ const getSummaryReport = async (req, res) => {
       ...subscriptions.map(s => ({ date: s.created_at, module: 'piscine', amount: parseFloat(s.price) })),
       ...sales.map(s => ({ date: s.created_at, module: 'restaurant', amount: parseFloat(s.total) })),
       ...reservations.map(r => ({ date: r.created_at, module: 'hotel', amount: parseFloat(r.total_price) })),
-      ...events.map(e => ({ date: e.created_at, module: 'events', amount: e.quotes?.reduce((s, q) => s + parseFloat(q.total || 0), 0) || parseFloat(e.price || 0) }))
+      ...events.map(e => ({ date: e.created_at, module: 'events', amount: e.quotes?.reduce((s, q) => s + parseFloat(q.total || 0), 0) || parseFloat(e.price || 0) })),
+      ...depotSalesForSummary.map(ds => ({ date: ds.created_at, module: 'depot', amount: parseFloat(ds.total_amount || 0) }))
     ];
 
     allTransactions.forEach(t => {
       const period = formatDate(t.date);
       if (!groupedData[period]) {
-        groupedData[period] = { piscine: 0, restaurant: 0, hotel: 0, events: 0, total: 0 };
+        groupedData[period] = { piscine: 0, restaurant: 0, hotel: 0, events: 0, depot: 0, total: 0 };
       }
       groupedData[period][t.module] += t.amount;
       groupedData[period].total += t.amount;
@@ -442,7 +493,8 @@ const getSummaryReport = async (req, res) => {
           sales: sales.length,
           reservations: reservations.length,
           events: events.length,
-          expenses: expenses.length
+          expenses: expenses.length,
+          depot_sales: depotSalesForSummary.length
         },
         timeline
       }

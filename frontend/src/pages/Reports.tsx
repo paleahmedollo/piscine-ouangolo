@@ -76,7 +76,7 @@ interface Summary {
     profit_margin: number;
   };
   counts: Record<string, number>;
-  timeline: Array<{ period: string; piscine: number; restaurant: number; hotel: number; events: number; total: number }>;
+  timeline: Array<{ period: string; piscine: number; restaurant: number; hotel: number; events: number; depot: number; total: number }>;
 }
 
 interface User {
@@ -105,7 +105,8 @@ const moduleColors: Record<string, string> = {
   'Piscine': '#2196f3',
   'Restaurant': '#ff9800',
   'Hotel': '#4caf50',
-  'Evenements': '#9c27b0'
+  'Evenements': '#9c27b0',
+  'Dépôt': '#795548'
 };
 
 const paymentLabels: Record<string, string> = {
@@ -131,7 +132,8 @@ const ROLE_MODULE_MAP: Record<string, string> = {
   'serveuse': 'restaurant',
   'serveur': 'restaurant',
   'receptionniste': 'hotel',
-  'gestionnaire_events': 'events'
+  'gestionnaire_events': 'events',
+  'gestionnaire_depot': 'depot'
 };
 
 // Labels des modules
@@ -139,7 +141,8 @@ const moduleLabels: Record<string, string> = {
   'piscine': 'Piscine',
   'restaurant': 'Restaurant',
   'hotel': 'Hotel',
-  'events': 'Evenements'
+  'events': 'Evenements',
+  'depot': 'Dépôt'
 };
 
 const Reports: React.FC = () => {
@@ -542,6 +545,7 @@ const Reports: React.FC = () => {
                     <MenuItem value="restaurant">Restaurant</MenuItem>
                     <MenuItem value="hotel">Hotel</MenuItem>
                     <MenuItem value="events">Evenements</MenuItem>
+                    <MenuItem value="depot">Dépôt</MenuItem>
                   </TextField>
                 </Grid>
               )}
@@ -905,6 +909,7 @@ const Reports: React.FC = () => {
                           {(!userRestrictedModule || userRestrictedModule === 'restaurant') && <TableCell align="right"><strong>Restaurant</strong></TableCell>}
                           {(!userRestrictedModule || userRestrictedModule === 'hotel') && <TableCell align="right"><strong>Hotel</strong></TableCell>}
                           {(!userRestrictedModule || userRestrictedModule === 'events') && <TableCell align="right"><strong>Evenements</strong></TableCell>}
+                          {(!userRestrictedModule || userRestrictedModule === 'depot') && <TableCell align="right"><strong>Dépôt</strong></TableCell>}
                           <TableCell align="right"><strong>Total</strong></TableCell>
                         </TableRow>
                       </TableHead>
@@ -916,6 +921,7 @@ const Reports: React.FC = () => {
                             {(!userRestrictedModule || userRestrictedModule === 'restaurant') && <TableCell align="right">{formatCurrency(row.restaurant)}</TableCell>}
                             {(!userRestrictedModule || userRestrictedModule === 'hotel') && <TableCell align="right">{formatCurrency(row.hotel)}</TableCell>}
                             {(!userRestrictedModule || userRestrictedModule === 'events') && <TableCell align="right">{formatCurrency(row.events)}</TableCell>}
+                            {(!userRestrictedModule || userRestrictedModule === 'depot') && <TableCell align="right">{formatCurrency(row.depot || 0)}</TableCell>}
                             <TableCell align="right"><strong>{formatCurrency(userRestrictedModule ? row[userRestrictedModule as keyof typeof row] as number : row.total)}</strong></TableCell>
                           </TableRow>
                         ))}

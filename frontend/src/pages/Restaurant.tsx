@@ -46,7 +46,7 @@ import Layout from '../components/layout/Layout';
 import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
 import ClientReceiptDialog, { ClientReceiptData } from '../components/ClientReceiptDialog';
 import { useAuth } from '../contexts/AuthContext';
-import { restaurantApi } from '../services/api';
+import { restaurantApi, hotelApi } from '../services/api';
 import { MenuItem as MenuItemType, Sale, MenuCategory } from '../types';
 
 interface OrderLine {
@@ -103,6 +103,8 @@ const Restaurant: React.FC = () => {
   // Facturation chambre
   const [billToRoom, setBillToRoom] = useState(false);
   const [roomNumberInput, setRoomNumberInput] = useState('');
+  const [occupiedRooms, setOccupiedRooms] = useState<{ id: number; number: string; type: string; current_guest?: string }[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Encaissement d'un ticket ouvert
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -326,6 +328,20 @@ const Restaurant: React.FC = () => {
       cashierName: user?.full_name || user?.username || 'Caissier'
     });
     setClientReceiptOpen(true);
+  };
+
+  // Charger les chambres occupées pour la facturation
+  const loadOccupiedRooms = async () => {
+    setLoadingRooms(true);
+    try {
+      const res = await hotelApi.getRooms({ status: 'occupee' });
+      const rooms = res.data.data || res.data || [];
+      setOccupiedRooms(rooms);
+    } catch {
+      setOccupiedRooms([]); // Fallback silencieux si hotel non disponible
+    } finally {
+      setLoadingRooms(false);
+    }
   };
 
   // Enregistrer la commande comme ticket ouvert
@@ -973,7 +989,11 @@ const Restaurant: React.FC = () => {
                     checked={billToRoom}
                     onChange={(e) => {
                       setBillToRoom(e.target.checked);
-                      if (!e.target.checked) setRoomNumberInput('');
+                      if (!e.target.checked) {
+                        setRoomNumberInput('');
+                      } else {
+                        loadOccupiedRooms();
+                      }
                     }}
                     color="primary"
                   />
@@ -988,17 +1008,40 @@ const Restaurant: React.FC = () => {
                 }
               />
               {billToRoom && (
-                <TextField
-                  fullWidth
-                  label="Numéro de chambre"
-                  value={roomNumberInput}
-                  onChange={(e) => setRoomNumberInput(e.target.value)}
-                  size="small"
-                  sx={{ mt: 1 }}
-                  required
-                  placeholder="ex: 101"
-                  autoFocus
-                />
+                <Box sx={{ mt: 1 }}>
+                  {loadingRooms ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                      <CircularProgress size={16} />
+                      <Typography variant="caption">Chargement des chambres...</Typography>
+                    </Box>
+                  ) : occupiedRooms.length > 0 ? (
+                    <FormControl fullWidth size="small" required>
+                      <InputLabel>Chambre occupée *</InputLabel>
+                      <Select
+                        value={roomNumberInput}
+                        label="Chambre occupée *"
+                        onChange={(e) => setRoomNumberInput(e.target.value)}
+                      >
+                        {occupiedRooms.map(room => (
+                          <MenuItem key={room.id} value={room.number}>
+                            🛏 Chambre {room.number}{room.type ? ` — ${room.type}` : ''}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  ) : (
+                    <TextField
+                      fullWidth
+                      label="Numéro de chambre"
+                      value={roomNumberInput}
+                      onChange={(e) => setRoomNumberInput(e.target.value)}
+                      size="small"
+                      required
+                      placeholder="ex: 101"
+                      helperText="Aucune chambre occupée trouvée — saisie manuelle"
+                    />
+                  )}
+                </Box>
               )}
             </Box>
 
