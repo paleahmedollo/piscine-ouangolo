@@ -10,11 +10,11 @@ import {
   Add as AddIcon, SportsBar as MaquisIcon, Refresh as RefreshIcon,
   Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon,
   LocalShipping as SupplyIcon, Warning as WarnIcon,
-  Receipt as ReceiptIcon,
+  Receipt as ReceiptIcon, LockClock as ClockOutIcon,
   Remove as RemoveIcon, AddCircle as AddCircleIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
-import { maquisApi, tabsApi } from '../services/api';
+import { maquisApi, tabsApi, maquisShortagesApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Product { id: number; name: string; category: string; buy_price: number; sell_price: number; unit: string; current_stock: number; min_stock: number; is_active: boolean; }
@@ -28,8 +28,8 @@ const fmt = (n: number) => (n || 0).toLocaleString('fr-FR') + ' FCFA';
 const MAQUIS_CATEGORIES = ['Bière', 'Vin', 'Alcool', 'Soft', 'Eau', 'Jus', 'Nourriture', 'Grillades', 'Cocktails', 'Autres'];
 
 const Maquis: React.FC = () => {
-  const { } = useAuth(); // permissions available
-  // const canManage = hasPermission('maquis', 'gestion_menu');
+  const { hasPermission } = useAuth();
+  const canManagePrix = hasPermission('maquis', 'gestion_prix');
   const [activeTab, setActiveTab] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -39,6 +39,12 @@ const Maquis: React.FC = () => {
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [filterCat, setFilterCat] = useState('');
+
+  // Close-shift dialog
+  const [closeShiftDialog, setCloseShiftDialog] = useState(false);
+  const [actualAmount, setActualAmount] = useState('');
+  const [closeShiftResult, setCloseShiftResult] = useState<{ shortage_amount: number; expected_amount: number; actual_amount: number; message: string } | null>(null);
+  const [closingShift, setClosingShift] = useState(false);
 
   // Dialogs
   const [productDialog, setProductDialog] = useState(false);
@@ -163,6 +169,20 @@ const Maquis: React.FC = () => {
     } catch { showAlert('error', 'Erreur'); }
   };
 
+  const handleCloseShift = async () => {
+    if (!actualAmount) return showAlert('error', 'Veuillez saisir le montant collecté');
+    setClosingShift(true);
+    try {
+      const res = await maquisShortagesApi.closeShift({ actual_amount: parseFloat(actualAmount) });
+      setCloseShiftResult(res.data.data || res.data);
+    } catch (e: unknown) {
+      showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur lors de la clôture');
+      setCloseShiftDialog(false);
+    } finally {
+      setClosingShift(false);
+    }
+  };
+
   const categories = [...new Set(products.map(p => p.category))];
   const filteredProducts = filterCat ? products.filter(p => p.category === filterCat) : products;
 
@@ -189,6 +209,14 @@ const Maquis: React.FC = () => {
                 </Button>
               </Badge>
             ) : null}
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<ClockOutIcon />}
+              onClick={() => { setActualAmount(''); setCloseShiftResult(null); setCloseShiftDialog(true); }}
+            >
+              Clôturer ma caisse
+            </Button>
           </Stack>
         </Box>
 
@@ -408,12 +436,16 @@ const Maquis: React.FC = () => {
                       <TableCell align="right">{p.min_stock}</TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={0.5}>
-                          <IconButton size="small" onClick={() => { setEditProduct(p); setProductForm({ name: p.name, category: p.category, sell_price: String(p.sell_price), buy_price: String(p.buy_price), unit: p.unit, min_stock: String(p.min_stock) }); setProductDialog(true); }}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton size="small" color="error" onClick={() => handleDeleteProduct(p.id)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
+                          {canManagePrix && (
+                            <IconButton size="small" onClick={() => { setEditProduct(p); setProductForm({ name: p.name, category: p.category, sell_price: String(p.sell_price), buy_price: String(p.buy_price), unit: p.unit, min_stock: String(p.min_stock) }); setProductDialog(true); }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                          {canManagePrix && (
+                            <IconButton size="small" color="error" onClick={() => handleDeleteProduct(p.id)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          )}
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -625,6 +657,74 @@ const Maquis: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setSupplierDialog(false)}>Annuler</Button>
           <Button variant="contained" onClick={handleSaveSupplier}>Créer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Clôture de caisse */}
+      <Dialog open={closeShiftDialog} onClose={() => { setCloseShiftDialog(false); setCloseShiftResult(null); }} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ClockOutIcon color="error" /> Clôture de caisse
+        </DialogTitle>
+        <DialogContent>
+          {!closeShiftResult ? (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Alert severity="info">
+                Saisissez le montant total que vous avez collecté pendant votre service.
+                Le système calculera automatiquement tout écart avec les ventes enregistrées.
+              </Alert>
+              <TextField
+                fullWidth
+                label="Montant collecté (FCFA) *"
+                type="number"
+                value={actualAmount}
+                onChange={e => setActualAmount(e.target.value)}
+                inputProps={{ min: 0 }}
+                autoFocus
+              />
+            </Stack>
+          ) : (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              {closeShiftResult.shortage_amount > 0 ? (
+                <Alert severity="error" icon={<WarnIcon />}>
+                  <Typography fontWeight={700}>⚠️ Manquant détecté !</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    Ventes enregistrées : <strong>{fmt(closeShiftResult.expected_amount)}</strong><br />
+                    Montant collecté : <strong>{fmt(closeShiftResult.actual_amount)}</strong><br />
+                    <span style={{ color: '#d32f2f', fontSize: '1.1em' }}>
+                      Manquant : <strong>{fmt(closeShiftResult.shortage_amount)}</strong>
+                    </span>
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                    Ce manquant a été enregistré et peut être déduit de votre salaire par l'administrateur.
+                  </Typography>
+                </Alert>
+              ) : (
+                <Alert severity="success">
+                  <Typography fontWeight={700}>✅ Caisse correcte</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    Ventes enregistrées : <strong>{fmt(closeShiftResult.expected_amount)}</strong><br />
+                    Montant collecté : <strong>{fmt(closeShiftResult.actual_amount)}</strong><br />
+                    Aucun manquant.
+                  </Typography>
+                </Alert>
+              )}
+              <Typography variant="caption" color="text.secondary">{closeShiftResult.message}</Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setCloseShiftDialog(false); setCloseShiftResult(null); }}>Fermer</Button>
+          {!closeShiftResult && (
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleCloseShift}
+              disabled={closingShift || !actualAmount}
+              startIcon={closingShift ? <CircularProgress size={16} /> : <ClockOutIcon />}
+            >
+              Clôturer
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Layout>

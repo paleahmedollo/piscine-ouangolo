@@ -45,4 +45,10 @@ router.post('/', hasRole('admin', 'directeur', 'gerant'), employeesController.cr
 // PUT /api/employees/:id - Modifier un employe
 router.put('/:id', hasRole('admin', 'directeur', 'gerant'), employeesController.updateEmployee);
 
+// GET /api/employees/:id/shortages - Manquants d'un employé
+router.get('/:id/shortages', hasRole('admin', 'directeur', 'gerant'), employeesController.getEmployeeShortages);
+
+// POST /api/employees/:id/deduct-shortage - Déduire un manquant du salaire
+router.post('/:id/deduct-shortage', hasRole('admin'), employeesController.deductShortage);
+
 module.exports = router;

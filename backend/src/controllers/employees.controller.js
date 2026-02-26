@@ -545,6 +545,79 @@ const getPayrollStats = async (req, res) => {
   }
 };
 
+// =====================================================
+// MANQUANTS CAISSE
+// =====================================================
+
+const { CashShortage } = require('../models');
+
+/**
+ * GET /api/employees/:id/shortages
+ * Manquants caisse d'un employé
+ */
+const getEmployeeShortages = async (req, res) => {
+  try {
+    const employeeId = parseInt(req.params.id);
+    // On cherche via user_id (l'employé doit avoir un compte user)
+    // On expose aussi directement par user_id si c'est un user
+    const shortages = await CashShortage.findAll({
+      where: { user_id: employeeId },
+      order: [['date', 'DESC']]
+    });
+    res.json({ success: true, data: shortages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/employees/:id/deduct-shortage
+ * Déduire un manquant du salaire de l'employé
+ */
+const deductShortage = async (req, res) => {
+  try {
+    const { shortage_id, payroll_id } = req.body;
+
+    if (!shortage_id || !payroll_id) {
+      return res.status(400).json({ success: false, message: 'shortage_id et payroll_id requis' });
+    }
+
+    const shortage = await CashShortage.findByPk(shortage_id);
+    if (!shortage) return res.status(404).json({ success: false, message: 'Manquant non trouvé' });
+    if (shortage.status !== 'en_attente') {
+      return res.status(400).json({ success: false, message: 'Ce manquant a déjà été traité' });
+    }
+
+    const payroll = await Payroll.findByPk(payroll_id, {
+      include: [{ model: Employee, as: 'employee' }]
+    });
+    if (!payroll) return res.status(404).json({ success: false, message: 'Fiche de paie non trouvée' });
+
+    const shortageAmount = parseFloat(shortage.shortage_amount);
+    const currentDeductions = parseFloat(payroll.deductions) || 0;
+    const newDeductions = currentDeductions + shortageAmount;
+    const newNetSalary = parseFloat(payroll.base_salary) + parseFloat(payroll.bonus || 0) - newDeductions;
+
+    await payroll.update({
+      deductions: newDeductions,
+      net_salary: Math.max(0, newNetSalary)
+    });
+
+    await shortage.update({
+      status: 'deduit',
+      deducted_from_payroll_id: payroll_id
+    });
+
+    res.json({
+      success: true,
+      message: `${shortageAmount.toLocaleString()} FCFA déduit du salaire`,
+      data: { shortage, payroll: payroll.toJSON() }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getEmployees,
   getPositions,
@@ -556,5 +629,7 @@ module.exports = {
   createPayroll,
   payPayroll,
   cancelPayroll,
-  getPayrollStats
+  getPayrollStats,
+  getEmployeeShortages,
+  deductShortage
 };

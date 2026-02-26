@@ -26,7 +26,9 @@ import {
   Business as BusinessIcon,
   LocalCarWash as LavageIcon,
   SportsBar as MaquisIcon,
-  Store as SuperetteIcon
+  Store as SuperetteIcon,
+  LocalLaundryService as PressingIcon,
+  Warehouse as DepotIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import GestixLogo from '../GestixLogo';
@@ -47,8 +49,10 @@ const menuItems: MenuItemType[] = [
   { text: 'Hôtel', icon: <HotelIcon />, path: '/hotel', module: 'hotel' },
   { text: 'Événements', icon: <EventIcon />, path: '/events', module: 'events' },
   { text: 'Lavage Auto', icon: <LavageIcon />, path: '/lavage', module: 'lavage' },
+  { text: 'Pressing', icon: <PressingIcon />, path: '/pressing', module: 'pressing' },
   { text: 'Maquis / Bar', icon: <MaquisIcon />, path: '/maquis', module: 'maquis' },
   { text: 'Supérette', icon: <SuperetteIcon />, path: '/superette', module: 'superette' },
+  { text: 'Dépôt', icon: <DepotIcon />, path: '/depot', module: 'depot' },
   { text: 'Caisse', icon: <CaisseIcon />, path: '/caisse', module: 'caisse' },
   { text: 'Mes Rapports', icon: <ReportsIcon />, path: '/reports', module: 'reports' }
 ];

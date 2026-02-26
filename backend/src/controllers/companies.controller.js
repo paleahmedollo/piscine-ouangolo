@@ -41,7 +41,7 @@ const getCompanies = async (req, res) => {
 const createCompany = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { name, code, address, phone, email, plan, admin_username, admin_password, admin_full_name } = req.body;
+    const { name, code, address, phone, email, plan, admin_username, admin_password, admin_full_name, modules } = req.body;
 
     if (!name || !code) {
       await t.rollback();
@@ -53,6 +53,9 @@ const createCompany = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Identifiants admin obligatoires' });
     }
 
+    // modules: null = tous, [] = aucun, [...] = sélectifs
+    const modulesValue = modules !== undefined ? modules : null;
+
     // Créer l'entreprise
     const company = await Company.create({
       name,
@@ -61,6 +64,7 @@ const createCompany = async (req, res) => {
       phone,
       email,
       plan: plan || 'basic',
+      modules: modulesValue,
       is_active: true
     }, { transaction: t });
 
@@ -136,7 +140,7 @@ const updateCompany = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
     }
 
-    const { name, address, phone, email, logo_url, plan, is_active } = req.body;
+    const { name, address, phone, email, logo_url, plan, is_active, modules } = req.body;
 
     await company.update({
       ...(name && { name }),
@@ -145,7 +149,8 @@ const updateCompany = async (req, res) => {
       ...(email !== undefined && { email }),
       ...(logo_url !== undefined && { logo_url }),
       ...(plan && { plan }),
-      ...(is_active !== undefined && { is_active })
+      ...(is_active !== undefined && { is_active }),
+      ...(modules !== undefined && { modules })
     });
 
     res.json({ success: true, message: 'Entreprise mise à jour', data: company.toJSON() });

@@ -91,6 +91,12 @@ const Company = sequelize.define('Company', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  // Modules activés (null = tous, [] = aucun, ['piscine','maquis',...] = sélectifs)
+  modules: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: null
   }
 }, {
   tableName: 'companies',

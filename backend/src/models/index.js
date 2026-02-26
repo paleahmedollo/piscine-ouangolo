@@ -33,6 +33,15 @@ const StockMovement = require('./StockMovement');
 const Supplier = require('./Supplier');
 const Purchase = require('./Purchase');
 const PurchaseItem = require('./PurchaseItem');
+// ── Pressing ──────────────────────────────────────────
+const PressingType = require('./PressingType');
+const PressingOrder = require('./PressingOrder');
+// ── Dépôt ─────────────────────────────────────────────
+const DepotClient = require('./DepotClient');
+const DepotSale = require('./DepotSale');
+const DepotSaleItem = require('./DepotSaleItem');
+// ── Manquants caisse ──────────────────────────────────
+const CashShortage = require('./CashShortage');
 
 // =====================================================
 // Associations / Relations
@@ -149,6 +158,21 @@ Product.hasMany(PurchaseItem, { foreignKey: 'product_id', as: 'purchaseItems' })
 Purchase.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier' });
 Supplier.hasMany(Purchase, { foreignKey: 'supplier_id', as: 'purchases' });
 
+// ── Pressing ──────────────────────────────────────────
+PressingOrder.belongsTo(PressingType, { foreignKey: 'pressing_type_id', as: 'pressingType' });
+PressingType.hasMany(PressingOrder, { foreignKey: 'pressing_type_id', as: 'orders' });
+
+// ── Dépôt ─────────────────────────────────────────────
+DepotSale.belongsTo(DepotClient, { foreignKey: 'depot_client_id', as: 'client' });
+DepotClient.hasMany(DepotSale, { foreignKey: 'depot_client_id', as: 'sales' });
+DepotSale.hasMany(DepotSaleItem, { foreignKey: 'depot_sale_id', as: 'items' });
+DepotSaleItem.belongsTo(DepotSale, { foreignKey: 'depot_sale_id', as: 'sale' });
+DepotSaleItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+
+// ── Manquants caisse ──────────────────────────────────
+CashShortage.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(CashShortage, { foreignKey: 'user_id', as: 'cashShortages' });
+
 // =====================================================
 // Export
 // =====================================================
@@ -187,5 +211,14 @@ module.exports = {
   StockMovement,
   Supplier,
   Purchase,
-  PurchaseItem
+  PurchaseItem,
+  // Pressing
+  PressingType,
+  PressingOrder,
+  // Dépôt
+  DepotClient,
+  DepotSale,
+  DepotSaleItem,
+  // Manquants
+  CashShortage
 };

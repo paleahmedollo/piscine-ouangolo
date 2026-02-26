@@ -1,7 +1,8 @@
 const { Op } = require('sequelize');
 const {
   User, Ticket, Subscription, Sale, Room,
-  Reservation, Event, Quote, CashRegister, AuditLog
+  Reservation, Event, Quote, CashRegister, AuditLog,
+  CarWash, Product, Expense, PressingOrder, DepotSale, DepotClient
 } = require('../models');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
@@ -83,6 +84,94 @@ const getDashboard = async (req, res) => {
       };
     }
 
+    // ── Lavage Auto ──────────────────────────────────────────────────────────
+    if (['admin', 'super_admin', 'gerant', 'maitre_nageur', 'serveur', 'serveuse', 'receptionniste', 'responsable', 'directeur', 'maire'].includes(req.user.role)) {
+      try {
+        const todayWashes = await CarWash.findAll({ where: { created_at: { [Op.between]: [today, tomorrow] } } });
+        const monthWashes = await CarWash.findAll({ where: { created_at: { [Op.between]: [startOfMonth, endOfMonth] } } });
+        dashboard.modules.lavage = {
+          aujourd_hui: { total_lavages: todayWashes.length, montant: todayWashes.reduce((s, w) => s + parseFloat(w.amount || 0), 0) },
+          mois: { total_lavages: monthWashes.length, montant: monthWashes.reduce((s, w) => s + parseFloat(w.amount || 0), 0) }
+        };
+      } catch (e) { /* table may not exist yet */ }
+    }
+
+    // ── Maquis / Bar ─────────────────────────────────────────────────────────
+    if (['admin', 'super_admin', 'gerant', 'serveur', 'serveuse', 'responsable', 'directeur', 'maire'].includes(req.user.role)) {
+      try {
+        const { sequelize: sq } = require('../config/database');
+        const maquisToday = await sq.query(
+          `SELECT COALESCE(SUM(subtotal),0) as total, COUNT(*) as nb
+           FROM tab_items ti
+           JOIN customer_tabs ct ON ct.id = ti.tab_id
+           WHERE ti.service_type IN ('maquis','bar') AND ct.created_at BETWEEN :start AND :end`,
+          { replacements: { start: today, end: tomorrow }, type: sq.QueryTypes.SELECT }
+        );
+        const maquisMonth = await sq.query(
+          `SELECT COALESCE(SUM(subtotal),0) as total FROM tab_items ti
+           JOIN customer_tabs ct ON ct.id = ti.tab_id
+           WHERE ti.service_type IN ('maquis','bar') AND ct.created_at >= :start`,
+          { replacements: { start: startOfMonth }, type: sq.QueryTypes.SELECT }
+        );
+        dashboard.modules.maquis = {
+          aujourd_hui: { total_ventes: parseInt(maquisToday[0]?.nb || 0), montant: parseFloat(maquisToday[0]?.total || 0) },
+          mois: { montant: parseFloat(maquisMonth[0]?.total || 0) }
+        };
+      } catch (e) { /* silent */ }
+    }
+
+    // ── Supérette ─────────────────────────────────────────────────────────────
+    if (['admin', 'super_admin', 'gerant', 'serveur', 'serveuse', 'receptionniste', 'responsable', 'directeur', 'maire'].includes(req.user.role)) {
+      try {
+        const { sequelize: sq } = require('../config/database');
+        const superetteToday = await sq.query(
+          `SELECT COALESCE(SUM(subtotal),0) as total, COUNT(*) as nb
+           FROM tab_items ti
+           JOIN customer_tabs ct ON ct.id = ti.tab_id
+           WHERE ti.service_type = 'superette' AND ct.created_at BETWEEN :start AND :end`,
+          { replacements: { start: today, end: tomorrow }, type: sq.QueryTypes.SELECT }
+        );
+        const superetteMonth = await sq.query(
+          `SELECT COALESCE(SUM(subtotal),0) as total FROM tab_items ti
+           JOIN customer_tabs ct ON ct.id = ti.tab_id
+           WHERE ti.service_type = 'superette' AND ct.created_at >= :start`,
+          { replacements: { start: startOfMonth }, type: sq.QueryTypes.SELECT }
+        );
+        dashboard.modules.superette = {
+          aujourd_hui: { total_ventes: parseInt(superetteToday[0]?.nb || 0), montant: parseFloat(superetteToday[0]?.total || 0) },
+          mois: { montant: parseFloat(superetteMonth[0]?.total || 0) }
+        };
+      } catch (e) { /* silent */ }
+    }
+
+    // ── Pressing ──────────────────────────────────────────────────────────────
+    if (['admin', 'super_admin', 'gerant', 'serveur', 'serveuse', 'receptionniste', 'maitre_nageur', 'responsable', 'directeur', 'maire'].includes(req.user.role)) {
+      try {
+        const todayPressing = await PressingOrder.findAll({ where: { created_at: { [Op.between]: [today, tomorrow] }, status: 'paye' } });
+        const monthPressing = await PressingOrder.findAll({ where: { created_at: { [Op.between]: [startOfMonth, endOfMonth] }, status: 'paye' } });
+        dashboard.modules.pressing = {
+          aujourd_hui: { total_commandes: todayPressing.length, montant: todayPressing.reduce((s, p) => s + parseFloat(p.amount || 0), 0) },
+          mois: { total_commandes: monthPressing.length, montant: monthPressing.reduce((s, p) => s + parseFloat(p.amount || 0), 0) }
+        };
+      } catch (e) { /* table may not exist yet */ }
+    }
+
+    // ── Dépôt ─────────────────────────────────────────────────────────────────
+    if (['admin', 'super_admin', 'gerant', 'serveur', 'serveuse', 'responsable', 'directeur', 'maire'].includes(req.user.role)) {
+      try {
+        const todayDepot = await DepotSale.findAll({ where: { created_at: { [Op.between]: [today, tomorrow] } } });
+        const totalCreditEnCours = await DepotClient.sum('credit_balance', { where: { is_active: true } });
+        dashboard.modules.depot = {
+          aujourd_hui: {
+            total_ventes: todayDepot.length,
+            total_cash: todayDepot.filter(d => d.payment_method !== 'credit').reduce((s, d) => s + parseFloat(d.total_amount || 0), 0),
+            total_credit: todayDepot.filter(d => d.payment_method === 'credit').reduce((s, d) => s + parseFloat(d.total_amount || 0), 0)
+          },
+          total_credit_en_cours: { total_en_cours: parseFloat(totalCreditEnCours || 0) }
+        };
+      } catch (e) { /* table may not exist yet */ }
+    }
+
     if (['admin', 'super_admin', 'gerant', 'responsable', 'directeur', 'maire'].includes(req.user.role)) {
       const pendingCashRegisters = await CashRegister.count({ where: { ...cf, status: 'en_attente' } });
       const activeUsers = await User.count({ where: { ...cf, is_active: true } });
@@ -90,10 +179,18 @@ const getDashboard = async (req, res) => {
       let caJour = 0;
       if (dashboard.modules.piscine) caJour += dashboard.modules.piscine.aujourd_hui.montant;
       if (dashboard.modules.restaurant) caJour += dashboard.modules.restaurant.aujourd_hui.montant;
+      if (dashboard.modules.lavage) caJour += dashboard.modules.lavage.aujourd_hui.montant;
+      if (dashboard.modules.maquis) caJour += dashboard.modules.maquis.aujourd_hui.montant;
+      if (dashboard.modules.superette) caJour += dashboard.modules.superette.aujourd_hui.montant;
+      if (dashboard.modules.pressing) caJour += dashboard.modules.pressing.aujourd_hui.montant;
 
       let caMois = 0;
       if (dashboard.modules.piscine) caMois += dashboard.modules.piscine.mois.montant;
       if (dashboard.modules.restaurant) caMois += dashboard.modules.restaurant.mois.montant;
+      if (dashboard.modules.lavage) caMois += dashboard.modules.lavage.mois.montant;
+      if (dashboard.modules.maquis) caMois += dashboard.modules.maquis.mois.montant;
+      if (dashboard.modules.superette) caMois += dashboard.modules.superette.mois.montant;
+      if (dashboard.modules.pressing) caMois += dashboard.modules.pressing.mois.montant;
 
       dashboard.global = { ca_aujourd_hui: caJour, ca_mois: caMois, clotures_en_attente: pendingCashRegisters, utilisateurs_actifs: activeUsers };
     }
@@ -151,6 +248,34 @@ const getReports = async (req, res) => {
         devis: { count: quotes.length, total: quotes.reduce((sum, q) => sum + parseFloat(q.total), 0), encaisse: quotes.reduce((sum, q) => sum + parseFloat(q.deposit_paid || 0), 0) }
       };
     }
+
+    // ── Dépenses (toujours incluses dans les rapports) ─────────────────────
+    try {
+      if (Expense) {
+        const expenses = await Expense.findAll({
+          where: { ...cf, created_at: { [Op.between]: [startDate, endDate] } }
+        });
+        const byCategory = {};
+        expenses.forEach(e => {
+          const cat = e.category || 'Autres';
+          if (!byCategory[cat]) byCategory[cat] = { count: 0, total: 0 };
+          byCategory[cat].count++;
+          byCategory[cat].total += parseFloat(e.amount || 0);
+        });
+        const totalDepenses = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+        report.modules.depenses = {
+          count: expenses.length,
+          total: totalDepenses,
+          par_categorie: byCategory
+        };
+        // Calcul bénéfice net
+        const totalCA = (report.modules.piscine?.tickets?.total || 0) +
+          (report.modules.piscine?.abonnements?.total || 0) +
+          (report.modules.restaurant?.ventes?.total || 0) +
+          (report.modules.hotel?.reservations?.total || 0);
+        report.bilan = { total_ca: totalCA, total_depenses: totalDepenses, benefice_net: totalCA - totalDepenses };
+      }
+    } catch (e) { /* Expense table may not be loaded */ }
 
     res.json({ success: true, data: report });
   } catch (error) {

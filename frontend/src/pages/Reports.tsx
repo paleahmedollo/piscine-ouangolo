@@ -71,6 +71,7 @@ interface Summary {
     revenue: Record<string, number>;
     total_ca: number;
     expenses: number;
+    expenses_by_category?: Record<string, { count: number; total: number }>;
     net_profit: number;
     profit_margin: number;
   };
@@ -822,6 +823,49 @@ const Reports: React.FC = () => {
                 </CardContent>
               </Card>
             </Grid>
+
+            {/* Dépenses par catégorie */}
+            {summary.totals.expenses > 0 && summary.totals.expenses_by_category && (
+              <Grid item xs={12} md={6}>
+                <Card sx={{ border: '1px solid #ef9a9a' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <TrendingDown color="error" fontSize="small" />
+                      <Typography variant="subtitle2" fontWeight="bold">Dépenses par catégorie</Typography>
+                    </Box>
+                    <Divider sx={{ mb: 1 }} />
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: '#ffebee' }}>
+                            <TableCell><strong>Catégorie</strong></TableCell>
+                            <TableCell align="right"><strong>Nb</strong></TableCell>
+                            <TableCell align="right"><strong>Total</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {Object.entries(summary.totals.expenses_by_category).map(([cat, data]) => (
+                            <TableRow key={cat}>
+                              <TableCell><Chip label={cat} size="small" color="default" /></TableCell>
+                              <TableCell align="right">{data.count}</TableCell>
+                              <TableCell align="right" sx={{ color: 'error.main', fontWeight: 700 }}>
+                                {formatCurrency(data.total)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow sx={{ backgroundColor: '#ffebee' }}>
+                            <TableCell colSpan={2} align="right"><strong>Total dépenses</strong></TableCell>
+                            <TableCell align="right" sx={{ color: 'error.main', fontWeight: 700 }}>
+                              <strong>{formatCurrency(summary.totals.expenses)}</strong>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
 
             {/* Counts */}
             <Grid item xs={12} md={6}>

@@ -351,6 +351,7 @@ export const companiesApi = {
     admin_username: string;
     admin_password: string;
     admin_full_name: string;
+    modules?: string[];
   }) => api.post('/companies', data),
   updateCompany: (id: number, data: Record<string, unknown>) => api.put(`/companies/${id}`, data),
   deleteCompany: (id: number) => api.delete(`/companies/${id}`),
@@ -558,4 +559,67 @@ export const superetteApi = {
   createSupplier: (data: { name: string; contact?: string; phone?: string; address?: string }) =>
     api.post('/superette/suppliers', data),
   updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/superette/suppliers/${id}`, data)
+};
+
+// Pressing API
+export const pressingApi = {
+  getTypes: () => api.get('/pressing/types'),
+  getAllTypes: () => api.get('/pressing/types/all'),
+  createType: (data: { name: string; price: number }) => api.post('/pressing/types', data),
+  updateType: (id: number, data: { name?: string; price?: number; is_active?: boolean }) =>
+    api.put(`/pressing/types/${id}`, data),
+  deleteType: (id: number) => api.delete(`/pressing/types/${id}`),
+  createOrder: (data: {
+    pressing_type_id: number; customer_name: string; customer_phone?: string;
+    quantity?: number; payment_method?: string; tab_id?: number; notes?: string;
+  }) => api.post('/pressing/orders', data),
+  getOrders: (params?: { date?: string; start_date?: string; end_date?: string; status?: string }) =>
+    api.get('/pressing/orders', { params }),
+  getStats: () => api.get('/pressing/stats')
+};
+
+// Dépôt API
+export const depotApi = {
+  // Clients
+  getClients: () => api.get('/depot/clients'),
+  createClient: (data: { name: string; phone?: string; address?: string; notes?: string }) =>
+    api.post('/depot/clients', data),
+  updateClient: (id: number, data: Record<string, unknown>) => api.put(`/depot/clients/${id}`, data),
+  // Produits
+  getProducts: () => api.get('/depot/products'),
+  createProduct: (data: {
+    name: string; price: number; unit?: string; description?: string;
+  }) => api.post('/depot/products', data),
+  updateProduct: (id: number, data: Record<string, unknown>) => api.put(`/depot/products/${id}`, data),
+  receiveStock: (data: {
+    product_id: number; quantity: number; notes?: string;
+  }) => api.post('/depot/stock/receive', data),
+  // Ventes
+  createSale: (data: {
+    depot_client_id: number;
+    items: Array<{ product_id: number; quantity: number }>;
+    payment_method?: string; notes?: string;
+  }) => api.post('/depot/sales', data),
+  getSales: (params?: { date?: string; start_date?: string; end_date?: string; depot_client_id?: number }) =>
+    api.get('/depot/sales', { params }),
+  // Crédit
+  payCredit: (data: { depot_client_id: number; amount: number; payment_method?: string }) =>
+    api.post('/depot/pay-credit', data),
+  // Stats
+  getStats: () => api.get('/depot/stats')
+};
+
+// Maquis Shortages API
+export const maquisShortagesApi = {
+  closeShift: (data: { actual_amount: number; notes?: string }) =>
+    api.post('/maquis/close-shift', data),
+  getShortages: (params?: { user_id?: number; status?: string }) =>
+    api.get('/maquis/shortages', { params })
+};
+
+// Employee Shortages API
+export const employeeShortagesApi = {
+  getShortages: (employeeId: number) => api.get(`/employees/${employeeId}/shortages`),
+  deductShortage: (employeeId: number, data: { shortage_id: number; payroll_id: number }) =>
+    api.post(`/employees/${employeeId}/deduct-shortage`, data)
 };

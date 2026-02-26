@@ -378,6 +378,15 @@ const getSummaryReport = async (req, res) => {
     const totalCA = Object.values(totalRevenue).reduce((a, b) => a + b, 0);
     const netProfit = totalCA - totalExpenses;
 
+    // Grouper les dépenses par catégorie
+    const expensesByCategory = {};
+    expenses.forEach(e => {
+      const cat = e.category || 'Autres';
+      if (!expensesByCategory[cat]) expensesByCategory[cat] = { count: 0, total: 0 };
+      expensesByCategory[cat].count++;
+      expensesByCategory[cat].total += parseFloat(e.amount || 0);
+    });
+
     // Grouper par période
     const groupedData = {};
     const formatDate = (date) => {
@@ -423,6 +432,7 @@ const getSummaryReport = async (req, res) => {
           revenue: totalRevenue,
           total_ca: totalCA,
           expenses: totalExpenses,
+          expenses_by_category: expensesByCategory,
           net_profit: netProfit,
           profit_margin: totalCA > 0 ? ((netProfit / totalCA) * 100).toFixed(1) : 0
         },

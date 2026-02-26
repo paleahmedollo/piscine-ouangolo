@@ -24,6 +24,8 @@ const lavageRoutes = require('./routes/lavage.routes');
 const tabsRoutes = require('./routes/tabs.routes');
 const maquisRoutes = require('./routes/maquis.routes');
 const superetteRoutes = require('./routes/superette.routes');
+const pressingRoutes = require('./routes/pressing.routes');
+const depotRoutes = require('./routes/depot.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -98,6 +100,8 @@ app.use('/api/lavage', lavageRoutes);
 app.use('/api/tabs', tabsRoutes);
 app.use('/api/maquis', maquisRoutes);
 app.use('/api/superette', superetteRoutes);
+app.use('/api/pressing', pressingRoutes);
+app.use('/api/depot', depotRoutes);
 
 // Servir le frontend React si le dossier dist existe (mode local)
 const fs = require('fs');
@@ -508,7 +512,84 @@ const runMigrations = async () => {
         unit_price DECIMAL(12,0) DEFAULT 0,
         subtotal DECIMAL(12,0) DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT NOW()
-      )`
+      )`,
+      // ── Pressing ───────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS pressing_types (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        price DECIMAL(12,0) NOT NULL DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS pressing_orders (
+        id SERIAL PRIMARY KEY,
+        pressing_type_id INTEGER,
+        customer_name VARCHAR(150) NOT NULL,
+        customer_phone VARCHAR(30),
+        quantity INTEGER DEFAULT 1,
+        amount DECIMAL(12,0) NOT NULL,
+        payment_method VARCHAR(50) DEFAULT 'especes',
+        payment_operator VARCHAR(50),
+        payment_reference VARCHAR(200),
+        tab_id INTEGER,
+        user_id INTEGER,
+        status VARCHAR(20) DEFAULT 'paye',
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      // ── Dépôt ──────────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS depot_clients (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        phone VARCHAR(50),
+        address TEXT,
+        credit_balance DECIMAL(12,0) DEFAULT 0,
+        notes TEXT,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS depot_sales (
+        id SERIAL PRIMARY KEY,
+        depot_client_id INTEGER NOT NULL,
+        total_amount DECIMAL(12,0) DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT 'especes',
+        payment_operator VARCHAR(50),
+        payment_reference VARCHAR(200),
+        tab_id INTEGER,
+        user_id INTEGER,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS depot_sale_items (
+        id SERIAL PRIMARY KEY,
+        depot_sale_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name VARCHAR(200),
+        quantity DECIMAL(12,2) NOT NULL,
+        unit_price DECIMAL(12,0) DEFAULT 0,
+        subtotal DECIMAL(12,0) DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      // ── Manquants caisse ────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS cash_shortages (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        date DATE NOT NULL,
+        expected_amount DECIMAL(12,0) DEFAULT 0,
+        actual_amount DECIMAL(12,0) DEFAULT 0,
+        shortage_amount DECIMAL(12,0) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'en_attente',
+        deducted_from_payroll_id INTEGER,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      // ── Modules entreprises ─────────────────────────────────────
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS modules JSONB DEFAULT '[]'`
     ];
     for (const sql of migrations) {
       await sequelize.query(sql);
@@ -520,7 +601,15 @@ const runMigrations = async () => {
         ('Moto', 500), ('Tricycle', 750), ('Voiture', 1000), ('Camion', 2000), ('Bus', 2500)`);
       console.log('✅ Types de véhicules par défaut créés');
     }
-    console.log('✅ Migrations appliquées (employees, sales, lavage, tabs, produits, stock, fournisseurs)');
+    // Insert default pressing types if table is empty
+    const [ptRows] = await sequelize.query('SELECT COUNT(*) as cnt FROM pressing_types');
+    if (parseInt(ptRows[0].cnt) === 0) {
+      await sequelize.query(`INSERT INTO pressing_types (name, price) VALUES
+        ('Lavage simple', 500), ('Lavage + Repassage', 1000), ('Repassage seul', 500),
+        ('Nettoyage à sec', 2000), ('Couverture / Rideau', 1500), ('Costume / Tailleur', 1500)`);
+      console.log('✅ Types de pressing par défaut créés');
+    }
+    console.log('✅ Migrations appliquées (pressing, dépôt, manquants, modules entreprises)');
   } catch (error) {
     console.error('Erreur migration:', error.message);
   }

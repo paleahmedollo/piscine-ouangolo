@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   FormControl, InputLabel, Select, MenuItem, Alert, CircularProgress,
   Grid, Tooltip, Switch, FormControlLabel, Divider, List, ListItem,
-  ListItemText, ListItemIcon, Collapse
+  ListItemText, ListItemIcon, Collapse, Checkbox, FormGroup
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Business as BusinessIcon,
@@ -30,7 +30,26 @@ interface Company {
   is_active: boolean;
   created_at: string;
   users_count?: number;
+  modules?: string[] | null;
 }
+
+const ALL_MODULES = [
+  { key: 'piscine',     label: 'Piscine' },
+  { key: 'restaurant',  label: 'Restaurant' },
+  { key: 'hotel',       label: 'Hôtel' },
+  { key: 'events',      label: 'Événements' },
+  { key: 'lavage',      label: 'Lavage Auto' },
+  { key: 'pressing',    label: 'Pressing' },
+  { key: 'maquis',      label: 'Maquis / Bar' },
+  { key: 'superette',   label: 'Supérette' },
+  { key: 'depot',       label: 'Dépôt' },
+  { key: 'caisse',      label: 'Caisse' },
+  { key: 'employees',   label: 'Employés & Paie' },
+  { key: 'expenses',    label: 'Dépenses' },
+  { key: 'reports',     label: 'Mes Rapports' },
+  { key: 'users',       label: 'Utilisateurs' },
+];
+const ALL_MODULE_KEYS = ALL_MODULES.map(m => m.key);
 
 interface BulkResult {
   created: { id: number; username: string; full_name: string; role: string }[];
@@ -83,11 +102,13 @@ const Companies: React.FC = () => {
   const [saving, setSaving]             = useState(false);
   const [formError, setFormError]       = useState('');
   const [newCompanyId, setNewCompanyId] = useState<number | null>(null);
+  const [createModules, setCreateModules] = useState<string[]>(ALL_MODULE_KEYS); // tous cochés par défaut
 
   /* Dialog Modification */
   const [openEdit, setOpenEdit]         = useState(false);
   const [editCompany, setEditCompany]   = useState<Company | null>(null);
   const [editForm, setEditForm]         = useState<Partial<Company>>({});
+  const [editModules, setEditModules]   = useState<string[]>(ALL_MODULE_KEYS);
 
   /* Dialog Bulk Upload */
   const [openBulk, setOpenBulk]             = useState(false);
@@ -126,7 +147,7 @@ const Companies: React.FC = () => {
     }
     setSaving(true);
     try {
-      const res     = await companiesApi.createCompany(formData);
+      const res     = await companiesApi.createCompany({ ...formData, modules: createModules });
       const created = res.data.data?.company;
       setNewCompanyId(created?.id ?? null);
       setSuccess(`✅ Entreprise "${formData.name}" créée avec succès — ID : #${created?.id}`);
@@ -140,6 +161,15 @@ const Companies: React.FC = () => {
 
   const closeAddDialog = () => {
     setOpenAdd(false); setFormData(defaultForm); setFormError(''); setNewCompanyId(null);
+    setCreateModules(ALL_MODULE_KEYS);
+  };
+
+  const toggleCreateModule = (key: string) => {
+    setCreateModules(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
+
+  const toggleEditModule = (key: string) => {
+    setEditModules(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
   /* ── Modification entreprise ── */
@@ -147,7 +177,7 @@ const Companies: React.FC = () => {
     if (!editCompany) return;
     setSaving(true);
     try {
-      await companiesApi.updateCompany(editCompany.id, editForm);
+      await companiesApi.updateCompany(editCompany.id, { ...editForm, modules: editModules });
       setSuccess('Entreprise mise à jour'); setOpenEdit(false); setEditCompany(null); loadCompanies();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
@@ -165,6 +195,12 @@ const Companies: React.FC = () => {
   const openEditDialog = (company: Company) => {
     setEditCompany(company);
     setEditForm({ name: company.name, address: company.address || '', phone: company.phone || '', email: company.email || '', plan: company.plan });
+    // Si modules null → tous activés (rétrocompat), si tableau → charger
+    setEditModules(
+      company.modules === null || company.modules === undefined
+        ? ALL_MODULE_KEYS
+        : company.modules
+    );
     setFormError(''); setOpenEdit(true);
   };
 
@@ -367,6 +403,33 @@ const Companies: React.FC = () => {
           </Grid>
 
           <Divider sx={{ my: 2 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Modules activés ({createModules.length}/{ALL_MODULES.length})
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button size="small" onClick={() => setCreateModules(ALL_MODULE_KEYS)}>Tout cocher</Button>
+              <Button size="small" onClick={() => setCreateModules([])}>Tout décocher</Button>
+            </Box>
+          </Box>
+          <FormGroup row sx={{ mb: 1 }}>
+            {ALL_MODULES.map(m => (
+              <FormControlLabel
+                key={m.key}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={createModules.includes(m.key)}
+                    onChange={() => toggleCreateModule(m.key)}
+                  />
+                }
+                label={<Typography variant="body2">{m.label}</Typography>}
+                sx={{ width: '50%', m: 0 }}
+              />
+            ))}
+          </FormGroup>
+
+          <Divider sx={{ my: 2 }} />
           <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
             Compte administrateur initial
           </Typography>
@@ -443,6 +506,34 @@ const Companies: React.FC = () => {
                   <MenuItem value="premium">Premium</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <Divider sx={{ mb: 1 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Modules activés ({editModules.length}/{ALL_MODULES.length})
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button size="small" onClick={() => setEditModules(ALL_MODULE_KEYS)}>Tout</Button>
+                  <Button size="small" onClick={() => setEditModules([])}>Aucun</Button>
+                </Box>
+              </Box>
+              <FormGroup row>
+                {ALL_MODULES.map(m => (
+                  <FormControlLabel
+                    key={m.key}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={editModules.includes(m.key)}
+                        onChange={() => toggleEditModule(m.key)}
+                      />
+                    }
+                    label={<Typography variant="body2">{m.label}</Typography>}
+                    sx={{ width: '50%', m: 0 }}
+                  />
+                ))}
+              </FormGroup>
             </Grid>
             <Grid item xs={12}>
               <FormControlLabel

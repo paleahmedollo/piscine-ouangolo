@@ -320,9 +320,88 @@ const getMaquisStats = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CLÔTURE CAISSE / DÉTECTION MANQUANTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const { CashShortage } = require('../models');
+
+const closeShift = async (req, res) => {
+  try {
+    const { actual_amount, notes } = req.body;
+    const userId = req.user.id;
+    const today = new Date().toISOString().split('T')[0];
+
+    if (actual_amount === undefined) {
+      return res.status(400).json({ success: false, message: 'Montant réel requis' });
+    }
+
+    // Calculer le montant attendu (ventes du jour du user via stock_movements)
+    const [result] = await sequelize.query(`
+      SELECT COALESCE(SUM(sm.quantity * sm.unit_price), 0) as expected
+      FROM stock_movements sm
+      JOIN products p ON sm.product_id = p.id
+      WHERE sm.type = 'OUT' AND p.service_type = 'maquis'
+        AND sm.user_id = :userId
+        AND DATE(sm.created_at) = :today
+    `, { replacements: { userId, today }, type: sequelize.QueryTypes.SELECT });
+
+    const expected = parseFloat(result ? result.expected : 0) || 0;
+    const actual = parseFloat(actual_amount) || 0;
+    const shortage = Math.max(0, expected - actual);
+
+    let shortage_record = null;
+    if (shortage > 0) {
+      shortage_record = await CashShortage.create({
+        user_id: userId,
+        date: today,
+        expected_amount: expected,
+        actual_amount: actual,
+        shortage_amount: shortage,
+        status: 'en_attente',
+        notes
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        expected_amount: expected,
+        actual_amount: actual,
+        shortage_amount: shortage,
+        has_shortage: shortage > 0,
+        shortage_record
+      },
+      message: shortage > 0
+        ? `⚠️ Manquant détecté : ${shortage.toLocaleString()} FCFA`
+        : '✅ Caisse correcte — aucun manquant'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getShortages = async (req, res) => {
+  try {
+    const { user_id, status } = req.query;
+    let where = {};
+    if (user_id) where.user_id = parseInt(user_id);
+    if (status) where.status = status;
+
+    const shortages = await CashShortage.findAll({
+      where,
+      order: [['date', 'DESC']],
+      limit: 100
+    });
+    res.json({ success: true, data: shortages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getProducts, createProduct, updateProduct, deleteProduct,
   createOrder, getStock, getStockMovements, addStock, getPurchases,
   getSuppliers, createSupplier, updateSupplier,
-  getMaquisStats
+  getMaquisStats, closeShift, getShortages
 };

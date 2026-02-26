@@ -76,10 +76,13 @@ const moduleAccess: Record<string, UserRole[]> = {
   expenses: ['gerant', 'admin', 'directeur'],
   reports: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
   companies: ['super_admin'],  // Gestion multi-entreprises
-  // Nouveaux modules
+  // Modules existants
   lavage: ['gerant', 'admin', 'serveur', 'serveuse', 'receptionniste', 'maitre_nageur'],
   maquis: ['gerant', 'admin', 'serveur', 'serveuse'],
-  superette: ['gerant', 'admin', 'serveur', 'serveuse', 'receptionniste']
+  superette: ['gerant', 'admin', 'serveur', 'serveuse', 'receptionniste'],
+  // Nouveaux modules
+  pressing: ['gerant', 'admin', 'serveur', 'serveuse', 'receptionniste', 'maitre_nageur'],
+  depot: ['gerant', 'admin', 'serveur', 'serveuse']
 };
 
 const permissions: Record<string, Record<string, UserRole[]>> = {
@@ -130,6 +133,28 @@ const permissions: Record<string, Record<string, UserRole[]>> = {
   reports: {
     tous_rapports: ['admin', 'gerant', 'responsable', 'directeur', 'maire'],
     propres_transactions: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events']
+  },
+  lavage: {
+    gestion_prix: ['admin', 'gerant'],
+    gestion: ['admin', 'gerant', 'serveur', 'serveuse', 'receptionniste', 'maitre_nageur']
+  },
+  maquis: {
+    gestion_prix: ['admin', 'gerant'],
+    gestion: ['admin', 'gerant', 'serveur', 'serveuse'],
+    cloture_caisse: ['serveur', 'serveuse', 'admin', 'gerant']
+  },
+  superette: {
+    gestion_prix: ['admin', 'gerant'],
+    gestion: ['admin', 'gerant', 'serveur', 'serveuse', 'receptionniste']
+  },
+  pressing: {
+    gestion_prix: ['admin', 'gerant'],
+    gestion: ['admin', 'gerant', 'serveur', 'serveuse', 'receptionniste', 'maitre_nageur']
+  },
+  depot: {
+    gestion_prix: ['admin', 'gerant'],
+    gestion: ['admin', 'gerant', 'serveur', 'serveuse'],
+    gestion_clients: ['admin', 'gerant']
   }
 };
 
@@ -201,6 +226,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!state.user) return false;
     // Le super_admin a accès à tous les modules
     if (state.user.role === 'super_admin') return true;
+    // Vérifier les modules autorisés par l'entreprise
+    // null = tous les modules (rétrocompatibilité)
+    // [] = aucun module (entreprise sans modules configurés)
+    // [...] = modules sélectifs
+    const company = state.user.company as { modules?: string[] | null } | null;
+    if (company && company.modules !== null && company.modules !== undefined) {
+      if (Array.isArray(company.modules) && company.modules.length > 0) {
+        // Vérifier que le module est dans la liste de l'entreprise
+        if (!company.modules.includes(module)) return false;
+      } else if (Array.isArray(company.modules) && company.modules.length === 0) {
+        // Aucun module configuré → accès refusé sauf modules de base
+        const baseModules = ['dashboard', 'reports', 'caisse'];
+        if (!baseModules.includes(module)) return false;
+      }
+    }
+    // Vérifier le rôle
     const allowedRoles = moduleAccess[module] || [];
     return allowedRoles.includes(state.user.role);
   };

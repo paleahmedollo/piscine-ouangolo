@@ -17,7 +17,12 @@ import {
   TrendingUp,
   AttachMoney,
   People,
-  AccountBalance
+  AccountBalance,
+  LocalCarWash as LavageIcon,
+  SportsBar as MaquisIcon,
+  Store as SuperetteIcon,
+  LocalLaundryService as PressingIcon,
+  Warehouse as DepotIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
@@ -302,6 +307,91 @@ const Dashboard: React.FC = () => {
                 { label: 'Ce mois', value: dashboard.modules.events.evenements_ce_mois || 0 },
                 { label: 'Devis en attente', value: dashboard.modules.events.devis_en_attente || 0 },
                 { label: 'Confirmes', value: dashboard.modules.events.evenements_confirmes || 0 }
+              ]}
+            />
+          </Grid>
+        )}
+
+        {/* Lavage Auto */}
+        {canAccessModule('lavage') && (dashboard?.modules as any)?.lavage && (
+          <Grid item xs={12} sm={6} lg={3}>
+            <ModuleCard
+              title="Lavage Auto"
+              icon={<LavageIcon />}
+              color="#00bcd4"
+              stats={[
+                { label: 'Lavages du jour', value: (dashboard!.modules as any).lavage.aujourd_hui?.total_lavages || 0 },
+                { label: 'Recette du jour', value: formatCurrency((dashboard!.modules as any).lavage.aujourd_hui?.montant || 0) },
+                { label: 'Lavages du mois', value: (dashboard!.modules as any).lavage.mois?.total_lavages || 0 },
+                { label: 'CA du mois', value: formatCurrency((dashboard!.modules as any).lavage.mois?.montant || 0) }
+              ]}
+            />
+          </Grid>
+        )}
+
+        {/* Pressing */}
+        {canAccessModule('pressing') && (dashboard?.modules as any)?.pressing && (
+          <Grid item xs={12} sm={6} lg={3}>
+            <ModuleCard
+              title="Pressing"
+              icon={<PressingIcon />}
+              color="#795548"
+              stats={[
+                { label: 'Commandes jour', value: (dashboard!.modules as any).pressing.aujourd_hui?.total_commandes || 0 },
+                { label: 'Recette du jour', value: formatCurrency((dashboard!.modules as any).pressing.aujourd_hui?.montant || 0) },
+                { label: 'Commandes mois', value: (dashboard!.modules as any).pressing.mois?.total_commandes || 0 },
+                { label: 'CA du mois', value: formatCurrency((dashboard!.modules as any).pressing.mois?.montant || 0) }
+              ]}
+            />
+          </Grid>
+        )}
+
+        {/* Maquis / Bar */}
+        {canAccessModule('maquis') && (dashboard?.modules as any)?.maquis && (
+          <Grid item xs={12} sm={6} lg={3}>
+            <ModuleCard
+              title="Maquis / Bar"
+              icon={<MaquisIcon />}
+              color="#e91e63"
+              stats={[
+                { label: 'Ventes du jour', value: (dashboard!.modules as any).maquis.aujourd_hui?.total_ventes || 0 },
+                { label: 'Recette du jour', value: formatCurrency((dashboard!.modules as any).maquis.aujourd_hui?.montant || 0) },
+                { label: 'Ventes du mois', value: (dashboard!.modules as any).maquis.mois?.total_ventes || 0 },
+                { label: 'CA du mois', value: formatCurrency((dashboard!.modules as any).maquis.mois?.montant || 0) }
+              ]}
+            />
+          </Grid>
+        )}
+
+        {/* Supérette */}
+        {canAccessModule('superette') && (dashboard?.modules as any)?.superette && (
+          <Grid item xs={12} sm={6} lg={3}>
+            <ModuleCard
+              title="Supérette"
+              icon={<SuperetteIcon />}
+              color="#607d8b"
+              stats={[
+                { label: 'Ventes du jour', value: (dashboard!.modules as any).superette.aujourd_hui?.total_ventes || 0 },
+                { label: 'Recette du jour', value: formatCurrency((dashboard!.modules as any).superette.aujourd_hui?.montant || 0) },
+                { label: 'Ventes du mois', value: (dashboard!.modules as any).superette.mois?.total_ventes || 0 },
+                { label: 'CA du mois', value: formatCurrency((dashboard!.modules as any).superette.mois?.montant || 0) }
+              ]}
+            />
+          </Grid>
+        )}
+
+        {/* Dépôt */}
+        {canAccessModule('depot') && (dashboard?.modules as any)?.depot && (
+          <Grid item xs={12} sm={6} lg={3}>
+            <ModuleCard
+              title="Dépôt Boissons"
+              icon={<DepotIcon />}
+              color="#ff5722"
+              stats={[
+                { label: 'Ventes du jour', value: (dashboard!.modules as any).depot.aujourd_hui?.total_ventes || 0 },
+                { label: 'Recette du jour', value: formatCurrency((dashboard!.modules as any).depot.aujourd_hui?.total_cash || 0) },
+                { label: 'Crédit du jour', value: formatCurrency((dashboard!.modules as any).depot.aujourd_hui?.total_credit || 0) },
+                { label: 'Crédits en cours', value: formatCurrency((dashboard!.modules as any).depot.total_credit_en_cours?.total_en_cours || 0) }
               ]}
             />
           </Grid>

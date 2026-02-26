@@ -18,8 +18,10 @@ import Employees from './pages/Employees';
 import Expenses from './pages/Expenses';
 import Companies from './pages/Companies';
 import LavageAuto from './pages/LavageAuto';
+import Pressing from './pages/Pressing';
 import Maquis from './pages/Maquis';
 import Superette from './pages/Superette';
+import Depot from './pages/Depot';
 
 // Super Admin pages
 import SuperAdminLayout from './pages/Admin/SuperAdminLayout';
@@ -157,8 +159,10 @@ const AppRoutes: React.FC = () => {
       <Route path="/expenses" element={<ProtectedRoute module="expenses"><Expenses /></ProtectedRoute>} />
 
       <Route path="/lavage" element={<ProtectedRoute module="lavage"><LavageAuto /></ProtectedRoute>} />
+      <Route path="/pressing" element={<ProtectedRoute module="pressing"><Pressing /></ProtectedRoute>} />
       <Route path="/maquis" element={<ProtectedRoute module="maquis"><Maquis /></ProtectedRoute>} />
       <Route path="/superette" element={<ProtectedRoute module="superette"><Superette /></ProtectedRoute>} />
+      <Route path="/depot" element={<ProtectedRoute module="depot"><Depot /></ProtectedRoute>} />
 
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/" replace />} />

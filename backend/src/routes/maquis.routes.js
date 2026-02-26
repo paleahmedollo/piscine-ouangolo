@@ -5,7 +5,7 @@ const {
   getProducts, createProduct, updateProduct, deleteProduct,
   createOrder, getStock, getStockMovements, addStock, getPurchases,
   getSuppliers, createSupplier, updateSupplier,
-  getMaquisStats
+  getMaquisStats, closeShift, getShortages
 } = require('../controllers/maquis.controller');
 
 router.use(authenticateToken);
@@ -34,5 +34,9 @@ router.get('/purchases', getPurchases);
 router.get('/suppliers', getSuppliers);
 router.post('/suppliers', createSupplier);
 router.put('/suppliers/:id', updateSupplier);
+
+// Clôture caisse / Manquants
+router.post('/close-shift', closeShift);
+router.get('/shortages', getShortages);
 
 module.exports = router;

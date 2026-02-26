@@ -35,10 +35,12 @@ import {
   Cancel,
   People,
   AttachMoney,
-  Print as PrintIcon
+  Print as PrintIcon,
+  Warning as WarningIcon,
+  RemoveCircle as DeductIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
-import { employeesApi } from '../services/api';
+import { employeesApi, employeeShortagesApi } from '../services/api';
 
 interface Employee {
   id: number;
@@ -138,6 +140,24 @@ const Employees: React.FC = () => {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedPayroll, setSelectedPayroll] = useState<Payroll | null>(null);
   const [massPayrollLoading, setMassPayrollLoading] = useState(false);
+
+  // Shortage states
+  interface Shortage {
+    id: number;
+    date: string;
+    expected_amount: number;
+    actual_amount: number;
+    shortage_amount: number;
+    status: string;
+    notes: string;
+    user_name?: string;
+  }
+  const [shortages, setShortages] = useState<Shortage[]>([]);
+  const [shortageEmployee, setShortageEmployee] = useState<Employee | null>(null);
+  const [openShortageDialog, setOpenShortageDialog] = useState(false);
+  const [deductShortage, setDeductShortage] = useState<Shortage | null>(null);
+  const [deductPayrollId, setDeductPayrollId] = useState<number | ''>('');
+  const [openDeductDialog, setOpenDeductDialog] = useState(false);
 
   // Form states
   const [employeeForm, setEmployeeForm] = useState({
@@ -670,6 +690,7 @@ ${payroll.notes ? `<div class="section">
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tab label="Employes" />
           <Tab label="Fiches de Paie" />
+          <Tab label="Manquants Caisse" icon={<WarningIcon color="error" fontSize="small" />} iconPosition="end" />
         </Tabs>
 
         <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -813,8 +834,185 @@ ${payroll.notes ? `<div class="section">
               </TableContainer>
             </>
           )}
+          {/* Tab Manquants Caisse */}
+          {tabValue === 2 && (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Typography variant="h6" fontWeight="bold">Manquants en caisse par employé</Typography>
+              </Box>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Sélectionnez un employé pour voir ses manquants et déduire du salaire.
+              </Alert>
+              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableCell><strong>Employé</strong></TableCell>
+                      <TableCell><strong>Poste</strong></TableCell>
+                      <TableCell align="center"><strong>Actions</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {employees.filter(e => e.is_active).map(emp => (
+                      <TableRow key={emp.id} hover>
+                        <TableCell><strong>{emp.full_name}</strong></TableCell>
+                        <TableCell><Chip label={positionLabels[emp.position] || emp.position} size="small" /></TableCell>
+                        <TableCell align="center">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            startIcon={<WarningIcon />}
+                            onClick={async () => {
+                              setShortageEmployee(emp);
+                              try {
+                                const res = await employeeShortagesApi.getShortages(emp.id);
+                                setShortages(res.data.data || []);
+                              } catch { setShortages([]); }
+                              setOpenShortageDialog(true);
+                            }}
+                          >
+                            Voir manquants
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
         </CardContent>
       </Card>
+
+      {/* Dialog: Manquants d'un employé */}
+      <Dialog open={openShortageDialog} onClose={() => setOpenShortageDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <WarningIcon color="warning" />
+            Manquants caisse — {shortageEmployee?.full_name}
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {shortages.length === 0 ? (
+            <Alert severity="success">Aucun manquant enregistré pour cet employé.</Alert>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="right">Attendu</TableCell>
+                    <TableCell align="right">Collecté</TableCell>
+                    <TableCell align="right">Manquant</TableCell>
+                    <TableCell>Statut</TableCell>
+                    <TableCell align="center">Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {shortages.map(s => (
+                    <TableRow key={s.id} sx={{ bgcolor: s.status === 'en_attente' ? 'warning.50' : 'inherit' }}>
+                      <TableCell>{new Date(s.date).toLocaleDateString('fr-FR')}</TableCell>
+                      <TableCell align="right">{formatCurrency(s.expected_amount)}</TableCell>
+                      <TableCell align="right">{formatCurrency(s.actual_amount)}</TableCell>
+                      <TableCell align="right">
+                        <Typography color="error.main" fontWeight={700}>{formatCurrency(s.shortage_amount)}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={s.status === 'en_attente' ? 'En attente' : s.status === 'deduit' ? 'Déduit' : 'Annulé'}
+                          color={s.status === 'en_attente' ? 'warning' : s.status === 'deduit' ? 'success' : 'default'}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        {s.status === 'en_attente' && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="error"
+                            startIcon={<DeductIcon />}
+                            onClick={() => {
+                              setDeductShortage(s);
+                              setDeductPayrollId('');
+                              setOpenDeductDialog(true);
+                            }}
+                          >
+                            Déduire
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenShortageDialog(false)}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Confirmation déduction */}
+      <Dialog open={openDeductDialog} onClose={() => setOpenDeductDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon color="error" /> Confirmer la déduction
+        </DialogTitle>
+        <DialogContent>
+          {deductShortage && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              <Typography fontWeight={700}>
+                ⚠️ {shortageEmployee?.full_name} doit {formatCurrency(deductShortage.shortage_amount)} à la caisse
+              </Typography>
+              <Typography variant="body2">
+                Manquant du {new Date(deductShortage.date).toLocaleDateString('fr-FR')}
+              </Typography>
+            </Alert>
+          )}
+          <TextField
+            fullWidth
+            label="ID de la fiche de paie concernée *"
+            type="number"
+            size="small"
+            value={deductPayrollId}
+            onChange={e => setDeductPayrollId(parseInt(e.target.value) || '')}
+            helperText="Entrez l'ID de la fiche de paie du mois concerné"
+            sx={{ mt: 1 }}
+          />
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Cette action déduira <strong>{deductShortage ? formatCurrency(deductShortage.shortage_amount) : ''}</strong> du salaire net
+            et est <strong>irréversible</strong>.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeductDialog(false)}>Annuler</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={!deductPayrollId}
+            onClick={async () => {
+              if (!shortageEmployee || !deductShortage) return;
+              try {
+                await employeeShortagesApi.deductShortage(shortageEmployee.id, {
+                  shortage_id: deductShortage.id,
+                  payroll_id: deductPayrollId as number
+                });
+                setSuccess('Manquant déduit du salaire avec succès');
+                setOpenDeductDialog(false);
+                const res = await employeeShortagesApi.getShortages(shortageEmployee.id);
+                setShortages(res.data.data || []);
+                fetchPayrolls();
+              } catch (e: unknown) {
+                setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
+                setOpenDeductDialog(false);
+              }
+            }}
+          >
+            Confirmer la déduction
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog Employe */}
       <Dialog open={openEmployeeDialog} onClose={() => setOpenEmployeeDialog(false)} maxWidth="md" fullWidth>
