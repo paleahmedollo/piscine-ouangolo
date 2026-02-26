@@ -12,8 +12,9 @@ const TabItem = sequelize.define('TabItem', {
     allowNull: false
   },
   service_type: {
-    type: DataTypes.ENUM('lavage', 'maquis', 'superette', 'restaurant'),
+    type: DataTypes.STRING(30),
     allowNull: false
+    // lavage, pressing, maquis, superette, restaurant, depot
   },
   item_name: {
     type: DataTypes.STRING(200),

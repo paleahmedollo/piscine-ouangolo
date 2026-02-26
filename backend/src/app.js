@@ -336,6 +336,13 @@ const runMigrations = async () => {
            ALTER TABLE menu_items ALTER COLUMN category TYPE VARCHAR(100) USING category::text;
          END IF;
        END $$`,
+      // tab_items: convertir service_type ENUM → VARCHAR (ajouter pressing, depot, etc.)
+      `DO $$
+       BEGIN
+         IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_tab_items_service_type') THEN
+           ALTER TABLE tab_items ALTER COLUMN service_type TYPE VARCHAR(30) USING service_type::text;
+         END IF;
+       END $$`,
       // Nouvelles colonnes Company (superadmin)
       `ALTER TABLE companies ADD COLUMN IF NOT EXISTS locality VARCHAR(255)`,
       `ALTER TABLE companies ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Côte d''Ivoire'`,

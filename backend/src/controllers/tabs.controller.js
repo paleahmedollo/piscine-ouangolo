@@ -7,12 +7,13 @@ const { Op } = require('../models');
 
 const createTab = async (req, res) => {
   try {
-    const { customer_name, customer_info, notes } = req.body;
+    const { customer_name, customer_info, notes, service_type } = req.body;
     if (!customer_name) {
       return res.status(400).json({ success: false, message: 'Nom du client requis' });
     }
     const tab = await CustomerTab.create({
       customer_name, customer_info, notes,
+      service_type: service_type || null,
       user_id: req.user?.id,
       status: 'ouvert',
       total_amount: 0

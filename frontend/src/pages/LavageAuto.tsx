@@ -62,7 +62,7 @@ const LavageAuto: React.FC = () => {
       const [vt, w, ot, st] = await Promise.all([
         lavageApi.getVehicleTypes(),
         lavageApi.getCarWashes({ date: new Date().toISOString().split('T')[0] }),
-        tabsApi.getOpenTabs(),
+        tabsApi.getOpenTabs({ service_type: 'lavage' }),
         lavageApi.getStats()
       ]);
       setVehicleTypes(vt.data.data || []);
@@ -117,7 +117,7 @@ const LavageAuto: React.FC = () => {
   const handleCreateTab = async () => {
     if (!tabForm.customer_name) return showAlert('error', 'Nom du client requis');
     try {
-      await tabsApi.createTab(tabForm);
+      await tabsApi.createTab({ ...tabForm, service_type: 'lavage' });
       showAlert('success', `Onglet ouvert pour ${tabForm.customer_name}`);
       setTabDialog(false);
       setTabForm({ customer_name: '', customer_info: '' });
