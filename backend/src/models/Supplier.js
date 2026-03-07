@@ -37,6 +37,26 @@ const Supplier = sequelize.define('Supplier', {
     type: DataTypes.STRING(50),
     defaultValue: 'especes'
   },
+  marque: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'Marque ou enseigne commerciale'
+  },
+  secteur_activite: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'Secteur d\'activité (ex: Alimentaire, Hygiène…)'
+  },
+  ville: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'Ville du fournisseur'
+  },
+  date_debut_collaboration: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    comment: 'Date de début de collaboration'
+  },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

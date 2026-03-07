@@ -334,9 +334,15 @@ const getSuppliers = async (req, res) => {
 
 const createSupplier = async (req, res) => {
   try {
-    const { name, contact, phone, address, notes } = req.body;
+    const { name, contact, phone, email, address, ville, marque, secteur_activite, date_debut_collaboration, mode_paiement_habituel, delai_paiement, notes } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Nom requis' });
-    const supplier = await Supplier.create({ name, contact, phone, address, notes, service_type: 'superette' });
+    const supplier = await Supplier.create({
+      name, contact, phone, email, address, ville, marque,
+      secteur_activite, date_debut_collaboration: date_debut_collaboration || null,
+      mode_paiement_habituel: mode_paiement_habituel || 'especes',
+      delai_paiement: delai_paiement ? parseInt(delai_paiement) : 30,
+      notes, service_type: 'superette'
+    });
     res.json({ success: true, data: supplier, message: `Fournisseur "${name}" créé` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

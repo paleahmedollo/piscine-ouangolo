@@ -4,7 +4,7 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
   Select, FormControl, InputLabel, Alert, IconButton, Tooltip, Badge,
-  Divider, Stack, CircularProgress, LinearProgress, InputAdornment
+  Divider, Stack, CircularProgress, LinearProgress, InputAdornment, Autocomplete
 } from '@mui/material';
 import {
   Add as AddIcon, StoreMallDirectory as SuperetteIcon, Refresh as RefreshIcon,
@@ -18,7 +18,7 @@ import { superetteApi, tabsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Product { id: number; name: string; category: string; buy_price: number; sell_price: number; unit: string; current_stock: number; min_stock: number; is_active: boolean; description: string; }
-interface Supplier { id: number; name: string; contact: string; phone: string; address?: string; }
+interface Supplier { id: number; name: string; contact: string; phone: string; email?: string; address?: string; ville?: string; marque?: string; secteur_activite?: string; date_debut_collaboration?: string; mode_paiement_habituel?: string; delai_paiement?: number; notes?: string; }
 interface CustomerTab { id: number; customer_name: string; customer_info: string; total_amount: number; items: unknown[]; }
 interface CartItem { product: Product; quantity: number; }
 interface SaleOrder { id: number; items: CartItem[]; total: number; payment_method: string; created_at: string; }
@@ -134,8 +134,8 @@ const Superette: React.FC = () => {
 
   // Forms
   const [productForm, setProductForm] = useState({ name: '', category: 'Alimentation', sell_price: '', buy_price: '', unit: 'unité', min_stock: '0', description: '' });
-  const [supplierForm, setSupplierForm] = useState({ name: '', contact: '', phone: '', address: '' });
-  const [checkoutForm, setCheckoutForm] = useState({ payment_method: 'especes', tab_id: '' });
+  const [supplierForm, setSupplierForm] = useState({ name: '', contact: '', phone: '', email: '', address: '', ville: '', marque: '', secteur_activite: '', date_debut_collaboration: '', mode_paiement_habituel: 'especes', delai_paiement: '30', notes: '' });
+  const [checkoutForm, setCheckoutForm] = useState({ payment_method: 'especes' as 'especes' | 'mobile_money', tab_id: '' });
   const [adjustForm, setAdjustForm] = useState({ new_quantity: '', reason: 'Ajustement inventaire' });
 
   const showAlert = (type: 'success' | 'error', msg: string) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
@@ -187,17 +187,17 @@ const Superette: React.FC = () => {
     try {
       await superetteApi.createSale({
         items: cart.map(c => ({ product_id: c.product.id, quantity: c.quantity })),
-        payment_method: checkoutForm.tab_id ? 'tab' : 'en_attente', // Toujours en attente → paiement à la Caisse
+        payment_method: checkoutForm.tab_id ? 'tab' : checkoutForm.payment_method,
         tab_id: checkoutForm.tab_id ? parseInt(checkoutForm.tab_id) : undefined
       });
       setCart([]);
       setCheckoutDialog(false);
-      setCheckoutForm({ payment_method: 'en_attente', tab_id: '' });
+      setCheckoutForm({ payment_method: 'especes', tab_id: '' });
       loadAll();
       if (checkoutForm.tab_id) {
         showAlert('success', "Articles ajoutés à l'onglet !");
       } else {
-        showAlert('success', '🎫 Commande enregistrée — le client paie à la Caisse');
+        showAlert('success', '✅ Vente encaissée avec succès !');
       }
     } catch (e: unknown) {
       showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
@@ -279,8 +279,13 @@ const Superette: React.FC = () => {
 
   // ── Fournisseurs ───────────────────────────────────────────────────────────
   const openSupplierDialog = (s?: Supplier) => {
-    if (s) { setEditSupplier(s); setSupplierForm({ name: s.name, contact: s.contact || '', phone: s.phone || '', address: s.address || '' }); }
-    else { setEditSupplier(null); setSupplierForm({ name: '', contact: '', phone: '', address: '' }); }
+    if (s) {
+      setEditSupplier(s);
+      setSupplierForm({ name: s.name, contact: s.contact || '', phone: s.phone || '', email: s.email || '', address: s.address || '', ville: s.ville || '', marque: s.marque || '', secteur_activite: s.secteur_activite || '', date_debut_collaboration: s.date_debut_collaboration ? s.date_debut_collaboration.split('T')[0] : '', mode_paiement_habituel: s.mode_paiement_habituel || 'especes', delai_paiement: s.delai_paiement ? String(s.delai_paiement) : '30', notes: s.notes || '' });
+    } else {
+      setEditSupplier(null);
+      setSupplierForm({ name: '', contact: '', phone: '', email: '', address: '', ville: '', marque: '', secteur_activite: '', date_debut_collaboration: '', mode_paiement_habituel: 'especes', delai_paiement: '30', notes: '' });
+    }
     setSupplierDialog(true);
   };
 
@@ -295,7 +300,7 @@ const Superette: React.FC = () => {
         showAlert('success', 'Fournisseur créé avec succès !');
       }
       setSupplierDialog(false); setEditSupplier(null);
-      setSupplierForm({ name: '', contact: '', phone: '', address: '' });
+      setSupplierForm({ name: '', contact: '', phone: '', email: '', address: '', ville: '', marque: '', secteur_activite: '', date_debut_collaboration: '', mode_paiement_habituel: 'especes', delai_paiement: '30', notes: '' });
       loadAll();
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -643,20 +648,34 @@ const Superette: React.FC = () => {
               <Table size="small">
                 <TableHead sx={{ bgcolor: 'grey.100' }}>
                   <TableRow>
-                    <TableCell><strong>Nom</strong></TableCell>
+                    <TableCell><strong>Nom / Marque</strong></TableCell>
+                    <TableCell><strong>Secteur</strong></TableCell>
                     <TableCell><strong>Contact</strong></TableCell>
                     <TableCell><strong>Téléphone</strong></TableCell>
-                    <TableCell><strong>Adresse</strong></TableCell>
+                    <TableCell><strong>Ville</strong></TableCell>
+                    <TableCell><strong>Paiement habituel</strong></TableCell>
+                    <TableCell><strong>Depuis</strong></TableCell>
                     <TableCell align="center"><strong>Actions</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {suppliers.map(s => (
                     <TableRow key={s.id} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{s.name}</TableCell>
+                      <TableCell>
+                        <Typography fontWeight={600} variant="body2">{s.name}</Typography>
+                        {s.marque && <Typography variant="caption" color="text.secondary">{s.marque}</Typography>}
+                      </TableCell>
+                      <TableCell>{s.secteur_activite || '—'}</TableCell>
                       <TableCell>{s.contact || '—'}</TableCell>
                       <TableCell>{s.phone || '—'}</TableCell>
-                      <TableCell>{s.address || '—'}</TableCell>
+                      <TableCell>{s.ville || '—'}</TableCell>
+                      <TableCell>
+                        {s.mode_paiement_habituel === 'especes' ? '💵 Espèces' :
+                         s.mode_paiement_habituel === 'mobile_money' ? '📱 Mobile' :
+                         s.mode_paiement_habituel === 'virement' ? '🏦 Virement' :
+                         s.mode_paiement_habituel === 'credit' ? '📋 Crédit' : s.mode_paiement_habituel || '—'}
+                      </TableCell>
+                      <TableCell>{s.date_debut_collaboration ? new Date(s.date_debut_collaboration).toLocaleDateString('fr-FR') : '—'}</TableCell>
                       <TableCell align="center">
                         <Tooltip title="Modifier">
                           <IconButton size="small" color="primary" onClick={() => openSupplierDialog(s)}><EditIcon fontSize="small" /></IconButton>
@@ -664,7 +683,7 @@ const Superette: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {suppliers.length === 0 && <TableRow><TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun fournisseur enregistré</TableCell></TableRow>}
+                  {suppliers.length === 0 && <TableRow><TableCell colSpan={8} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun fournisseur enregistré</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -694,6 +713,22 @@ const Superette: React.FC = () => {
                 <Typography fontWeight={700} color="primary" variant="h6">{fmt(cartTotal)}</Typography>
               </Box>
             </Paper>
+            {/* Sélecteur mode de paiement */}
+            {!checkoutForm.tab_id && (
+              <Box>
+                <Typography variant="body2" fontWeight={600} color="text.secondary" gutterBottom>Mode de paiement :</Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button fullWidth variant={checkoutForm.payment_method === 'especes' ? 'contained' : 'outlined'} color="success"
+                    onClick={() => setCheckoutForm(f => ({ ...f, payment_method: 'especes' }))} sx={{ py: 1 }}>
+                    💵 Espèces
+                  </Button>
+                  <Button fullWidth variant={checkoutForm.payment_method === 'mobile_money' ? 'contained' : 'outlined'} color="info"
+                    onClick={() => setCheckoutForm(f => ({ ...f, payment_method: 'mobile_money' }))} sx={{ py: 1 }}>
+                    📱 Mobile Money
+                  </Button>
+                </Box>
+              </Box>
+            )}
             {openTabs.length > 0 && (
               <FormControl fullWidth>
                 <InputLabel>Onglet client (optionnel)</InputLabel>
@@ -704,15 +739,12 @@ const Superette: React.FC = () => {
                 </Select>
               </FormControl>
             )}
-            <Alert severity="info" sx={{ py: 0.5 }}>
-              🏦 <strong>Paiement à la Caisse</strong> — La commande sera enregistrée. Le client règle à la Caisse.
-            </Alert>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCheckoutDialog(false)}>Annuler</Button>
-          <Button variant="contained" color="success" onClick={handleCheckout}>
-            {checkoutForm.tab_id ? "Ajouter à l'onglet" : `🎫 Enregistrer → Caisse`}
+          <Button variant="contained" color="success" onClick={handleCheckout} startIcon={<PaidIcon />}>
+            {checkoutForm.tab_id ? "Ajouter à l'onglet" : `💰 Encaisser`}
           </Button>
         </DialogActions>
       </Dialog>
@@ -810,17 +842,17 @@ const Superette: React.FC = () => {
                       const subTotal = (parseFloat(line.quantity) || 0) * (parseFloat(line.unit_price) || 0);
                       return (
                         <TableRow key={idx}>
-                          <TableCell sx={{ minWidth: 180 }}>
-                            <FormControl fullWidth size="small">
-                              <Select value={line.product_id} displayEmpty onChange={e => updateSupplyLine(idx, 'product_id', e.target.value)}>
-                                <MenuItem value=""><em>— Choisir un produit —</em></MenuItem>
-                                {products.map(p => (
-                                  <MenuItem key={p.id} value={String(p.id)}>
-                                    {p.name} <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>({p.current_stock} {p.unit})</Typography>
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                          <TableCell sx={{ minWidth: 220 }}>
+                            <Autocomplete
+                              size="small"
+                              options={[...products].sort((a, b) => a.name.localeCompare(b.name, 'fr'))}
+                              getOptionLabel={(p) => `${p.name} (${p.current_stock} ${p.unit})`}
+                              value={products.find(p => String(p.id) === line.product_id) || null}
+                              onChange={(_, p) => updateSupplyLine(idx, 'product_id', p ? String(p.id) : '')}
+                              isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                              noOptionsText="Aucun produit trouvé"
+                              renderInput={(params) => <TextField {...params} placeholder="Chercher un produit..." />}
+                            />
                           </TableCell>
                           <TableCell>
                             <TextField size="small" type="number" value={line.quantity} sx={{ width: 90 }}
@@ -883,18 +915,84 @@ const Superette: React.FC = () => {
       </Dialog>
 
       {/* Dialog: Fournisseur */}
-      <Dialog open={supplierDialog} onClose={() => setSupplierDialog(false)} maxWidth="xs" fullWidth>
+      <Dialog open={supplierDialog} onClose={() => setSupplierDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editSupplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField label="Nom du fournisseur *" value={supplierForm.name}
-              onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} fullWidth autoFocus />
-            <TextField label="Contact (nom du responsable)" value={supplierForm.contact}
-              onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} fullWidth />
-            <TextField label="Téléphone" value={supplierForm.phone}
-              onChange={e => setSupplierForm(f => ({ ...f, phone: e.target.value }))} fullWidth />
-            <TextField label="Adresse" multiline rows={2} value={supplierForm.address}
-              onChange={e => setSupplierForm(f => ({ ...f, address: e.target.value }))} fullWidth />
+            {/* Informations principales */}
+            <Typography variant="subtitle2" fontWeight={700} color="text.secondary">📋 Informations générales</Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={8}>
+                <TextField label="Nom du fournisseur *" value={supplierForm.name}
+                  onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} fullWidth autoFocus />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField label="Marque / Enseigne" value={supplierForm.marque}
+                  onChange={e => setSupplierForm(f => ({ ...f, marque: e.target.value }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Secteur d'activité" value={supplierForm.secteur_activite}
+                  onChange={e => setSupplierForm(f => ({ ...f, secteur_activite: e.target.value }))} fullWidth
+                  placeholder="Ex: Alimentaire, Hygiène…" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Date début collaboration" type="date" value={supplierForm.date_debut_collaboration}
+                  onChange={e => setSupplierForm(f => ({ ...f, date_debut_collaboration: e.target.value }))} fullWidth
+                  InputLabelProps={{ shrink: true }} />
+              </Grid>
+            </Grid>
+            <Divider />
+            {/* Contact */}
+            <Typography variant="subtitle2" fontWeight={700} color="text.secondary">📞 Contact</Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Responsable (contact)" value={supplierForm.contact}
+                  onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Téléphone" value={supplierForm.phone}
+                  onChange={e => setSupplierForm(f => ({ ...f, phone: e.target.value }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Email" type="email" value={supplierForm.email}
+                  onChange={e => setSupplierForm(f => ({ ...f, email: e.target.value }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Ville" value={supplierForm.ville}
+                  onChange={e => setSupplierForm(f => ({ ...f, ville: e.target.value }))} fullWidth />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField label="Adresse complète" multiline rows={2} value={supplierForm.address}
+                  onChange={e => setSupplierForm(f => ({ ...f, address: e.target.value }))} fullWidth />
+              </Grid>
+            </Grid>
+            <Divider />
+            {/* Conditions commerciales */}
+            <Typography variant="subtitle2" fontWeight={700} color="text.secondary">💳 Conditions commerciales</Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Mode de paiement habituel</InputLabel>
+                  <Select value={supplierForm.mode_paiement_habituel} label="Mode de paiement habituel"
+                    onChange={e => setSupplierForm(f => ({ ...f, mode_paiement_habituel: e.target.value }))}>
+                    <MenuItem value="especes">💵 Espèces</MenuItem>
+                    <MenuItem value="mobile_money">📱 Mobile Money</MenuItem>
+                    <MenuItem value="virement">🏦 Virement bancaire</MenuItem>
+                    <MenuItem value="credit">📋 Crédit / Créance</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Délai de paiement (jours)" type="number" value={supplierForm.delai_paiement}
+                  onChange={e => setSupplierForm(f => ({ ...f, delai_paiement: e.target.value }))} fullWidth
+                  inputProps={{ min: 0 }} />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField label="Notes (facultatif)" multiline rows={2} value={supplierForm.notes}
+                  onChange={e => setSupplierForm(f => ({ ...f, notes: e.target.value }))} fullWidth
+                  placeholder="Remarques, conditions spéciales…" />
+              </Grid>
+            </Grid>
           </Stack>
         </DialogContent>
         <DialogActions>

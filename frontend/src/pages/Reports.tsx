@@ -86,7 +86,7 @@ const allColumns = [
   { id: 'reference', label: 'Référence' }, { id: 'client_name', label: 'Client' }
 ];
 
-const visibleColumns = ['date', 'time', 'module', 'type', 'quantity', 'amount', 'user_name'];
+const visibleColumns = ['date', 'time', 'module', 'type', 'quantity', 'amount', 'payment_method', 'user_name'];
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 
