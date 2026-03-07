@@ -2,149 +2,268 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Card, CardContent, Typography, Button, Grid, Chip, Tab, Tabs,
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
-  Select, FormControl, InputLabel, Alert, IconButton, Stack, Divider
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
+  Alert, IconButton, Stack, Divider, Tooltip, Badge
 } from '@mui/material';
 import {
   Add as AddIcon, LocalLaundryService as PressingIcon,
   Refresh as RefreshIcon, Edit as EditIcon,
-  CheckCircle as PaidIcon, PendingActions as TabIcon,
-  OpenInNew as OpenTabIcon
+  Print as PrintIcon,
+  HourglassEmpty as WaitIcon, ShoppingCart as CartIcon,
+  Store as CaisseIcon, Remove as RemoveIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
-import { pressingApi, tabsApi } from '../services/api';
+import { pressingApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface PressingType { id: number; name: string; price: number; is_active: boolean; }
-interface PressingOrder { id: number; pressing_type_id: number; customer_name: string; customer_phone: string; quantity: number; amount: number; status: string; payment_method: string; tab_id: number; notes: string; created_at: string; pressingType?: PressingType; }
-interface OpenTab { id: number; customer_name: string; total_amount: number; status: string; }
-interface Stats { today: { total_commandes: number; total_cash: number; tab_count: number }; by_type: { name: string; nb_commandes: number; total: number }[]; }
+
+interface PressingItemJson { pressing_type_id: number; name: string; quantity: number; unit_price: number; total: number; }
+
+interface PressingOrder {
+  id: number;
+  pressing_type_id: number | null;
+  customer_name: string; customer_phone: string;
+  quantity: number; amount: number; status: string; payment_method: string;
+  items_json?: string;
+  itemsParsed?: PressingItemJson[];
+  notes: string; created_at: string;
+  pressingType?: PressingType;
+}
+interface Stats {
+  today: { total_commandes: number; total_cash: number; tab_count: number };
+  by_type: { name: string; nb_commandes: number; total: number }[];
+}
 
 const fmt = (n: number) => (n || 0).toLocaleString('fr-FR') + ' FCFA';
 
+// ─── Parse items_json d'une commande ─────────────────────────────────────────
+const parseItems = (order: PressingOrder): PressingItemJson[] => {
+  if (order.itemsParsed) return order.itemsParsed;
+  if (order.items_json) {
+    try { return JSON.parse(order.items_json); } catch { /* ignore */ }
+  }
+  // Fallback : mono-article
+  if (order.pressingType) {
+    return [{ pressing_type_id: order.pressing_type_id || 0, name: order.pressingType.name, quantity: order.quantity, unit_price: order.pressingType.price, total: order.amount }];
+  }
+  return [];
+};
+
+// ─── Ticket de dépôt (impression) ────────────────────────────────────────────
+const printDepositTicket = (order: PressingOrder) => {
+  const num = `TKT-${String(order.id).padStart(4, '0')}`;
+  const now = new Date(order.created_at || Date.now());
+  const items = parseItems(order);
+
+  const css = `
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:10px}
+    .center{text-align:center} .bold{font-weight:bold}
+    .row{display:flex;justify-content:space-between;margin:3px 0}
+    .sep{border-top:1px dashed #000;margin:8px 0}
+    .title{font-size:14px;font-weight:bold;text-align:center}
+    .big{font-size:16px;font-weight:bold;text-align:center;margin:6px 0}
+    .box{border:1px solid #000;padding:6px;margin:6px 0;border-radius:4px}
+    @media print{body{width:100%}}
+  `;
+
+  const itemsHtml = items.map(it =>
+    `<div class="row"><span>${it.name} × ${it.quantity}</span><span><b>${fmt(it.total)}</b></span></div>`
+  ).join('');
+
+  const body = `
+    <div class="title">🧺 PRESSING / REPASSAGE</div>
+    <div class="center" style="font-size:10px">Piscine de Ouangolodougou</div>
+    <div class="sep"></div>
+    <div class="big">TICKET DE DÉPÔT</div>
+    <div class="sep"></div>
+    <div class="row"><span>N° Ticket :</span><span><b>${num}</b></span></div>
+    <div class="row"><span>Date :</span><span>${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span></div>
+    <div class="sep"></div>
+    <div class="box">
+      <div class="row"><span>Client :</span><span><b>${order.customer_name}</b></span></div>
+      ${order.customer_phone ? `<div class="row"><span>Tél. :</span><span>${order.customer_phone}</span></div>` : ''}
+    </div>
+    <div class="sep"></div>
+    <div style="margin-bottom:4px"><b>Vêtements déposés :</b></div>
+    <div class="box">${itemsHtml}</div>
+    <div class="sep"></div>
+    <div class="row"><span style="font-size:13px"><b>MONTANT À PAYER :</b></span><span style="font-size:14px"><b>${fmt(order.amount)}</b></span></div>
+    <div class="sep"></div>
+    <div class="center" style="font-size:11px;font-weight:bold;margin:6px 0">⚠️ PAIEMENT À LA CAISSE</div>
+    <div class="center" style="font-size:10px;margin-top:2px">Présentez ce ticket pour récupérer vos vêtements</div>
+    <div class="center" style="margin-top:8px;font-size:11px">Merci de votre confiance !</div>
+  `;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ticket</title><style>${css}</style></head><body>${body}</body></html>`;
+  const win = window.open('', '_blank', 'width=400,height=600');
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 300);
+};
+
+// ─── Composant principal ──────────────────────────────────────────────────────
 const Pressing: React.FC = () => {
   const { hasPermission } = useAuth();
+  const navigate = useNavigate();
   const canManagePrix = hasPermission('pressing', 'gestion_prix');
   const [tab, setTab] = useState(0);
   const [pressingTypes, setPressingTypes] = useState<PressingType[]>([]);
   const [orders, setOrders] = useState<PressingOrder[]>([]);
-  const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<PressingOrder[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
 
-  // Dialog states
+  // ── Dialog Nouvelle Commande ──────────────────────────────────────────────
   const [orderDialog, setOrderDialog] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [orderNotes, setOrderNotes] = useState('');
+  // Panier : { typeId → quantity }
+  const [cart, setCart] = useState<Record<number, number>>({});
+
+  // ── Dialog après création ─────────────────────────────────────────────────
+  const [createdOrder, setCreatedOrder] = useState<PressingOrder | null>(null);
+
+  // ── Dialog Gestion des types ──────────────────────────────────────────────
   const [typeDialog, setTypeDialog] = useState(false);
   const [editTypeDialog, setEditTypeDialog] = useState<PressingType | null>(null);
-  const [tabDialog, setTabDialog] = useState(false);
-  const [payOrderDialog, setPayOrderDialog] = useState<PressingOrder | null>(null);
-  const [payOrderMethod, setPayOrderMethod] = useState('especes');
-  const [receiptDialog, setReceiptDialog] = useState<PressingOrder | null>(null);
-
-  // Forms
-  const [orderForm, setOrderForm] = useState({ pressing_type_id: '', customer_name: '', customer_phone: '', quantity: '1', payment_method: 'especes', tab_id: '' });
   const [typeForm, setTypeForm] = useState({ name: '', price: '' });
-  const [tabForm, setTabForm] = useState({ customer_name: '', customer_info: '' });
 
-  const showAlert = (type: 'success' | 'error', msg: string) => {
+  const showAlert = (type: 'success' | 'error' | 'info', msg: string) => {
     setAlert({ type, msg });
-    setTimeout(() => setAlert(null), 4000);
+    setTimeout(() => setAlert(null), 5000);
   };
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [types, ords, ot, st] = await Promise.all([
+      const [types, ords, pending, st] = await Promise.all([
         pressingApi.getAllTypes(),
         pressingApi.getOrders({ date: new Date().toISOString().split('T')[0] }),
-        tabsApi.getOpenTabs({ service_type: 'pressing' }),
+        pressingApi.getOrders({ status: 'en_attente' }),
         pressingApi.getStats()
       ]);
-      setPressingTypes(types.data.data || types.data || []);
+      const typesData: PressingType[] = types.data.data || types.data || [];
+      setPressingTypes([...typesData].sort((a, b) => a.name.localeCompare(b.name, 'fr')));
       setOrders(ords.data.data || ords.data || []);
-      setOpenTabs(ot.data.data || ot.data || []);
+      setPendingOrders(pending.data.data || pending.data || []);
       setStats(st.data.data || st.data || null);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } }; message?: string };
-      showAlert('error', err?.response?.data?.message || err?.message || 'Erreur chargement données Pressing');
+      showAlert('error', err?.response?.data?.message || err?.message || 'Erreur chargement');
     }
     setLoading(false);
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // ── Panier helpers ────────────────────────────────────────────────────────
+  const setQty = (typeId: number, delta: number) => {
+    setCart(prev => {
+      const cur = prev[typeId] || 0;
+      const next = Math.max(0, cur + delta);
+      const updated = { ...prev };
+      if (next === 0) delete updated[typeId];
+      else updated[typeId] = next;
+      return updated;
+    });
+  };
+
+  const cartTotal = pressingTypes.reduce((sum, t) => {
+    const qty = cart[t.id] || 0;
+    return sum + qty * t.price;
+  }, 0);
+
+  const cartItemCount = Object.values(cart).reduce((s, q) => s + q, 0);
+
+  const resetOrderDialog = () => {
+    setCustomerName(''); setCustomerPhone(''); setOrderNotes(''); setCart({});
+  };
+
+  // ── Créer commande ────────────────────────────────────────────────────────
   const handleCreateOrder = async () => {
-    if (!orderForm.pressing_type_id) return showAlert('error', 'Sélectionnez un type de service');
-    if (!orderForm.customer_name) return showAlert('error', 'Nom du client requis');
+    if (!customerName.trim()) return showAlert('error', 'Nom du client requis');
+    if (cartItemCount === 0) return showAlert('error', 'Sélectionnez au moins un article');
+
+    const itemsPayload = Object.entries(cart)
+      .filter(([, qty]) => qty > 0)
+      .map(([typeId, qty]) => ({ pressing_type_id: parseInt(typeId), quantity: qty }));
+
     try {
-      const payload: any = {
-        pressing_type_id: parseInt(orderForm.pressing_type_id),
-        customer_name: orderForm.customer_name,
-        customer_phone: orderForm.customer_phone,
-        quantity: parseInt(orderForm.quantity) || 1
+      const res = await pressingApi.createOrder({
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim() || undefined,
+        notes: orderNotes.trim() || undefined,
+        items: itemsPayload,
+      } as Parameters<typeof pressingApi.createOrder>[0]);
+
+      const rawOrder = res.data.data;
+      // Enrichir avec les types pour l'affichage
+      const enriched: PressingOrder = {
+        ...rawOrder,
+        itemsParsed: rawOrder.itemsParsed || itemsPayload.map(it => {
+          const t = pressingTypes.find(pt => pt.id === it.pressing_type_id)!;
+          return { pressing_type_id: it.pressing_type_id, name: t.name, quantity: it.quantity, unit_price: t.price, total: t.price * it.quantity };
+        }),
+        created_at: rawOrder.created_at || new Date().toISOString()
       };
-      if (orderForm.payment_method === 'onglet' && orderForm.tab_id) {
-        payload.tab_id = parseInt(orderForm.tab_id);
-      } else {
-        payload.payment_method = orderForm.payment_method;
-      }
-      const res = await pressingApi.createOrder(payload);
-      showAlert('success', res.data.message || 'Commande enregistrée');
+
       setOrderDialog(false);
-      setOrderForm({ pressing_type_id: '', customer_name: '', customer_phone: '', quantity: '1', payment_method: 'especes', tab_id: '' });
+      resetOrderDialog();
+      setCreatedOrder(enriched);
+
+      // Imprimer ticket de dépôt automatiquement
+      setTimeout(() => printDepositTicket(enriched), 200);
       loadAll();
-    } catch (err: any) {
-      showAlert('error', err?.response?.data?.message || 'Erreur');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      showAlert('error', e?.response?.data?.message || 'Erreur création commande');
     }
   };
 
-  const selectedType = pressingTypes.find(t => t.id === parseInt(orderForm.pressing_type_id));
-  const totalAmount = selectedType ? parseFloat(selectedType.price as any) * (parseInt(orderForm.quantity) || 1) : 0;
-
+  // ── Gestion types ─────────────────────────────────────────────────────────
   const handleCreateType = async () => {
     if (!typeForm.name || !typeForm.price) return showAlert('error', 'Nom et prix requis');
     try {
       await pressingApi.createType({ name: typeForm.name, price: parseFloat(typeForm.price) });
       showAlert('success', 'Type créé');
-      setTypeDialog(false);
-      setTypeForm({ name: '', price: '' });
-      loadAll();
-    } catch (err: any) { showAlert('error', err?.response?.data?.message || 'Erreur'); }
+      setTypeDialog(false); setTypeForm({ name: '', price: '' }); loadAll();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      showAlert('error', e?.response?.data?.message || 'Erreur');
+    }
   };
 
   const handleUpdateType = async () => {
     if (!editTypeDialog) return;
     try {
       await pressingApi.updateType(editTypeDialog.id, { name: editTypeDialog.name, price: editTypeDialog.price, is_active: editTypeDialog.is_active });
-      showAlert('success', 'Type mis à jour');
-      setEditTypeDialog(null);
-      loadAll();
-    } catch (err: any) { showAlert('error', err?.response?.data?.message || 'Erreur'); }
+      showAlert('success', 'Type mis à jour'); setEditTypeDialog(null); loadAll();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      showAlert('error', e?.response?.data?.message || 'Erreur');
+    }
   };
 
-  const handleCreateTab = async () => {
-    if (!tabForm.customer_name) return showAlert('error', 'Nom requis');
-    try {
-      await tabsApi.createTab({ customer_name: tabForm.customer_name, customer_info: tabForm.customer_info, service_type: 'pressing' });
-      showAlert('success', 'Onglet créé');
-      setTabDialog(false);
-      setTabForm({ customer_name: '', customer_info: '' });
-      loadAll();
-    } catch (err: any) { showAlert('error', err?.response?.data?.message || 'Erreur'); }
-  };
-
-  const handlePayOrder = async () => {
-    if (!payOrderDialog) return;
-    try {
-      const res = await pressingApi.payOrder(payOrderDialog.id, { payment_method: payOrderMethod });
-      const paidOrder: PressingOrder = { ...payOrderDialog, ...res.data.data, payment_method: payOrderMethod, status: 'paye' };
-      setReceiptDialog(paidOrder);
-      setPayOrderDialog(null);
-      setPayOrderMethod('especes');
-      showAlert('success', res.data.message || 'Paiement confirmé');
-      loadAll();
-    } catch (err: any) { showAlert('error', err?.response?.data?.message || 'Erreur'); }
+  // ── Affichage articles d'une commande ─────────────────────────────────────
+  const renderOrderItems = (order: PressingOrder) => {
+    const items = parseItems(order);
+    if (items.length === 0) return <Typography variant="body2" color="text.secondary">—</Typography>;
+    return (
+      <Box>
+        {items.map((it, i) => (
+          <Typography key={i} variant="caption" display="block">
+            {it.name} × {it.quantity}
+          </Typography>
+        ))}
+      </Box>
+    );
   };
 
   return (
@@ -156,11 +275,10 @@ const Pressing: React.FC = () => {
         <Grid container spacing={2} sx={{ mb: 2 }}>
           {[
             { label: 'Commandes du jour', value: stats.today?.total_commandes || 0, color: '#795548' },
-            { label: 'Recette du jour', value: fmt(stats.today?.total_cash || 0), color: '#4caf50' },
-            { label: 'En onglet', value: stats.today?.tab_count || 0, color: '#ff9800' },
-            { label: 'Types actifs', value: pressingTypes.length, color: '#9c27b0' }
+            { label: 'En attente (Caisse)', value: pendingOrders.length, color: '#ff9800' },
+            { label: 'Types actifs', value: pressingTypes.length, color: '#9c27b0' },
           ].map((s, i) => (
-            <Grid item xs={6} md={3} key={i}>
+            <Grid item xs={6} md={4} key={i}>
               <Card sx={{ borderLeft: `4px solid ${s.color}` }}>
                 <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                   <Typography variant="caption" color="text.secondary">{s.label}</Typography>
@@ -172,33 +290,45 @@ const Pressing: React.FC = () => {
         </Grid>
       )}
 
+      {/* Bandeau info paiement Caisse */}
+      <Alert severity="info" icon={<CaisseIcon />} sx={{ mb: 2 }}>
+        <strong>Paiements à la Caisse</strong> — Les commandes sont enregistrées ici. Le client règle à la Caisse.
+      </Alert>
+
       {/* Actions */}
       <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOrderDialog(true)} sx={{ bgcolor: '#795548', '&:hover': { bgcolor: '#5d4037' } }}>
+        <Button variant="contained" startIcon={<AddIcon />}
+          onClick={() => { resetOrderDialog(); setOrderDialog(true); }}
+          sx={{ bgcolor: '#795548', '&:hover': { bgcolor: '#5d4037' } }}>
           Nouvelle Commande
         </Button>
-        <Button variant="outlined" startIcon={<OpenTabIcon />} onClick={() => setTabDialog(true)}>
-          Nouvel Onglet
+        <Button variant="outlined" color="warning" startIcon={<CaisseIcon />}
+          onClick={() => navigate('/caisse')}>
+          Aller à la Caisse
         </Button>
         <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll} disabled={loading}>
           Actualiser
         </Button>
       </Box>
 
-      {/* Tabs */}
+      {/* Onglets */}
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab label={`Commandes du jour (${orders.length})`} />
-        <Tab label={`Onglets ouverts (${openTabs.length})`} />
+        <Tab label={
+          <Badge badgeContent={pendingOrders.length} color="warning">
+            <Box sx={{ pr: pendingOrders.length > 0 ? 1.5 : 0 }}>En attente Caisse</Box>
+          </Badge>
+        } />
         {canManagePrix && <Tab label="Gestion des types" />}
       </Tabs>
 
-      {/* Tab 0: Commandes du jour */}
+      {/* Tab 0 : Commandes du jour */}
       {tab === 0 && (
         <TableContainer component={Paper}>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: '#795548' }}>
-                {['#', 'Client', 'Service', 'Qté', 'Montant', 'Paiement', 'Statut', 'Heure'].map(h => (
+                {['#', 'Client', 'Articles', 'Montant', 'Statut', 'Heure', 'Ticket'].map(h => (
                   <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
                 ))}
               </TableRow>
@@ -211,58 +341,90 @@ const Pressing: React.FC = () => {
                     <Typography variant="body2" fontWeight="bold">{o.customer_name}</Typography>
                     {o.customer_phone && <Typography variant="caption" color="text.secondary">{o.customer_phone}</Typography>}
                   </TableCell>
-                  <TableCell>{o.pressingType?.name || '—'}</TableCell>
-                  <TableCell>{o.quantity}</TableCell>
+                  <TableCell>{renderOrderItems(o)}</TableCell>
                   <TableCell><Typography fontWeight="bold">{fmt(o.amount)}</Typography></TableCell>
                   <TableCell>
-                    <Chip size="small" label={o.payment_method || 'espèces'} variant="outlined" />
-                  </TableCell>
-                  <TableCell>
-                    {o.status === 'paye' ? (
-                      <Chip size="small" icon={<PaidIcon />} label="Payé" color="success" />
-                    ) : o.status === 'en_attente' ? (
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Chip size="small" label="En attente" color="warning" variant="outlined" />
-                        <Button size="small" variant="contained" color="success"
-                          sx={{ minWidth: 'auto', px: 1, py: 0.2, fontSize: '0.7rem' }}
-                          onClick={() => { setPayOrderDialog(o); setPayOrderMethod('especes'); }}>
-                          Encaisser
-                        </Button>
-                      </Stack>
-                    ) : (
-                      <Chip size="small" icon={<TabIcon />} label="Onglet" color="warning" />
-                    )}
+                    {o.status === 'paye'
+                      ? <Chip size="small" label="✅ Payé (Caisse)" color="success" />
+                      : o.status === 'en_attente'
+                        ? <Chip size="small" icon={<WaitIcon />} label="En attente Caisse" color="warning" variant="outlined" />
+                        : <Chip size="small" label={o.status} color="default" />
+                    }
                   </TableCell>
                   <TableCell>{new Date(o.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</TableCell>
+                  <TableCell>
+                    {o.status === 'en_attente' && (
+                      <Tooltip title="Réimprimer ticket de dépôt">
+                        <IconButton size="small" color="warning" onClick={() => printDepositTicket(o)}>
+                          <PrintIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {orders.length === 0 && (
-                <TableRow><TableCell colSpan={8} align="center">Aucune commande aujourd'hui</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>Aucune commande aujourd'hui</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </TableContainer>
       )}
 
-      {/* Tab 1: Onglets ouverts */}
+      {/* Tab 1 : En attente Caisse */}
       {tab === 1 && (
-        <Grid container spacing={2}>
-          {openTabs.map(t => (
-            <Grid item xs={12} sm={6} md={4} key={t.id}>
-              <Card sx={{ border: '2px solid #ff9800' }}>
-                <CardContent>
-                  <Typography fontWeight="bold">{t.customer_name}</Typography>
-                  <Typography variant="h6" color="warning.main">{fmt(t.total_amount)}</Typography>
-                  <Chip size="small" label="Ouvert" color="warning" />
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-          {openTabs.length === 0 && <Grid item xs={12}><Alert severity="info">Aucun onglet ouvert</Alert></Grid>}
-        </Grid>
+        <Box>
+          {pendingOrders.length === 0 ? (
+            <Alert severity="success">Aucun ticket en attente — tout a été encaissé à la Caisse 🎉</Alert>
+          ) : (
+            <>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                {pendingOrders.length} ticket(s) en attente de paiement à la Caisse.
+                <Button size="small" color="warning" sx={{ ml: 1 }} onClick={() => navigate('/caisse')}>
+                  → Aller à la Caisse
+                </Button>
+              </Alert>
+              <TableContainer component={Paper}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#ff9800' }}>
+                      {['N° Ticket', 'Client', 'Téléphone', 'Articles', 'Montant', 'Déposé le', 'Ticket'].map(h => (
+                        <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {pendingOrders.map(o => (
+                      <TableRow key={o.id} hover sx={{ bgcolor: '#fff8e1' }}>
+                        <TableCell>
+                          <Chip label={`TKT-${String(o.id).padStart(4, '0')}`} size="small" color="warning" />
+                        </TableCell>
+                        <TableCell><Typography fontWeight="bold">{o.customer_name}</Typography></TableCell>
+                        <TableCell><Typography variant="body2" color="text.secondary">{o.customer_phone || '—'}</Typography></TableCell>
+                        <TableCell>{renderOrderItems(o)}</TableCell>
+                        <TableCell><Typography fontWeight="bold" color="warning.main">{fmt(o.amount)}</Typography></TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{new Date(o.created_at).toLocaleDateString('fr-FR')}</Typography>
+                          <Typography variant="caption" color="text.secondary">{new Date(o.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title="Réimprimer ticket de dépôt">
+                            <IconButton size="small" color="warning" onClick={() => printDepositTicket(o)}>
+                              <PrintIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </Box>
       )}
 
-      {/* Tab 2: Types de pressing (admin/gérant seulement) */}
+      {/* Tab 2 : Gestion des types */}
       {tab === 2 && canManagePrix && (
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
@@ -270,96 +432,201 @@ const Pressing: React.FC = () => {
               Ajouter un type
             </Button>
           </Box>
-          <Grid container spacing={2}>
-            {pressingTypes.map(type => (
-              <Grid item xs={12} sm={6} md={4} key={type.id}>
-                <Card sx={{ opacity: type.is_active ? 1 : 0.5 }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography fontWeight="bold">{type.name}</Typography>
-                        <Typography variant="h6" color="#795548">{fmt(type.price)}</Typography>
-                        <Chip size="small" label={type.is_active ? 'Actif' : 'Désactivé'} color={type.is_active ? 'success' : 'default'} />
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead sx={{ bgcolor: '#795548' }}>
+                <TableRow>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Type de service</TableCell>
+                  <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Prix</TableCell>
+                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Statut</TableCell>
+                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pressingTypes.length === 0 && (
+                  <TableRow><TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>Aucun type</TableCell></TableRow>
+                )}
+                {pressingTypes.map(type => (
+                  <TableRow key={type.id} hover sx={{ opacity: type.is_active ? 1 : 0.5 }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PressingIcon sx={{ color: '#795548', fontSize: 18 }} />
+                        <Typography fontWeight={600}>{type.name}</Typography>
                       </Box>
-                      <IconButton onClick={() => setEditTypeDialog({ ...type })} color="primary"><EditIcon /></IconButton>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+                    </TableCell>
+                    <TableCell align="right"><Typography fontWeight={700} color="#795548">{fmt(type.price)}</Typography></TableCell>
+                    <TableCell align="center">
+                      {type.is_active ? <Chip label="Actif" color="success" size="small" /> : <Chip label="Désactivé" color="default" size="small" />}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Modifier">
+                        <IconButton size="small" color="primary" onClick={() => setEditTypeDialog({ ...type })}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
       )}
 
-      {/* Dialog: Nouvelle commande */}
+      {/* ══════════ DIALOG : Nouvelle Commande (panier) ══════════════════════ */}
       <Dialog open={orderDialog} onClose={() => setOrderDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ bgcolor: '#795548', color: 'white' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PressingIcon /> Nouvelle Commande
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PressingIcon /> Nouvelle Commande
+            </Box>
+            {cartItemCount > 0 && (
+              <Chip icon={<CartIcon />} label={`${cartItemCount} art. — ${fmt(cartTotal)}`}
+                sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold' }} />
+            )}
           </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           <Stack spacing={2}>
-            <TextField label="Nom du client *" value={orderForm.customer_name} onChange={e => setOrderForm(f => ({ ...f, customer_name: e.target.value }))} fullWidth />
-            <TextField label="Téléphone" value={orderForm.customer_phone} onChange={e => setOrderForm(f => ({ ...f, customer_phone: e.target.value }))} fullWidth />
-            <FormControl fullWidth>
-              <InputLabel>Type de service *</InputLabel>
-              <Select value={orderForm.pressing_type_id} onChange={e => setOrderForm(f => ({ ...f, pressing_type_id: String(e.target.value) }))} label="Type de service *">
-                {pressingTypes.filter(t => t.is_active).map(t => (
-                  <MenuItem key={t.id} value={String(t.id)}>{t.name} — {fmt(t.price)}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField label="Quantité" type="number" value={orderForm.quantity} onChange={e => setOrderForm(f => ({ ...f, quantity: e.target.value }))} inputProps={{ min: 1 }} fullWidth />
-            {totalAmount > 0 && (
-              <Alert severity="info">
-                <strong>Total: {fmt(totalAmount)}</strong>
-              </Alert>
+            {/* Infos client */}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField label="Nom du client *" value={customerName}
+                onChange={e => setCustomerName(e.target.value)} fullWidth size="small" />
+              <TextField label="Téléphone" value={customerPhone}
+                onChange={e => setCustomerPhone(e.target.value)} fullWidth size="small" />
+            </Box>
+
+            {/* Grille des types avec +/- */}
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, color: '#795548' }}>
+                🧺 Sélectionnez les vêtements :
+              </Typography>
+              {pressingTypes.filter(t => t.is_active).length === 0 && (
+                <Alert severity="warning" sx={{ py: 0.5 }}>Aucun type actif. Ajoutez-en dans l'onglet "Gestion des types".</Alert>
+              )}
+              <Stack spacing={0.5}>
+                {pressingTypes.filter(t => t.is_active).map(t => {
+                  const qty = cart[t.id] || 0;
+                  return (
+                    <Box key={t.id} sx={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      px: 1.5, py: 1,
+                      borderRadius: 1,
+                      border: qty > 0 ? '2px solid #795548' : '1px solid #e0e0e0',
+                      bgcolor: qty > 0 ? '#fdf6f0' : 'transparent',
+                      transition: 'all 0.15s'
+                    }}>
+                      {/* Nom + prix */}
+                      <Box>
+                        <Typography variant="body2" fontWeight={qty > 0 ? 700 : 400}>
+                          🧺 {t.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{fmt(t.price)} / pièce</Typography>
+                      </Box>
+
+                      {/* Contrôles +/- */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {qty > 0 && (
+                          <Typography variant="body2" color="#795548" fontWeight={700} sx={{ mr: 1 }}>
+                            {fmt(qty * t.price)}
+                          </Typography>
+                        )}
+                        <IconButton size="small" color="error" onClick={() => setQty(t.id, -1)} disabled={qty === 0}
+                          sx={{ border: '1px solid', borderColor: qty === 0 ? '#e0e0e0' : 'error.main', p: 0.3 }}>
+                          <RemoveIcon fontSize="small" />
+                        </IconButton>
+                        <Typography sx={{ minWidth: 28, textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                          {qty}
+                        </Typography>
+                        <IconButton size="small" color="primary" onClick={() => setQty(t.id, 1)}
+                          sx={{ border: '1px solid', borderColor: '#795548', p: 0.3, bgcolor: '#795548', color: 'white',
+                            '&:hover': { bgcolor: '#5d4037' } }}>
+                          <AddIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </Box>
+
+            {/* Total */}
+            {cartTotal > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                p: 1.5, bgcolor: '#795548', borderRadius: 1, color: 'white' }}>
+                <Typography fontWeight={700}>TOTAL</Typography>
+                <Typography variant="h5" fontWeight={700}>{fmt(cartTotal)}</Typography>
+              </Box>
             )}
-            <FormControl fullWidth>
-              <InputLabel>Mode de paiement</InputLabel>
-              <Select value={orderForm.payment_method} onChange={e => setOrderForm(f => ({ ...f, payment_method: e.target.value }))} label="Mode de paiement">
-                <MenuItem value="especes">Espèces</MenuItem>
-                <MenuItem value="mobile">Mobile Money</MenuItem>
-                <MenuItem value="onglet">Onglet client</MenuItem>
-                <MenuItem value="en_attente">🎫 Ticket — payer à la livraison</MenuItem>
-              </Select>
-            </FormControl>
-            {orderForm.payment_method === 'en_attente' && (
-              <Alert severity="info" sx={{ py: 0.5 }}>Un ticket sera ouvert. Le client paiera lors de la récupération des vêtements.</Alert>
-            )}
-            {orderForm.payment_method === 'onglet' && (
-              <FormControl fullWidth>
-                <InputLabel>Onglet client</InputLabel>
-                <Select value={orderForm.tab_id} onChange={e => setOrderForm(f => ({ ...f, tab_id: e.target.value as string }))} label="Onglet client">
-                  {openTabs.map(t => (
-                    <MenuItem key={t.id} value={t.id}>{t.customer_name} — {fmt(t.total_amount)}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
+
+            <TextField label="Notes (facultatif)" value={orderNotes} multiline rows={2}
+              onChange={e => setOrderNotes(e.target.value)}
+              placeholder="Ex: tâche sur la chemise, urgent…" fullWidth size="small" />
+
+            <Alert severity="info" icon={<CaisseIcon />} sx={{ py: 0.5 }}>
+              🎫 Un ticket de dépôt sera imprimé. Le client paie à la <strong>Caisse</strong>.
+            </Alert>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOrderDialog(false)}>Annuler</Button>
-          <Button variant="contained" onClick={handleCreateOrder} sx={{ bgcolor: '#795548' }}>
-            Enregistrer
+          <Button variant="contained" onClick={handleCreateOrder}
+            disabled={cartItemCount === 0 || !customerName.trim()}
+            sx={{ bgcolor: '#795548', '&:hover': { bgcolor: '#5d4037' } }}>
+            🎫 Créer le ticket ({cartItemCount} art.)
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog: Créer onglet */}
-      <Dialog open={tabDialog} onClose={() => setTabDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Nouvel onglet client</DialogTitle>
+      {/* ══════════ DIALOG : Après création ══════════════════════════════════ */}
+      <Dialog open={!!createdOrder} onClose={() => setCreatedOrder(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ bgcolor: '#ff9800', color: 'white', textAlign: 'center' }}>
+          🎫 Ticket créé — TKT-{String(createdOrder?.id || 0).padStart(4, '0')}
+        </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          <Stack spacing={2}>
-            <TextField label="Nom du client *" value={tabForm.customer_name} onChange={e => setTabForm(f => ({ ...f, customer_name: e.target.value }))} fullWidth />
-            <TextField label="Info (téléphone...)" value={tabForm.customer_info} onChange={e => setTabForm(f => ({ ...f, customer_info: e.target.value }))} fullWidth />
-          </Stack>
+          {createdOrder && (
+            <Stack spacing={1.5}>
+              <Alert severity="success" sx={{ py: 0.5 }}>
+                Ticket imprimé automatiquement. Le client règle à la Caisse.
+              </Alert>
+              <Box sx={{ border: '2px dashed #ff9800', borderRadius: 2, p: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">Client :</Typography>
+                  <Typography variant="body2" fontWeight={700}>{createdOrder.customer_name}</Typography>
+                </Box>
+                {createdOrder.customer_phone && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">Tél. :</Typography>
+                    <Typography variant="body2">{createdOrder.customer_phone}</Typography>
+                  </Box>
+                )}
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="caption" fontWeight={700} color="text.secondary">Articles :</Typography>
+                {parseItems(createdOrder).map((it, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography variant="body2">{it.name} × {it.quantity}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{fmt(it.total)}</Typography>
+                  </Box>
+                ))}
+                <Divider sx={{ my: 1 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography fontWeight={700}>À payer (Caisse) :</Typography>
+                  <Typography fontWeight={700} color="warning.main">{fmt(createdOrder.amount)}</Typography>
+                </Box>
+              </Box>
+            </Stack>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setTabDialog(false)}>Annuler</Button>
-          <Button variant="contained" onClick={handleCreateTab}>Créer</Button>
+        <DialogActions sx={{ justifyContent: 'center', gap: 1 }}>
+          <Button variant="outlined" startIcon={<PrintIcon />}
+            onClick={() => createdOrder && printDepositTicket(createdOrder)}>
+            Réimprimer
+          </Button>
+          <Button variant="contained" color="warning" startIcon={<CaisseIcon />}
+            onClick={() => { setCreatedOrder(null); navigate('/caisse'); }}>
+            → Aller à la Caisse
+          </Button>
+          <Button onClick={() => setCreatedOrder(null)}>Fermer</Button>
         </DialogActions>
       </Dialog>
 
@@ -378,79 +645,22 @@ const Pressing: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog: Payer une commande en attente */}
-      <Dialog open={!!payOrderDialog} onClose={() => setPayOrderDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ bgcolor: '#795548', color: 'white' }}>💳 Encaisser la commande</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          {payOrderDialog && (
-            <Stack spacing={2}>
-              <Alert severity="info" sx={{ py: 0.5 }}>
-                Client: <strong>{payOrderDialog.customer_name}</strong>
-                {payOrderDialog.customer_phone && <><br />{payOrderDialog.customer_phone}</>}<br />
-                Service: <strong>{payOrderDialog.pressingType?.name || '—'}</strong> × {payOrderDialog.quantity}<br />
-                Montant: <strong>{fmt(payOrderDialog.amount)}</strong>
-              </Alert>
-              <FormControl fullWidth required>
-                <InputLabel>Mode de paiement</InputLabel>
-                <Select value={payOrderMethod} label="Mode de paiement" onChange={e => setPayOrderMethod(e.target.value)}>
-                  <MenuItem value="especes">Espèces</MenuItem>
-                  <MenuItem value="mobile">Mobile Money</MenuItem>
-                  <MenuItem value="carte">Carte bancaire</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPayOrderDialog(null)}>Annuler</Button>
-          <Button variant="contained" onClick={handlePayOrder} sx={{ bgcolor: '#795548' }}>
-            Confirmer — {payOrderDialog && fmt(payOrderDialog.amount)}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog: Reçu pressing */}
-      <Dialog open={!!receiptDialog} onClose={() => setReceiptDialog(null)} maxWidth="xs">
-        <DialogTitle sx={{ bgcolor: '#795548', color: 'white', textAlign: 'center' }}>✅ Reçu — Pressing</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          {receiptDialog && (
-            <Stack spacing={1.5} alignItems="center">
-              <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 2 }}>PRESSING</Typography>
-              <Divider sx={{ width: '100%' }} />
-              <Typography>Client: <strong>{receiptDialog.customer_name}</strong></Typography>
-              {receiptDialog.customer_phone && <Typography variant="caption">{receiptDialog.customer_phone}</Typography>}
-              <Typography>Service: <strong>{receiptDialog.pressingType?.name || '—'}</strong></Typography>
-              <Typography>Quantité: {receiptDialog.quantity}</Typography>
-              <Divider sx={{ width: '100%' }} />
-              <Typography variant="h4" color="#795548" fontWeight={700}>{fmt(receiptDialog.amount)}</Typography>
-              <Chip label={receiptDialog.payment_method === 'especes' ? 'Espèces' : receiptDialog.payment_method === 'mobile' ? 'Mobile Money' : 'Carte'} size="small" />
-              <Typography variant="caption" color="text.secondary">{new Date().toLocaleString('fr-FR')}</Typography>
-              <Divider sx={{ width: '100%' }} />
-              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>Merci de votre confiance !</Typography>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', gap: 1 }}>
-          <Button variant="outlined" onClick={() => window.print()}>Imprimer</Button>
-          <Button variant="contained" sx={{ bgcolor: '#795548' }} onClick={() => setReceiptDialog(null)}>Fermer</Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Dialog: Modifier type */}
       {editTypeDialog && (
         <Dialog open={true} onClose={() => setEditTypeDialog(null)} maxWidth="xs" fullWidth>
           <DialogTitle>Modifier le type</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             <Stack spacing={2}>
-              <TextField label="Nom" value={editTypeDialog.name} onChange={e => setEditTypeDialog(d => d ? { ...d, name: e.target.value } : null)} fullWidth />
-              <TextField label="Prix (FCFA)" type="number" value={editTypeDialog.price} onChange={e => setEditTypeDialog(d => d ? { ...d, price: parseFloat(e.target.value) } : null)} fullWidth />
-              <FormControl fullWidth>
-                <InputLabel>Statut</InputLabel>
-                <Select value={editTypeDialog.is_active ? 'actif' : 'inactif'} onChange={e => setEditTypeDialog(d => d ? { ...d, is_active: e.target.value === 'actif' } : null)} label="Statut">
-                  <MenuItem value="actif">Actif</MenuItem>
-                  <MenuItem value="inactif">Désactivé</MenuItem>
-                </Select>
-              </FormControl>
+              <TextField label="Nom" value={editTypeDialog.name}
+                onChange={e => setEditTypeDialog(d => d ? { ...d, name: e.target.value } : null)} fullWidth />
+              <TextField label="Prix (FCFA)" type="number" value={editTypeDialog.price}
+                onChange={e => setEditTypeDialog(d => d ? { ...d, price: parseFloat(e.target.value) } : null)} fullWidth />
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button fullWidth variant={editTypeDialog.is_active ? 'contained' : 'outlined'} color="success"
+                  onClick={() => setEditTypeDialog(d => d ? { ...d, is_active: true } : null)}>Actif</Button>
+                <Button fullWidth variant={!editTypeDialog.is_active ? 'contained' : 'outlined'} color="error"
+                  onClick={() => setEditTypeDialog(d => d ? { ...d, is_active: false } : null)}>Désactivé</Button>
+              </Box>
             </Stack>
           </DialogContent>
           <DialogActions>

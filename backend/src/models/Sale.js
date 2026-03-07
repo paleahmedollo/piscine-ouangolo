@@ -60,6 +60,11 @@ const Sale = sequelize.define('Sale', {
     type: DataTypes.STRING(200),
     allowNull: true
   },
+  module: {
+    type: DataTypes.STRING(30),
+    allowNull: true,
+    comment: 'Source module: restaurant, maquis, superette, hotel, etc.'
+  },
   synced: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

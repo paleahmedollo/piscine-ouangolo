@@ -11,7 +11,7 @@ import {
   CircularProgress,
   Divider
 } from '@mui/material';
-import GestixLogo from '../components/GestixLogo';
+import OllentraLogo from '../components/OllentraLogo';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
@@ -86,7 +86,7 @@ const Login: React.FC = () => {
           {/* ── Logo + Titre ── */}
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <Box sx={{ display: 'inline-block', mb: 1.5, filter: 'drop-shadow(0 6px 16px rgba(21,101,192,0.45))' }}>
-              <GestixLogo size={84} variant="color" />
+              <OllentraLogo size={84} variant="color" />
             </Box>
 
             <Typography
@@ -100,7 +100,7 @@ const Login: React.FC = () => {
                 mb: 0.5
               }}
             >
-              GESTIX
+              OLLENTRA
             </Typography>
 
             <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 1 }}>
@@ -172,7 +172,7 @@ const Login: React.FC = () => {
             color="text.disabled"
             sx={{ display: 'block', textAlign: 'center', mt: 3 }}
           >
-            © 2026 GESTIX — Tous droits réservés
+            © 2026 OLLENTRA — Tous droits réservés
           </Typography>
         </CardContent>
       </Card>

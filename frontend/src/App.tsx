@@ -22,6 +22,7 @@ import Pressing from './pages/Pressing';
 import Maquis from './pages/Maquis';
 import Superette from './pages/Superette';
 import Depot from './pages/Depot';
+import Cuisine from './pages/Cuisine';
 
 // Super Admin pages
 import SuperAdminLayout from './pages/Admin/SuperAdminLayout';
@@ -103,6 +104,10 @@ const DashboardRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   // Le super_admin va vers son dashboard dédié
   if (user?.role === 'super_admin') return <Navigate to="/admin/dashboard" replace />;
+  // Le cuisinier va directement vers la vue cuisine
+  if (user?.role === 'cuisinier') return <Navigate to="/cuisine" replace />;
+  // Le caissier va directement vers la caisse
+  if (user?.role === 'caissier') return <Navigate to="/caisse" replace />;
   // Si l'utilisateur n'a pas accès au dashboard, le rediriger vers ses rapports
   if (!canAccessModule('dashboard')) return <Navigate to="/reports" replace />;
   return <>{children}</>;
@@ -163,6 +168,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/maquis" element={<ProtectedRoute module="maquis"><Maquis /></ProtectedRoute>} />
       <Route path="/superette" element={<ProtectedRoute module="superette"><Superette /></ProtectedRoute>} />
       <Route path="/depot" element={<ProtectedRoute module="depot"><Depot /></ProtectedRoute>} />
+      <Route path="/cuisine" element={<ProtectedRoute module="cuisine"><Cuisine /></ProtectedRoute>} />
 
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/" replace />} />

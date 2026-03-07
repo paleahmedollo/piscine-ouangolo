@@ -66,15 +66,16 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 // Employes (maitre_nageur, serveur, receptionniste, gestionnaire_events) = leur module + leurs propres transactions
 const moduleAccess: Record<string, UserRole[]> = {
   piscine: ['maitre_nageur', 'gerant', 'admin', 'directeur', 'maire'],
-  restaurant: ['serveuse', 'serveur', 'gerant', 'admin', 'directeur', 'maire'],
+  restaurant: ['serveuse', 'serveur', 'cuisinier', 'caissier', 'gerant', 'admin', 'directeur', 'maire'],
+  cuisine: ['cuisinier', 'gerant', 'admin', 'directeur', 'responsable'],
   hotel: ['receptionniste', 'gerant', 'admin', 'directeur', 'maire'],
   events: ['gestionnaire_events', 'gerant', 'admin', 'directeur', 'maire'],
-  caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur'],
+  caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'caissier', 'gerant', 'admin', 'directeur'],
   dashboard: ['gerant', 'admin', 'responsable', 'directeur', 'maire'],
   users: ['gerant', 'admin'],
   employees: ['admin', 'directeur', 'gerant'],
   expenses: ['gerant', 'admin', 'directeur'],
-  reports: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
+  reports: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'cuisinier', 'caissier', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
   companies: ['super_admin'],  // Gestion multi-entreprises
   // Modules existants
   lavage: ['gerant', 'admin', 'serveur', 'serveuse', 'receptionniste', 'maitre_nageur'],

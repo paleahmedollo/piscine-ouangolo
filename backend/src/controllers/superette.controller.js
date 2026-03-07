@@ -1,5 +1,7 @@
-const { Product, StockMovement, Supplier, Purchase, PurchaseItem, CustomerTab, TabItem } = require('../models');
+const { Product, StockMovement, Supplier, Purchase, PurchaseItem, CustomerTab, TabItem, Sale, User } = require('../models');
 const { Op, sequelize } = require('../models');
+const { createAccountingEntry } = require('../utils/accounting');
+const { getCompanyFilter } = require('../middlewares/auth.middleware');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PRODUITS SUPERETTE
@@ -114,16 +116,55 @@ const createSale = async (req, res) => {
       return res.json({ success: true, message: `Articles ajoutés à l'onglet — ${totalAmount.toLocaleString()} FCFA` });
     }
 
-    // Vente directe
+    // Vente directe — déduire stock
     for (const item of orderItems) {
       await item.product.decrement('current_stock', { by: item.quantity });
       await StockMovement.create({
         product_id: item.product.id, type: 'OUT', quantity: item.quantity,
         unit_price: item.product.sell_price,
-        reason: 'Vente superette', reference_type: 'sale',
+        reason: payment_method === 'en_attente' ? 'Vente superette (ticket caisse)' : 'Vente superette',
+        reference_type: 'sale',
         user_id: req.user?.id
       });
     }
+
+    // Si paiement en attente → créer un ticket Sale pour la caisse
+    if (payment_method === 'en_attente') {
+      const saleItems = orderItems.map(item => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        unit_price: parseFloat(item.product.sell_price),
+        total: item.subtotal
+      }));
+      const saleRecord = await Sale.create({
+        user_id: req.user.id,
+        items_json: saleItems,
+        subtotal: totalAmount,
+        tax: 0,
+        total: totalAmount,
+        payment_method: 'en_attente',
+        status: 'ouvert',
+        module: 'superette',
+        company_id: req.user.company_id
+      });
+      return res.json({
+        success: true,
+        message: `Ticket ouvert — en attente encaissement (${totalAmount.toLocaleString()} FCFA)`,
+        data: saleRecord
+      });
+    }
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: totalAmount,
+      entry_type: 'vente',
+      payment_type: payment_method,
+      description: 'Vente supérette',
+      source_module: 'superette',
+      source_id: undefined,
+      source_type: 'sale'
+    });
+
     res.json({ success: true, message: `Vente enregistrée — ${totalAmount.toLocaleString()} FCFA`, data: { total: totalAmount } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -240,6 +281,18 @@ const addStock = async (req, res) => {
     }
 
     await purchase.update({ total_amount: totalAmount });
+
+    await createAccountingEntry({
+      company_id: req.user?.company_id,
+      amount: totalAmount,
+      entry_type: 'achat',
+      payment_type: req.body.payment_method,
+      description: 'Achat stock supérette',
+      source_module: 'superette',
+      source_id: purchase.id,
+      source_type: 'purchase'
+    });
+
     res.json({ success: true, message: `Approvisionnement enregistré — ${totalAmount.toLocaleString()} FCFA`, data: purchase });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -351,10 +404,65 @@ const getSuperetteStats = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TICKETS EN ATTENTE (ENCAISSEMENT CAISSE)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const getOpenTickets = async (req, res) => {
+  try {
+    const cf = getCompanyFilter(req);
+    const tickets = await Sale.findAll({
+      where: { status: 'ouvert', module: 'superette', ...cf },
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }],
+      order: [['created_at', 'ASC']]
+    });
+    res.json({ success: true, data: tickets });
+  } catch (error) {
+    console.error('[getOpenTickets superette]', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const payTicket = async (req, res) => {
+  try {
+    const cf = getCompanyFilter(req);
+    const { payment_method, payment_operator, payment_reference } = req.body;
+    if (!payment_method || payment_method === 'en_attente') {
+      return res.status(400).json({ success: false, message: 'Mode de paiement requis' });
+    }
+    const sale = await Sale.findOne({ where: { id: req.params.id, module: 'superette', status: 'ouvert', ...cf } });
+    if (!sale) return res.status(404).json({ success: false, message: 'Ticket introuvable' });
+
+    await sale.update({
+      status: 'ferme',
+      payment_method,
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null
+    });
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: parseFloat(sale.total),
+      entry_type: 'vente',
+      payment_type: payment_method,
+      description: 'Vente supérette (encaissement caisse)',
+      source_module: 'superette',
+      source_id: sale.id,
+      source_type: 'sale'
+    });
+
+    await sale.reload({ include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }] });
+    res.json({ success: true, message: 'Ticket encaissé', data: sale });
+  } catch (error) {
+    console.error('[payTicket superette]', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getProducts, createProduct, updateProduct, deleteProduct,
   createSale, getStock, getStockMovements, adjustStock,
   addStock, getPurchases,
   getSuppliers, createSupplier, updateSupplier,
-  getSuperetteStats
+  getSuperetteStats, getOpenTickets, payTicket
 };

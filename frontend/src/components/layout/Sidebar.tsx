@@ -21,7 +21,7 @@ import {
   PointOfSale as CaisseIcon,
   People as UsersIcon,
   Assessment as ReportsIcon,
-  Badge as EmployeesIcon,
+  AccountBalance as EmployeesIcon,
   Receipt as ExpensesIcon,
   Business as BusinessIcon,
   LocalCarWash as LavageIcon,
@@ -31,7 +31,7 @@ import {
   Warehouse as DepotIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
-import GestixLogo from '../GestixLogo';
+import OllentraLogo from '../OllentraLogo';
 
 const drawerWidth = 240;
 
@@ -59,7 +59,7 @@ const menuItems: MenuItemType[] = [
 
 const adminItems: MenuItemType[] = [
   { text: 'Utilisateurs', icon: <UsersIcon />, path: '/users', module: 'users' },
-  { text: 'Employes & Paie', icon: <EmployeesIcon />, path: '/employees', module: 'employees' },
+  { text: 'Comptabilité', icon: <EmployeesIcon />, path: '/employees', module: 'employees' },
   { text: 'Depenses', icon: <ExpensesIcon />, path: '/expenses', module: 'expenses' },
   { text: 'Entreprises', icon: <BusinessIcon />, path: '/companies', module: 'companies' }
 ];
@@ -86,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onDrawerToggle })
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar sx={{ py: 0.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <GestixLogo size={34} variant="white" />
+          <OllentraLogo size={34} variant="white" />
           <Typography
             variant="h6"
             noWrap
@@ -94,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onDrawerToggle })
             letterSpacing={2.5}
             sx={{ color: 'white', fontSize: '1.1rem' }}
           >
-            GESTIX
+            OLLENTRA
           </Typography>
         </Box>
       </Toolbar>

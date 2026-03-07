@@ -43,6 +43,14 @@ const DepotSale = require('./DepotSale');
 const DepotSaleItem = require('./DepotSaleItem');
 // ── Manquants caisse ──────────────────────────────────
 const CashShortage = require('./CashShortage');
+// ── Comptabilité ──────────────────────────────────────
+const AccountingAccount = require('./AccountingAccount')(require('../config/database').sequelize);
+const AccountingEntry   = require('./AccountingEntry')(require('../config/database').sequelize);
+// ── Restaurant V2 ─────────────────────────────────────
+const RestaurantTable = require('./RestaurantTable');
+const RestaurantOrder = require('./RestaurantOrder');
+const RestaurantOrderItem = require('./RestaurantOrderItem');
+const RestaurantNotification = require('./RestaurantNotification');
 
 // =====================================================
 // Associations / Relations
@@ -158,6 +166,8 @@ PurchaseItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 Product.hasMany(PurchaseItem, { foreignKey: 'product_id', as: 'purchaseItems' });
 Purchase.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier' });
 Supplier.hasMany(Purchase, { foreignKey: 'supplier_id', as: 'purchases' });
+Purchase.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(Purchase, { foreignKey: 'user_id', as: 'purchases' });
 
 // ── Pressing ──────────────────────────────────────────
 PressingOrder.belongsTo(PressingType, { foreignKey: 'pressing_type_id', as: 'pressingType' });
@@ -175,6 +185,23 @@ User.hasMany(DepotSale, { foreignKey: 'user_id', as: 'depotSales' });
 // ── Manquants caisse ──────────────────────────────────
 CashShortage.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(CashShortage, { foreignKey: 'user_id', as: 'cashShortages' });
+
+// ── Comptabilité ──────────────────────────────────────
+AccountingAccount.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+Company.hasMany(AccountingAccount, { foreignKey: 'company_id', as: 'accountingAccounts' });
+AccountingEntry.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// ── Restaurant V2 ─────────────────────────────────────
+RestaurantTable.hasMany(RestaurantOrder, { foreignKey: 'table_id', as: 'orders' });
+RestaurantOrder.belongsTo(RestaurantTable, { foreignKey: 'table_id', as: 'table' });
+RestaurantOrder.hasMany(RestaurantOrderItem, { foreignKey: 'order_id', as: 'items' });
+RestaurantOrderItem.belongsTo(RestaurantOrder, { foreignKey: 'order_id', as: 'order' });
+RestaurantOrderItem.belongsTo(MenuItem, { foreignKey: 'menu_item_id', as: 'menuItem' });
+RestaurantOrder.belongsTo(User, { foreignKey: 'serveuse_id', as: 'serveuse' });
+RestaurantOrder.belongsTo(User, { foreignKey: 'cuisinier_id', as: 'cuisinier' });
+RestaurantNotification.belongsTo(RestaurantOrder, { foreignKey: 'order_id', as: 'order' });
+RestaurantNotification.belongsTo(User, { foreignKey: 'destinataire_id', as: 'destinataire' });
+User.hasMany(RestaurantNotification, { foreignKey: 'destinataire_id', as: 'restaurantNotifications' });
 
 // =====================================================
 // Export
@@ -224,5 +251,13 @@ module.exports = {
   DepotSale,
   DepotSaleItem,
   // Manquants
-  CashShortage
+  CashShortage,
+  // Comptabilité
+  AccountingAccount,
+  AccountingEntry,
+  // Restaurant V2
+  RestaurantTable,
+  RestaurantOrder,
+  RestaurantOrderItem,
+  RestaurantNotification
 };

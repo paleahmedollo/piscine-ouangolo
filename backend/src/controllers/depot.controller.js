@@ -1,5 +1,6 @@
-const { DepotClient, DepotSale, DepotSaleItem, Product, StockMovement, CustomerTab, TabItem, User } = require('../models');
+const { DepotClient, DepotSale, DepotSaleItem, Product, StockMovement, CustomerTab, TabItem, User, Supplier, Purchase, PurchaseItem } = require('../models');
 const { Op, sequelize } = require('../models');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CLIENTS DÉPÔT
@@ -187,13 +188,17 @@ const createSale = async (req, res) => {
     }
 
     // Créer la vente
+    const isPending = payment_method === 'en_attente';
     const sale = await DepotSale.create({
       depot_client_id,
       total_amount: totalAmount,
       payment_method: payment_method || 'especes',
       tab_id: tab ? tab.id : null,
       user_id: req.user?.id,
-      notes
+      notes,
+      status: isPending ? 'en_attente' : 'paye',
+      client_name: client.name,
+      items_json: saleItems.map(i => ({ name: i.product.name, quantity: i.quantity, unit_price: i.unit_price, total: i.subtotal }))
     });
 
     // Créer les lignes de vente + décrémenter stock
@@ -239,10 +244,26 @@ const createSale = async (req, res) => {
       await client.increment('credit_balance', { by: totalAmount });
     }
 
+    // Ne créer l'écriture comptable que si paiement immédiat
+    if (!isPending && payment_method !== 'credit') {
+      await createAccountingEntry({
+        company_id: req.user.company_id,
+        amount: sale.total_amount,
+        entry_type: 'vente',
+        payment_type: req.body.payment_method,
+        description: 'Vente dépôt',
+        source_module: 'depot',
+        source_id: sale.id,
+        source_type: 'sale'
+      });
+    }
+
     res.json({
       success: true,
       data: sale,
-      message: `Vente enregistrée — ${totalAmount.toLocaleString()} FCFA${payment_method === 'credit' ? ' (crédit — onglet #' + tab.id + ' créé)' : ''}`
+      message: isPending
+        ? `Ticket ouvert — en attente encaissement (${totalAmount.toLocaleString()} FCFA)`
+        : `Vente enregistrée — ${totalAmount.toLocaleString()} FCFA${payment_method === 'credit' ? ' (crédit — onglet #' + tab.id + ' créé)' : ''}`
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -424,10 +445,342 @@ const getDepotStats = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FOURNISSEURS DÉPÔT
+// ─────────────────────────────────────────────────────────────────────────────
+
+const getSuppliers = async (req, res) => {
+  try {
+    const suppliers = await Supplier.findAll({
+      where: {
+        is_active: true,
+        service_type: { [Op.in]: ['depot', 'both'] }
+      },
+      order: [['name', 'ASC']]
+    });
+    res.json({ success: true, data: suppliers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const createSupplier = async (req, res) => {
+  try {
+    const { name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'Nom du fournisseur requis' });
+    const supplier = await Supplier.create({
+      name, contact, phone, email, address,
+      service_type: 'depot',
+      delai_paiement: delai_paiement || 30,
+      mode_paiement_habituel: mode_paiement_habituel || 'especes',
+      notes
+    });
+    res.json({ success: true, data: supplier, message: `Fournisseur "${name}" créé` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateSupplier = async (req, res) => {
+  try {
+    const supplier = await Supplier.findByPk(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: 'Fournisseur non trouvé' });
+    const { name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes, is_active } = req.body;
+    await supplier.update({ name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes, is_active });
+    res.json({ success: true, data: supplier, message: 'Fournisseur mis à jour' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMMANDES FOURNISSEURS DÉPÔT
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Auto-générer un numéro de commande : CMD-2026-0001
+const generateOrderNumber = async () => {
+  const year = new Date().getFullYear();
+  const [result] = await sequelize.query(
+    `SELECT COUNT(*) as cnt FROM purchases WHERE service_type = 'depot' AND EXTRACT(YEAR FROM created_at) = :year`,
+    { replacements: { year }, type: sequelize.QueryTypes.SELECT }
+  );
+  const seq = (parseInt(result.cnt) + 1).toString().padStart(4, '0');
+  return `CMD-${year}-${seq}`;
+};
+
+const getOrders = async (req, res) => {
+  try {
+    const { statut, supplier_id } = req.query;
+    const where = { service_type: 'depot' };
+    if (statut) where.statut = statut;
+    if (supplier_id) where.supplier_id = supplier_id;
+
+    const orders = await Purchase.findAll({
+      where,
+      include: [
+        { model: Supplier, as: 'supplier', attributes: ['id', 'name', 'phone', 'email'] },
+        { model: User, as: 'user', attributes: ['id', 'full_name', 'username'] },
+        {
+          model: PurchaseItem, as: 'items',
+          include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'unit', 'current_stock'] }]
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit: 200
+    });
+
+    const mapped = orders.map(o => ({
+      ...o.toJSON(),
+      supplier_name: o.supplier?.name || '—',
+      user_name: o.user?.full_name || o.user?.username || '—'
+    }));
+    res.json({ success: true, data: mapped });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const createOrder = async (req, res) => {
+  try {
+    const { supplier_id, purchase_date, date_echeance, reference_facture, items, notes } = req.body;
+    if (!items || !items.length) {
+      return res.status(400).json({ success: false, message: 'Au moins un article requis' });
+    }
+
+    // Calculer le montant total
+    let totalAmount = 0;
+    const validatedItems = [];
+    for (const item of items) {
+      const product = await Product.findOne({ where: { id: item.product_id, service_type: 'depot' } });
+      if (!product) return res.status(404).json({ success: false, message: `Produit ID ${item.product_id} introuvable` });
+      const qty = parseFloat(item.quantity);
+      const unitPrice = parseFloat(item.unit_price || product.buy_price || 0);
+      const subtotal = qty * unitPrice;
+      totalAmount += subtotal;
+      validatedItems.push({ product_id: item.product_id, quantity: qty, unit_price: unitPrice, subtotal, date_expiration: item.date_expiration || null });
+    }
+
+    const numero_commande = await generateOrderNumber();
+
+    const order = await Purchase.create({
+      supplier_id: supplier_id || null,
+      service_type: 'depot',
+      numero_commande,
+      purchase_date: purchase_date || new Date().toISOString().split('T')[0],
+      date_echeance: date_echeance || null,
+      reference_facture: reference_facture || null,
+      total_amount: totalAmount,
+      montant_paye: 0,
+      reste_a_payer: totalAmount,
+      statut: 'en_attente',
+      notes,
+      user_id: req.user?.id
+    });
+
+    // Créer les lignes de commande
+    for (const item of validatedItems) {
+      await PurchaseItem.create({
+        purchase_id: order.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        quantite_recue: 0,
+        unit_price: item.unit_price,
+        subtotal: item.subtotal,
+        date_expiration: item.date_expiration
+      });
+    }
+
+    res.json({ success: true, data: { ...order.toJSON(), numero_commande }, message: `Commande ${numero_commande} créée` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const receiveOrder = async (req, res) => {
+  try {
+    const order = await Purchase.findOne({
+      where: { id: req.params.id, service_type: 'depot' },
+      include: [{ model: PurchaseItem, as: 'items' }]
+    });
+    if (!order) return res.status(404).json({ success: false, message: 'Commande introuvable' });
+    if (order.statut === 'annule') return res.status(400).json({ success: false, message: 'Commande annulée' });
+
+    // items_received : [{purchase_item_id, quantite_recue}]
+    const { items_received, date_reception } = req.body;
+    if (!items_received || !items_received.length) {
+      return res.status(400).json({ success: false, message: 'Quantités reçues requises' });
+    }
+
+    let totalRecuQty = 0;
+    let totalCommandeQty = 0;
+
+    for (const recv of items_received) {
+      const orderItem = order.items.find(i => i.id === recv.purchase_item_id);
+      if (!orderItem) continue;
+
+      const qtyRecue = parseFloat(recv.quantite_recue || 0);
+      const newTotal = Math.min(parseFloat(orderItem.quantity), parseFloat(orderItem.quantite_recue || 0) + qtyRecue);
+
+      if (qtyRecue > 0) {
+        // Mettre à jour quantite_recue dans la ligne
+        await orderItem.update({ quantite_recue: newTotal });
+
+        // Incrémenter le stock du produit
+        await Product.increment('current_stock', {
+          by: qtyRecue,
+          where: { id: orderItem.product_id }
+        });
+
+        // Enregistrer le mouvement de stock
+        await StockMovement.create({
+          product_id: orderItem.product_id,
+          type: 'IN',
+          quantity: qtyRecue,
+          unit_price: orderItem.unit_price,
+          reason: `Réception commande ${order.numero_commande}`,
+          reference_type: 'purchase',
+          reference_id: order.id,
+          user_id: req.user?.id
+        });
+      }
+
+      totalRecuQty += parseFloat(newTotal);
+      totalCommandeQty += parseFloat(orderItem.quantity);
+    }
+
+    // Calculer le nouveau statut
+    let newStatut = order.statut;
+    if (totalCommandeQty > 0) {
+      if (totalRecuQty >= totalCommandeQty) newStatut = 'recu';
+      else if (totalRecuQty > 0) newStatut = 'partiel';
+    }
+
+    await order.update({
+      statut: newStatut,
+      date_reception: date_reception || new Date().toISOString().split('T')[0]
+    });
+
+    res.json({ success: true, message: `Réception enregistrée — statut: ${newStatut}`, data: order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const payOrder = async (req, res) => {
+  try {
+    const order = await Purchase.findOne({ where: { id: req.params.id, service_type: 'depot' } });
+    if (!order) return res.status(404).json({ success: false, message: 'Commande introuvable' });
+    if (order.statut === 'annule') return res.status(400).json({ success: false, message: 'Commande annulée' });
+
+    const { montant } = req.body;
+    if (!montant || parseFloat(montant) <= 0) {
+      return res.status(400).json({ success: false, message: 'Montant requis' });
+    }
+
+    const paiement = parseFloat(montant);
+    const nouvelMontantPaye = Math.min(parseFloat(order.total_amount), parseFloat(order.montant_paye || 0) + paiement);
+    const nouvelReste = Math.max(0, parseFloat(order.total_amount) - nouvelMontantPaye);
+
+    await order.update({
+      montant_paye: nouvelMontantPaye,
+      reste_a_payer: nouvelReste
+    });
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: req.body.montant,
+      entry_type: 'achat',
+      payment_type: undefined,
+      description: 'Paiement fournisseur',
+      source_module: 'depot',
+      source_id: req.params.id,
+      source_type: 'purchase'
+    });
+
+    res.json({
+      success: true,
+      message: `Paiement de ${paiement.toLocaleString()} FCFA enregistré. Reste: ${nouvelReste.toLocaleString()} FCFA`,
+      data: order
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const cancelOrder = async (req, res) => {
+  try {
+    const order = await Purchase.findOne({ where: { id: req.params.id, service_type: 'depot' } });
+    if (!order) return res.status(404).json({ success: false, message: 'Commande introuvable' });
+    if (order.statut === 'recu') return res.status(400).json({ success: false, message: 'Impossible d\'annuler une commande déjà reçue' });
+    await order.update({ statut: 'annule' });
+    res.json({ success: true, message: 'Commande annulée' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TICKETS EN ATTENTE (ENCAISSEMENT CAISSE)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const getPendingSales = async (req, res) => {
+  try {
+    const sales = await DepotSale.findAll({
+      where: { status: 'en_attente' },
+      include: [
+        { model: DepotClient, as: 'client', attributes: ['id', 'name', 'phone'] },
+        { model: User, as: 'user', attributes: ['id', 'full_name'] }
+      ],
+      order: [['created_at', 'ASC']]
+    });
+    res.json({ success: true, data: sales });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const payDepotSale = async (req, res) => {
+  try {
+    const { payment_method, payment_operator, payment_reference } = req.body;
+    if (!payment_method || payment_method === 'en_attente') {
+      return res.status(400).json({ success: false, message: 'Mode de paiement requis' });
+    }
+    const sale = await DepotSale.findOne({
+      where: { id: req.params.id, status: 'en_attente' },
+      include: [{ model: DepotClient, as: 'client', attributes: ['id', 'name'] }]
+    });
+    if (!sale) return res.status(404).json({ success: false, message: 'Ticket introuvable' });
+
+    await sale.update({ status: 'paye', payment_method });
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: parseFloat(sale.total_amount),
+      entry_type: 'vente',
+      payment_type: payment_method,
+      description: `Vente dépôt — ${sale.client_name || ''}`,
+      source_module: 'depot',
+      source_id: sale.id,
+      source_type: 'sale'
+    });
+
+    await sale.reload({ include: [{ model: DepotClient, as: 'client', attributes: ['id', 'name', 'phone'] }] });
+    res.json({ success: true, message: 'Ticket encaissé', data: sale });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getClients, createClient, updateClient,
   getProducts, createProduct, updateProduct, receiveStock,
   createSale, getSales,
   payCredit,
-  getDepotStats
+  getDepotStats,
+  // Fournisseurs
+  getSuppliers, createSupplier, updateSupplier,
+  // Commandes fournisseurs
+  getOrders, createOrder, receiveOrder, payOrder, cancelOrder,
+  // Tickets en attente
+  getPendingSales, payDepotSale
 };

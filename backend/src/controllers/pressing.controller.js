@@ -1,5 +1,6 @@
 const { PressingType, PressingOrder, CustomerTab, TabItem } = require('../models');
 const { Op, sequelize } = require('../models');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES DE PRESSING
@@ -70,74 +71,77 @@ const deletePressingType = async (req, res) => {
 
 const createOrder = async (req, res) => {
   try {
-    const {
-      pressing_type_id, customer_name, customer_phone,
-      quantity, payment_method, tab_id, notes
-    } = req.body;
+    const { customer_name, customer_phone, notes, items } = req.body;
 
     if (!customer_name) {
       return res.status(400).json({ success: false, message: 'Nom du client requis' });
     }
-    if (!pressing_type_id) {
-      return res.status(400).json({ success: false, message: 'Type de pressing requis' });
-    }
 
-    const pressingType = await PressingType.findByPk(pressing_type_id);
-    if (!pressingType) return res.status(404).json({ success: false, message: 'Type de pressing non trouvé' });
+    // ── Support multi-articles (nouveau format) ──────────────────────────────
+    if (items && Array.isArray(items) && items.length > 0) {
+      // Valider chaque ligne
+      const activeItems = items.filter(it => it.quantity > 0);
+      if (activeItems.length === 0) {
+        return res.status(400).json({ success: false, message: 'Sélectionnez au moins un article' });
+      }
 
-    const qty = parseInt(quantity) || 1;
-    const amount = parseFloat(pressingType.price) * qty;
-    const requestedStatus = req.body.status;
+      // Charger tous les types nécessaires
+      const typeIds = [...new Set(activeItems.map(it => it.pressing_type_id))];
+      const types = await PressingType.findAll({ where: { id: typeIds } });
+      const typeMap = Object.fromEntries(types.map(t => [t.id, t]));
 
-    // ── Ticket en attente (vêtements déposés, pas encore payés) ──
-    if (requestedStatus === 'en_attente' || payment_method === 'en_attente') {
+      // Calculer le total + construire items_json
+      let totalAmount = 0;
+      const itemsJson = [];
+      for (const it of activeItems) {
+        const t = typeMap[it.pressing_type_id];
+        if (!t) return res.status(404).json({ success: false, message: `Type ${it.pressing_type_id} introuvable` });
+        const lineTotal = parseFloat(t.price) * it.quantity;
+        totalAmount += lineTotal;
+        itemsJson.push({ pressing_type_id: t.id, name: t.name, quantity: it.quantity, unit_price: parseFloat(t.price), total: lineTotal });
+      }
+
+      // Toujours créé en_attente → paiement à la Caisse
       const order = await PressingOrder.create({
-        pressing_type_id, customer_name, customer_phone,
-        quantity: qty, amount,
+        pressing_type_id: null,           // multi-articles → pas de type unique
+        customer_name, customer_phone,
+        quantity: activeItems.reduce((s, it) => s + it.quantity, 0),
+        amount: totalAmount,
+        items_json: JSON.stringify(itemsJson),
         status: 'en_attente',
         user_id: req.user?.id, notes
       });
-      return res.json({ success: true, data: order, message: `🎫 Ticket ouvert — ${pressingType.name} pour ${customer_name}` });
+
+      // Recharger avec association pressingType (null pour multi)
+      const orderData = order.toJSON();
+      orderData.itemsParsed = itemsJson;
+
+      return res.json({
+        success: true, data: orderData,
+        message: `🎫 Ticket créé — ${itemsJson.length} article(s) — ${totalAmount.toLocaleString()} FCFA à la Caisse`
+      });
     }
 
-    if (tab_id) {
-      // Ajouter à un onglet client
-      const tab = await CustomerTab.findByPk(tab_id);
-      if (!tab || tab.status !== 'ouvert') {
-        return res.status(400).json({ success: false, message: 'Onglet invalide ou déjà fermé' });
-      }
-
-      const order = await PressingOrder.create({
-        pressing_type_id, customer_name, customer_phone,
-        quantity: qty, amount,
-        status: 'tab', tab_id,
-        user_id: req.user?.id, notes
-      });
-
-      await TabItem.create({
-        tab_id,
-        service_type: 'pressing',
-        item_name: `${pressingType.name} x${qty} (${customer_name})`,
-        quantity: qty,
-        unit_price: pressingType.price,
-        subtotal: amount,
-        reference_id: order.id
-      });
-
-      await tab.update({ total_amount: parseFloat(tab.total_amount) + amount });
-      return res.json({ success: true, data: order, message: `Pressing ajouté à l'onglet — ${amount.toLocaleString()} FCFA` });
+    // ── Compatibilité ancien format (pressing_type_id unique) ────────────────
+    const { pressing_type_id, quantity } = req.body;
+    if (!pressing_type_id) {
+      return res.status(400).json({ success: false, message: 'Articles requis' });
     }
+    const pressingType = await PressingType.findByPk(pressing_type_id);
+    if (!pressingType) return res.status(404).json({ success: false, message: 'Type de pressing non trouvé' });
+    const qty = parseInt(quantity) || 1;
+    const amount = parseFloat(pressingType.price) * qty;
+    const itemsJson = JSON.stringify([{ pressing_type_id: pressingType.id, name: pressingType.name, quantity: qty, unit_price: parseFloat(pressingType.price), total: amount }]);
 
-    // Paiement direct
     const order = await PressingOrder.create({
       pressing_type_id, customer_name, customer_phone,
-      quantity: qty, amount,
-      payment_method: payment_method || 'especes',
-      status: 'paye',
+      quantity: qty, amount, items_json: itemsJson,
+      status: 'en_attente',
       user_id: req.user?.id, notes
     });
 
-    res.json({ success: true, data: order, message: `Commande enregistrée — ${amount.toLocaleString()} FCFA` });
+    return res.json({ success: true, data: order, message: `🎫 Ticket créé — ${pressingType.name} pour ${customer_name}` });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

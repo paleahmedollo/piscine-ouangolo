@@ -14,7 +14,8 @@ import {
   UploadFile as UploadIcon, Download as DownloadIcon,
   CheckCircleOutline as SuccessRowIcon, ErrorOutline as ErrorRowIcon,
   WarningAmber as SkipRowIcon, ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon, Tag as IdIcon
+  ExpandLess as ExpandLessIcon, Tag as IdIcon,
+  Extension as ModuleIcon
 } from '@mui/icons-material';
 import { companiesApi } from '../services/api';
 
@@ -300,6 +301,7 @@ const Companies: React.FC = () => {
               <TableCell><strong>Entreprise</strong></TableCell>
               <TableCell><strong>Code</strong></TableCell>
               <TableCell><strong>Plan</strong></TableCell>
+              <TableCell><strong>Modules</strong></TableCell>
               <TableCell><strong>Utilisateurs</strong></TableCell>
               <TableCell><strong>Statut</strong></TableCell>
               <TableCell><strong>Créé le</strong></TableCell>
@@ -308,9 +310,9 @@ const Companies: React.FC = () => {
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
             ) : companies.length === 0 ? (
-              <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+              <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                 <Typography color="text.secondary">Aucune entreprise</Typography>
               </TableCell></TableRow>
             ) : companies.map((company) => (
@@ -331,6 +333,47 @@ const Companies: React.FC = () => {
                 </TableCell>
                 <TableCell><Chip label={company.code} size="small" variant="outlined" /></TableCell>
                 <TableCell><Chip label={planLabel(company.plan)} size="small" color={planColor(company.plan)} /></TableCell>
+                <TableCell>
+                  {/* Affichage des modules actifs */}
+                  {(() => {
+                    const mods = company.modules === null || company.modules === undefined
+                      ? ALL_MODULE_KEYS
+                      : company.modules;
+                    const count = mods.length;
+                    const total = ALL_MODULES.length;
+                    const isAll = count === total;
+                    return (
+                      <Tooltip
+                        title={
+                          <Box>
+                            <Typography variant="caption" fontWeight="bold" sx={{ display: 'block', mb: 0.5 }}>
+                              Modules actifs :
+                            </Typography>
+                            {ALL_MODULES.map(m => (
+                              <Box key={m.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="caption" sx={{ color: mods.includes(m.key) ? '#a5d6a7' : '#ef9a9a' }}>
+                                  {mods.includes(m.key) ? '✓' : '✗'} {m.label}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        }
+                        arrow
+                        placement="right"
+                      >
+                        <Chip
+                          icon={<ModuleIcon sx={{ fontSize: '14px !important' }} />}
+                          label={`${count}/${total}`}
+                          size="small"
+                          color={isAll ? 'success' : count >= total / 2 ? 'warning' : 'error'}
+                          variant={isAll ? 'filled' : 'outlined'}
+                          onClick={() => openEditDialog(company)}
+                          sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                        />
+                      </Tooltip>
+                    );
+                  })()}
+                </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <PeopleIcon fontSize="small" color="action" />

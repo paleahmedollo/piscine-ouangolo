@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { CashRegister, User, Ticket, Sale, Reservation, Event, Quote } = require('../models');
+const { CashRegister, User, Ticket, Sale, Reservation, Event, Quote, CarWash, PressingOrder, DepotSale } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 const { generateReceipt } = require('./receipts.controller');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
@@ -9,7 +9,12 @@ const moduleRoles = {
   piscine: ['maitre_nageur'],
   restaurant: ['serveuse', 'serveur'],
   hotel: ['receptionniste'],
-  events: ['gestionnaire_events']
+  events: ['gestionnaire_events'],
+  lavage: ['caissier_lavage'],
+  pressing: ['caissier_pressing'],
+  maquis: ['caissier_maquis'],
+  superette: ['caissier_superette'],
+  depot: ['caissier_depot']
 };
 
 /**
@@ -74,6 +79,37 @@ const calculateExpectedAmount = async (module, date, userId = null) => {
         count++;
       });
       break;
+
+    case 'lavage':
+      if (CarWash) {
+        const washes = await CarWash.findAll({ where: { ...whereClause, status: 'paye' } });
+        washes.forEach(w => { total += parseFloat(w.amount || 0); count++; });
+      }
+      break;
+
+    case 'pressing':
+      if (PressingOrder) {
+        const orders = await PressingOrder.findAll({ where: { ...whereClause, status: 'paye' } });
+        orders.forEach(o => { total += parseFloat(o.amount || 0); count++; });
+      }
+      break;
+
+    case 'maquis':
+      const maquisSales = await Sale.findAll({ where: { ...whereClause, module: 'maquis', status: 'ferme' } });
+      maquisSales.forEach(s => { total += parseFloat(s.total || 0); count++; });
+      break;
+
+    case 'superette':
+      const superetteSales = await Sale.findAll({ where: { ...whereClause, module: 'superette', status: 'ferme' } });
+      superetteSales.forEach(s => { total += parseFloat(s.total || 0); count++; });
+      break;
+
+    case 'depot':
+      if (DepotSale) {
+        const depotSales = await DepotSale.findAll({ where: { ...whereClause, status: 'paye' } });
+        depotSales.forEach(s => { total += parseFloat(s.total_amount || 0); count++; });
+      }
+      break;
   }
 
   return { total, count };
@@ -96,12 +132,17 @@ const closeCashRegister = async (req, res) => {
     }
 
     // Vérifier les droits d'accès au module
-    // Admin et gerant ont accès à tous les modules pour la cloture
+    const highPrivRoles = ['gerant', 'admin', 'directeur'];
     const moduleAccess = {
-      piscine: ['maitre_nageur', 'gerant', 'admin', 'directeur'],
-      restaurant: ['serveuse', 'serveur', 'gerant', 'admin', 'directeur'],
-      hotel: ['receptionniste', 'gerant', 'admin', 'directeur'],
-      events: ['gestionnaire_events', 'gerant', 'admin', 'directeur']
+      piscine:   ['maitre_nageur', ...highPrivRoles],
+      restaurant:['serveuse', 'serveur', ...highPrivRoles],
+      hotel:     ['receptionniste', ...highPrivRoles],
+      events:    ['gestionnaire_events', ...highPrivRoles],
+      lavage:    ['caissier_lavage', ...highPrivRoles],
+      pressing:  ['caissier_pressing', ...highPrivRoles],
+      maquis:    ['caissier_maquis', ...highPrivRoles],
+      superette: ['caissier_superette', ...highPrivRoles],
+      depot:     ['caissier_depot', ...highPrivRoles]
     };
 
     if (!moduleAccess[module]?.includes(req.user.role)) {

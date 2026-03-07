@@ -88,7 +88,7 @@ const AdminDashboard: React.FC = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h5" fontWeight={700} color="#1a237e">Tableau de bord</Typography>
-          <Typography variant="body2" color="text.secondary">Vue globale de la plateforme Gestix</Typography>
+          <Typography variant="body2" color="text.secondary">Vue globale de la plateforme Ollentra</Typography>
         </Box>
         <Tooltip title="Actualiser">
           <IconButton onClick={loadStats}><RefreshIcon /></IconButton>

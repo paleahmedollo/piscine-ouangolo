@@ -1,15 +1,15 @@
 import React from 'react';
 
-interface GestixLogoProps {
+interface OllentraLogoProps {
   size?: number;
   variant?: 'color' | 'white';
 }
 
 /**
- * Logo GESTIX — Bouclier avec coche + flèche montante
+ * Logo OLLENTRA — Bouclier avec coche + flèche montante
  * Shield shape with white check-arrow icon inside
  */
-const GestixLogo: React.FC<GestixLogoProps> = ({ size = 60, variant = 'color' }) => {
+const OllentraLogo: React.FC<OllentraLogoProps> = ({ size = 60, variant = 'color' }) => {
   const uid = `gx-${size}-${variant}`;
 
   // Shield path in 60×60 viewBox
@@ -72,4 +72,4 @@ const GestixLogo: React.FC<GestixLogoProps> = ({ size = 60, variant = 'color' })
   );
 };
 
-export default GestixLogo;
+export default OllentraLogo;

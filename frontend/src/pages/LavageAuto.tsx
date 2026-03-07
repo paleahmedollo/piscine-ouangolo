@@ -25,8 +25,7 @@ interface Stats { today: { total_lavages: number; total_cash: number; tab_count:
 const fmt = (n: number) => n?.toLocaleString('fr-FR') + ' FCFA';
 
 const LavageAuto: React.FC = () => {
-  const { } = useAuth(); // permissions available
-  // const canManage = hasPermission('lavage', 'gestion');
+  const { } = useAuth();
   const [tab, setTab] = useState(0);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [carWashes, setCarWashes] = useState<CarWash[]>([]);
@@ -35,7 +34,6 @@ const LavageAuto: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
-  // Dialog states
   const [washDialog, setWashDialog] = useState(false);
   const [typeDialog, setTypeDialog] = useState(false);
   const [tabDialog, setTabDialog] = useState(false);
@@ -45,7 +43,6 @@ const LavageAuto: React.FC = () => {
   const [payWashMethod, setPayWashMethod] = useState('especes');
   const [receiptDialog, setReceiptDialog] = useState<CarWash | null>(null);
 
-  // Forms
   const [washForm, setWashForm] = useState({ vehicle_type_id: '', plate_number: '', customer_name: '', customer_phone: '', payment_method: 'especes', tab_id: '' });
   const [typeForm, setTypeForm] = useState({ name: '', price: '' });
   const [tabForm, setTabForm] = useState({ customer_name: '', customer_info: '' });
@@ -83,12 +80,12 @@ const LavageAuto: React.FC = () => {
         plate_number: washForm.plate_number,
         customer_name: washForm.customer_name,
         customer_phone: washForm.customer_phone,
-        payment_method: washForm.payment_method,
+        payment_method: 'en_attente',  // Toujours en attente → paiement à la Caisse
         tab_id: washForm.tab_id ? parseInt(washForm.tab_id) : undefined
       });
-      showAlert('success', 'Lavage enregistré !');
+      showAlert('success', '🎫 Lavage enregistré — paiement à la Caisse');
       setWashDialog(false);
-      setWashForm({ vehicle_type_id: '', plate_number: '', customer_name: '', customer_phone: '', payment_method: 'especes', tab_id: '' });
+      setWashForm({ vehicle_type_id: '', plate_number: '', customer_name: '', customer_phone: '', payment_method: 'en_attente', tab_id: '' });
       loadAll();
     } catch (e: unknown) {
       showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
@@ -239,20 +236,44 @@ const LavageAuto: React.FC = () => {
         {/* Tab 0: Lavages du jour */}
         {tab === 0 && (
           <Box>
+            {/* Stats par véhicule EN LIGNE */}
             {stats?.by_vehicle && stats.by_vehicle.length > 0 && (
-              <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                {stats.by_vehicle.map((v) => (
-                  <Grid item xs={6} sm={4} md={2.4} key={v.name}>
-                    <Card variant="outlined" sx={{ textAlign: 'center', p: 1 }}>
-                      <CarIcon color={parseInt(String(v.nb_lavages)) > 0 ? 'primary' : 'disabled'} />
-                      <Typography variant="body2" fontWeight={600}>{v.name}</Typography>
-                      <Typography variant="h6" fontWeight={700} color="primary">{v.nb_lavages || 0}</Typography>
-                      <Typography variant="caption" color="text.secondary">{fmt(v.price)}</Typography>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
+              <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: 'grey.50' }}>
+                    <TableRow>
+                      <TableCell><strong>Type de véhicule</strong></TableCell>
+                      <TableCell align="center"><strong>Nb lavages</strong></TableCell>
+                      <TableCell align="right"><strong>Prix unitaire</strong></TableCell>
+                      <TableCell align="right"><strong>Total</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {stats.by_vehicle.map((v) => (
+                      <TableRow key={v.name} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CarIcon color={v.nb_lavages > 0 ? 'primary' : 'disabled'} fontSize="small" />
+                            <Typography variant="body2" fontWeight={600}>{v.name}</Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip label={v.nb_lavages || 0} color={v.nb_lavages > 0 ? 'primary' : 'default'} size="small" />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" color="text.secondary">{fmt(v.price)}</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" fontWeight={700} color="success.main">{fmt(v.total || 0)}</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             )}
+
+            {/* Liste des lavages */}
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead sx={{ bgcolor: 'grey.50' }}>
@@ -357,7 +378,7 @@ const LavageAuto: React.FC = () => {
           </Grid>
         )}
 
-        {/* Tab 2: Types de véhicules */}
+        {/* Tab 2: Types de véhicules EN LIGNE */}
         {tab === 2 && (
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
@@ -365,28 +386,55 @@ const LavageAuto: React.FC = () => {
                 Nouveau type
               </Button>
             </Box>
-            <Grid container spacing={2}>
-              {vehicleTypes.map(v => (
-                <Grid item xs={6} sm={4} md={3} key={v.id}>
-                  <Card variant="outlined" sx={{ opacity: v.is_active ? 1 : 0.5 }}>
-                    <CardContent sx={{ textAlign: 'center', p: 2 }}>
-                      <CarIcon color="primary" sx={{ fontSize: 40 }} />
-                      <Typography fontWeight={700}>{v.name}</Typography>
-                      <Typography variant="h6" color="primary" fontWeight={700}>{fmt(v.price)}</Typography>
-                      {!v.is_active && <Chip label="Désactivé" size="small" color="default" sx={{ mt: 0.5 }} />}
-                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton size="small" onClick={() => { setEditTypeDialog(v); setTypeForm({ name: v.name, price: String(v.price) }); setTypeDialog(true); }}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDeleteType(v.id)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                  <TableRow>
+                    <TableCell><strong>Type de véhicule</strong></TableCell>
+                    <TableCell align="right"><strong>Prix</strong></TableCell>
+                    <TableCell align="center"><strong>Statut</strong></TableCell>
+                    <TableCell align="center"><strong>Actions</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {vehicleTypes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun type de véhicule</TableCell>
+                    </TableRow>
+                  )}
+                  {vehicleTypes.map(v => (
+                    <TableRow key={v.id} hover sx={{ opacity: v.is_active ? 1 : 0.5 }}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CarIcon color="primary" fontSize="small" />
+                          <Typography fontWeight={600}>{v.name}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography fontWeight={700} color="primary">{fmt(v.price)}</Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        {v.is_active ? <Chip label="Actif" color="success" size="small" /> : <Chip label="Désactivé" color="default" size="small" />}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={0.5} justifyContent="center">
+                          <Tooltip title="Modifier">
+                            <IconButton size="small" color="primary" onClick={() => { setEditTypeDialog(v); setTypeForm({ name: v.name, price: String(v.price) }); setTypeDialog(true); }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Désactiver">
+                            <IconButton size="small" color="error" onClick={() => handleDeleteType(v.id)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
         )}
 
@@ -431,51 +479,47 @@ const LavageAuto: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {/* Type de véhicule : nom à gauche, prix à droite */}
             <FormControl fullWidth required>
               <InputLabel>Type de véhicule</InputLabel>
               <Select value={washForm.vehicle_type_id} label="Type de véhicule" onChange={e => setWashForm(f => ({ ...f, vehicle_type_id: e.target.value }))}>
                 {vehicleTypes.filter(v => v.is_active).map(v => (
-                  <MenuItem key={v.id} value={v.id}>{v.name} — {fmt(v.price)}</MenuItem>
+                  <MenuItem key={v.id} value={v.id}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <Typography variant="body2">🚗 {v.name}</Typography>
+                      <Typography variant="body2" fontWeight={700} color="primary">{fmt(v.price)}</Typography>
+                    </Box>
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
             {selectedVehicle && (
-              <Alert severity="info">Prix: <strong>{fmt(selectedVehicle.price)}</strong></Alert>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.5, py: 1, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #90caf9' }}>
+                <Typography variant="body2">💰 Prix du lavage :</Typography>
+                <Typography variant="body2" fontWeight={700} color="primary">{fmt(selectedVehicle.price)}</Typography>
+              </Box>
             )}
             <TextField label="Numéro de plaque" value={washForm.plate_number} onChange={e => setWashForm(f => ({ ...f, plate_number: e.target.value }))} />
             <TextField label="Nom du client" value={washForm.customer_name} onChange={e => setWashForm(f => ({ ...f, customer_name: e.target.value }))} />
             <TextField label="Téléphone" value={washForm.customer_phone} onChange={e => setWashForm(f => ({ ...f, customer_phone: e.target.value }))} />
-
-            <FormControl fullWidth>
-              <InputLabel>Onglet client (optionnel)</InputLabel>
-              <Select value={washForm.tab_id} label="Onglet client (optionnel)" onChange={e => setWashForm(f => ({ ...f, tab_id: e.target.value }))}>
-                <MenuItem value="">Paiement direct</MenuItem>
-                {openTabs.map(t => (
-                  <MenuItem key={t.id} value={t.id}>{t.customer_name} ({fmt(t.total_amount)} en cours)</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {!washForm.tab_id && (
+            {openTabs.length > 0 && (
               <FormControl fullWidth>
-                <InputLabel>Mode de paiement</InputLabel>
-                <Select value={washForm.payment_method} label="Mode de paiement" onChange={e => setWashForm(f => ({ ...f, payment_method: e.target.value }))}>
-                  <MenuItem value="especes">Espèces</MenuItem>
-                  <MenuItem value="mobile_money">Mobile Money</MenuItem>
-                  <MenuItem value="carte">Carte bancaire</MenuItem>
-                  <MenuItem value="en_attente">🎫 Ticket — payer plus tard</MenuItem>
+                <InputLabel>Onglet client (optionnel)</InputLabel>
+                <Select value={washForm.tab_id} label="Onglet client (optionnel)" onChange={e => setWashForm(f => ({ ...f, tab_id: e.target.value }))}>
+                  <MenuItem value="">Aucun onglet</MenuItem>
+                  {openTabs.map(t => (<MenuItem key={t.id} value={t.id}>{t.customer_name} ({fmt(t.total_amount)} en cours)</MenuItem>))}
                 </Select>
               </FormControl>
             )}
-            {washForm.payment_method === 'en_attente' && (
-              <Alert severity="info" sx={{ py: 0.5 }}>Un ticket sera créé. Le client paiera à la fin du lavage.</Alert>
-            )}
+            <Alert severity="info" sx={{ py: 0.5 }}>
+              🏦 <strong>Paiement à la Caisse</strong> — Le lavage sera enregistré. Le client paie à la Caisse.
+            </Alert>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWashDialog(false)}>Annuler</Button>
           <Button variant="contained" onClick={handleCreateWash} startIcon={<WashIcon />}>
-            {washForm.tab_id ? 'Ajouter à l\'onglet' : washForm.payment_method === 'en_attente' ? '🎫 Ouvrir le ticket' : 'Encaisser'}
+            {washForm.tab_id ? 'Ajouter à l\'onglet' : '🎫 Enregistrer → Caisse'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -512,9 +556,7 @@ const LavageAuto: React.FC = () => {
 
       {/* Dialog: Payer un lavage en attente */}
       <Dialog open={!!payWashDialog} onClose={() => setPayWashDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white' }}>
-          💳 Encaisser le lavage
-        </DialogTitle>
+        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white' }}>💳 Encaisser le lavage</DialogTitle>
         <DialogContent>
           {payWashDialog && (
             <Stack spacing={2} sx={{ pt: 2 }}>
@@ -543,11 +585,9 @@ const LavageAuto: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog: Reçu de paiement */}
+      {/* Dialog: Reçu */}
       <Dialog open={!!receiptDialog} onClose={() => setReceiptDialog(null)} maxWidth="xs">
-        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white', textAlign: 'center' }}>
-          ✅ Reçu de paiement
-        </DialogTitle>
+        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white', textAlign: 'center' }}>✅ Reçu de paiement</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           {receiptDialog && (
             <Stack spacing={1.5} alignItems="center">
@@ -558,13 +598,8 @@ const LavageAuto: React.FC = () => {
               {receiptDialog.customer_name && <Typography>Client: {receiptDialog.customer_name}</Typography>}
               <Divider sx={{ width: '100%' }} />
               <Typography variant="h4" color="success.main" fontWeight={700}>{fmt(receiptDialog.amount)}</Typography>
-              <Chip
-                label={receiptDialog.payment_method === 'especes' ? 'Espèces' : receiptDialog.payment_method === 'mobile_money' ? 'Mobile Money' : 'Carte'}
-                color="success" size="small"
-              />
-              <Typography variant="caption" color="text.secondary">
-                {new Date().toLocaleString('fr-FR')}
-              </Typography>
+              <Chip label={receiptDialog.payment_method === 'especes' ? 'Espèces' : receiptDialog.payment_method === 'mobile_money' ? 'Mobile Money' : 'Carte'} color="success" size="small" />
+              <Typography variant="caption" color="text.secondary">{new Date().toLocaleString('fr-FR')}</Typography>
               <Divider sx={{ width: '100%' }} />
               <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>Merci de votre visite !</Typography>
             </Stack>

@@ -21,7 +21,7 @@ import {
   ChevronLeft as ChevronLeftIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
-import GestixLogo from '../../components/GestixLogo';
+import OllentraLogo from '../../components/OllentraLogo';
 
 const DRAWER_WIDTH = 260;
 
@@ -60,11 +60,11 @@ const SuperAdminLayout: React.FC = () => {
       {/* Logo */}
       <Box sx={{ p: 2.5, pb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Box sx={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}>
-          <GestixLogo size={42} variant="white" />
+          <OllentraLogo size={42} variant="white" />
         </Box>
         <Box>
           <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1.2, fontSize: '1rem' }}>
-            Gestix
+            Ollentra
           </Typography>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.7rem' }}>
             Super Administration

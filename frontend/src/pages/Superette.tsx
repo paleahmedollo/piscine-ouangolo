@@ -9,28 +9,102 @@ import {
 import {
   Add as AddIcon, StoreMallDirectory as SuperetteIcon, Refresh as RefreshIcon,
   Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon,
-  LocalShipping as SupplyIcon,
-  Receipt as ReceiptIcon,
+  LocalShipping as SupplyIcon, Receipt as ReceiptIcon, Print as PrintIcon,
   Remove as RemoveIcon, AddCircle as AddCircleIcon, Search as SearchIcon,
-  Tune as AdjustIcon
+  Tune as AdjustIcon, CheckCircle as PaidIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import { superetteApi, tabsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Product { id: number; name: string; category: string; buy_price: number; sell_price: number; unit: string; current_stock: number; min_stock: number; is_active: boolean; description: string; }
-interface Supplier { id: number; name: string; contact: string; phone: string; }
+interface Supplier { id: number; name: string; contact: string; phone: string; address?: string; }
 interface CustomerTab { id: number; customer_name: string; customer_info: string; total_amount: number; items: unknown[]; }
 interface CartItem { product: Product; quantity: number; }
+interface SaleOrder { id: number; items: CartItem[]; total: number; payment_method: string; created_at: string; }
 interface Stats { today: { total_ventes: number }; total_products: number; total_stock_value: number; low_stock_alerts: number; low_stock_products: Product[]; month_purchases: { total_achats: number }; }
 
 const fmt = (n: number) => (n || 0).toLocaleString('fr-FR') + ' FCFA';
-
 const SUPERETTE_CATEGORIES = ['Alimentation', 'Boissons', 'Hygiène', 'Ménager', 'Cosmétiques', 'Vêtements', 'Électronique', 'Papeterie', 'Boulangerie', 'Surgelés', 'Autres'];
 
+// ─── Impression reçu de vente ─────────────────────────────────────────────────
+const printSaleReceipt = (order: SaleOrder, cashier: string) => {
+  const num = `SP-${String(order.id || Date.now()).padStart(5, '0')}`;
+  const now = new Date(order.created_at || Date.now());
+  const dateStr = now.toLocaleDateString('fr-FR');
+  const heureStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const payLabel: Record<string, string> = { especes: 'Espèces', mobile_money: 'Mobile Money', carte: 'Carte bancaire' };
+  const lignes = order.items.map(c =>
+    `<div class="row"><span>${c.product.name} × ${c.quantity}</span><span>${fmt(c.product.sell_price * c.quantity)}</span></div>`
+  ).join('');
+  const css = `*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:10px}.center{text-align:center}.bold{font-weight:bold}.row{display:flex;justify-content:space-between;margin:3px 0}.sep{border-top:1px dashed #000;margin:8px 0}.title{font-size:14px;font-weight:bold;text-align:center}.total{display:flex;justify-content:space-between;font-size:14px;font-weight:bold;background:#f5f5f5;padding:6px;margin:4px 0}@media print{body{width:100%}}`;
+  const body = `<div class="title">🛒 SUPÉRETTE</div><div class="center" style="font-size:10px">Piscine de Ouangolodougou</div><div class="sep"></div><div class="center bold">REÇU DE VENTE</div><div class="sep"></div><div class="row"><span>N° Reçu :</span><span><b>${num}</b></span></div><div class="row"><span>Date :</span><span>${dateStr}</span></div><div class="row"><span>Heure :</span><span>${heureStr}</span></div><div class="sep"></div><div class="bold" style="margin-bottom:4px">Articles :</div>${lignes}<div class="sep"></div><div class="total"><span>TOTAL :</span><span>${fmt(order.total)}</span></div><div class="row"><span>Paiement :</span><span>${payLabel[order.payment_method] || order.payment_method}</span></div><div class="sep"></div><div class="row"><span>Caissier :</span><span>${cashier}</span></div><div class="center" style="margin-top:10px;font-size:11px;font-style:italic">Merci de votre achat !<br/>À bientôt à la Supérette de Ouangolodougou</div>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu</title><style>${css}</style></head><body>${body}</body></html>`;
+  const win = window.open('', '_blank', 'width=400,height=600');
+  if (!win) return;
+  win.document.write(html); win.document.close(); win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 300);
+};
+
+// ─── Dialog Reçu ─────────────────────────────────────────────────────────────
+const ReceiptDialog: React.FC<{ order: SaleOrder | null; cashier: string; onClose: () => void }> = ({ order, cashier, onClose }) => {
+  if (!order) return null;
+  return (
+    <Dialog open={!!order} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ bgcolor: '#1565c0', color: 'white', textAlign: 'center' }}>✅ Reçu — Supérette</DialogTitle>
+      <DialogContent sx={{ pt: 2 }}>
+        <Stack spacing={1.5} alignItems="center">
+          <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 2 }}>SUPÉRETTE</Typography>
+          <Typography variant="caption" color="text.secondary">Piscine de Ouangolodougou</Typography>
+          <Divider sx={{ width: '100%' }} />
+          <Box sx={{ width: '100%' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">N° Reçu :</Typography>
+              <Typography variant="body2" fontWeight={700}>SP-{String(order.id || '').padStart(5, '0')}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">Date :</Typography>
+              <Typography variant="body2" fontWeight={600}>{new Date(order.created_at || Date.now()).toLocaleDateString('fr-FR')}</Typography>
+            </Box>
+          </Box>
+          <Divider sx={{ width: '100%' }} />
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>Articles :</Typography>
+            {order.items.map(c => (
+              <Box key={c.product.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, bgcolor: 'grey.50', px: 1, borderRadius: 0.5, mb: 0.3 }}>
+                <Typography variant="body2">{c.product.name} × {c.quantity}</Typography>
+                <Typography variant="body2" fontWeight={600}>{fmt(c.product.sell_price * c.quantity)}</Typography>
+              </Box>
+            ))}
+          </Box>
+          <Divider sx={{ width: '100%' }} />
+          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body1" fontWeight={700}>TOTAL</Typography>
+            <Typography variant="h5" color="primary" fontWeight={700}>{fmt(order.total)}</Typography>
+          </Box>
+          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2" color="text.secondary">Paiement :</Typography>
+            <Chip size="small" color="success" label={order.payment_method === 'especes' ? 'Espèces' : order.payment_method === 'mobile_money' ? 'Mobile Money' : 'Carte'} />
+          </Box>
+          <Divider sx={{ width: '100%' }} />
+          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center' }}>
+            Merci de votre achat !<br />À bientôt à la Supérette de Ouangolodougou
+          </Typography>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ justifyContent: 'center', gap: 1 }}>
+        <Button variant="outlined" startIcon={<PrintIcon />} onClick={() => printSaleReceipt(order, cashier)}>Imprimer</Button>
+        <Button variant="contained" sx={{ bgcolor: '#1565c0' }} onClick={onClose}>Fermer</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// ─── Composant principal ──────────────────────────────────────────────────────
 const Superette: React.FC = () => {
-  const { } = useAuth(); // permissions available
-  // const canManage = hasPermission('superette', 'gestion_menu');
+  const { user } = useAuth();
+  const cashier = (user as any)?.full_name || (user as any)?.username || 'Caissier';
+
   const [activeTab, setActiveTab] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -41,86 +115,109 @@ const Superette: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchText, setSearchText] = useState('');
   const [filterCat, setFilterCat] = useState('');
+  const [receiptOrder, setReceiptOrder] = useState<SaleOrder | null>(null);
 
   // Dialogs
   const [productDialog, setProductDialog] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [supplyDialog, setSupplyDialog] = useState(false);
   const [supplierDialog, setSupplierDialog] = useState(false);
+  const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
   const [checkoutDialog, setCheckoutDialog] = useState(false);
   const [adjustDialog, setAdjustDialog] = useState<Product | null>(null);
 
+  // Supply lines (ligne par ligne comme Maquis)
+  const [supplyLines, setSupplyLines] = useState<{ product_id: string; quantity: string; unit_price: string }[]>([
+    { product_id: '', quantity: '', unit_price: '' }
+  ]);
+  const [supplyMeta, setSupplyMeta] = useState({ supplier_id: '', payment_method: 'especes', notes: '' });
+
   // Forms
   const [productForm, setProductForm] = useState({ name: '', category: 'Alimentation', sell_price: '', buy_price: '', unit: 'unité', min_stock: '0', description: '' });
-  const [supplyForm, setSupplyForm] = useState({ supplier_id: '', payment_method: 'especes', notes: '', items: [] as { product_id: number; quantity: string; unit_price: string; name: string }[] });
   const [supplierForm, setSupplierForm] = useState({ name: '', contact: '', phone: '', address: '' });
-  const [checkoutForm, setCheckoutForm] = useState({ payment_method: 'especes', payment_operator: '', tab_id: '' });
+  const [checkoutForm, setCheckoutForm] = useState({ payment_method: 'especes', tab_id: '' });
   const [adjustForm, setAdjustForm] = useState({ new_quantity: '', reason: 'Ajustement inventaire' });
 
   const showAlert = (type: 'success' | 'error', msg: string) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
 
+  // ── loadAll indépendant — une erreur ne bloque pas les autres ──────────────
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, s, ot, st] = await Promise.all([
-        superetteApi.getProducts({ active_only: 'true' }),
-        superetteApi.getSuppliers(),
-        tabsApi.getOpenTabs(),
-        superetteApi.getStats()
-      ]);
-      setProducts(p.data.data || []);
-      setSuppliers(s.data.data || []);
-      setOpenTabs(ot.data.data || []);
-      setStats(st.data.data || null);
-    } catch { /* silent */ }
+      const p = await superetteApi.getProducts({ active_only: 'true' });
+      setProducts(p.data.data || p.data || []);
+    } catch (e) { console.error('[superette products]', e); }
+    try {
+      const s = await superetteApi.getSuppliers();
+      setSuppliers(s.data.data || s.data || []);
+    } catch (e) { console.error('[superette suppliers]', e); }
+    try {
+      const ot = await tabsApi.getOpenTabs();
+      setOpenTabs(ot.data.data || ot.data || []);
+    } catch (e) { console.error('[superette tabs]', e); }
+    try {
+      const st = await superetteApi.getStats();
+      setStats(st.data.data || st.data || null);
+    } catch (e) { console.error('[superette stats]', e); }
     setLoading(false);
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const addToCart = (product: Product, qty = 1) => {
+  // ── Panier ─────────────────────────────────────────────────────────────────
+  const addToCart = (product: Product) => {
     setCart(prev => {
-      const existing = prev.find(c => c.product.id === product.id);
-      if (existing) return prev.map(c => c.product.id === product.id ? { ...c, quantity: c.quantity + qty } : c);
-      return [...prev, { product, quantity: qty }];
+      const ex = prev.find(c => c.product.id === product.id);
+      if (ex) return prev.map(c => c.product.id === product.id ? { ...c, quantity: c.quantity + 1 } : c);
+      return [...prev, { product, quantity: 1 }];
     });
   };
-
   const removeFromCart = (productId: number) => {
     setCart(prev => {
-      const existing = prev.find(c => c.product.id === productId);
-      if (existing && existing.quantity > 1) return prev.map(c => c.product.id === productId ? { ...c, quantity: c.quantity - 1 } : c);
+      const ex = prev.find(c => c.product.id === productId);
+      if (ex && ex.quantity > 1) return prev.map(c => c.product.id === productId ? { ...c, quantity: c.quantity - 1 } : c);
       return prev.filter(c => c.product.id !== productId);
     });
   };
-
   const cartTotal = cart.reduce((sum, c) => sum + c.product.sell_price * c.quantity, 0);
 
+  // ── Encaissement ───────────────────────────────────────────────────────────
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     try {
       await superetteApi.createSale({
         items: cart.map(c => ({ product_id: c.product.id, quantity: c.quantity })),
-        payment_method: checkoutForm.payment_method,
+        payment_method: checkoutForm.tab_id ? 'tab' : 'en_attente', // Toujours en attente → paiement à la Caisse
         tab_id: checkoutForm.tab_id ? parseInt(checkoutForm.tab_id) : undefined
       });
-      showAlert('success', checkoutForm.tab_id ? 'Articles ajoutés à l\'onglet !' : `Vente enregistrée — ${fmt(cartTotal)}`);
       setCart([]);
       setCheckoutDialog(false);
+      setCheckoutForm({ payment_method: 'en_attente', tab_id: '' });
       loadAll();
+      if (checkoutForm.tab_id) {
+        showAlert('success', "Articles ajoutés à l'onglet !");
+      } else {
+        showAlert('success', '🎫 Commande enregistrée — le client paie à la Caisse');
+      }
     } catch (e: unknown) {
       showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
     }
   };
 
+  // ── Produits ───────────────────────────────────────────────────────────────
   const handleSaveProduct = async () => {
     if (!productForm.name || !productForm.sell_price) return showAlert('error', 'Nom et prix de vente requis');
     try {
-      const data = { name: productForm.name, category: productForm.category, sell_price: parseFloat(productForm.sell_price), buy_price: parseFloat(productForm.buy_price || '0'), unit: productForm.unit, min_stock: parseFloat(productForm.min_stock), description: productForm.description };
+      const data = {
+        name: productForm.name, category: productForm.category,
+        sell_price: parseFloat(productForm.sell_price),
+        buy_price: parseFloat(productForm.buy_price || '0'),
+        unit: productForm.unit, min_stock: parseFloat(productForm.min_stock),
+        description: productForm.description
+      };
       if (editProduct) { await superetteApi.updateProduct(editProduct.id, data); showAlert('success', 'Produit mis à jour'); }
       else { await superetteApi.createProduct(data); showAlert('success', 'Produit créé'); }
-      setProductDialog(false);
-      setEditProduct(null);
+      setProductDialog(false); setEditProduct(null);
       setProductForm({ name: '', category: 'Alimentation', sell_price: '', buy_price: '', unit: 'unité', min_stock: '0', description: '' });
       loadAll();
     } catch (e: unknown) {
@@ -129,6 +226,7 @@ const Superette: React.FC = () => {
   };
 
   const handleDeleteProduct = async (id: number) => {
+    if (!window.confirm('Désactiver ce produit ?')) return;
     try { await superetteApi.deleteProduct(id); showAlert('success', 'Produit désactivé'); loadAll(); }
     catch { showAlert('error', 'Erreur'); }
   };
@@ -137,45 +235,98 @@ const Superette: React.FC = () => {
     if (!adjustDialog || adjustForm.new_quantity === '') return;
     try {
       await superetteApi.adjustStock({ product_id: adjustDialog.id, new_quantity: parseFloat(adjustForm.new_quantity), reason: adjustForm.reason });
-      showAlert('success', 'Stock ajusté');
-      setAdjustDialog(null);
-      setAdjustForm({ new_quantity: '', reason: 'Ajustement inventaire' });
+      showAlert('success', 'Stock ajusté'); setAdjustDialog(null);
+      setAdjustForm({ new_quantity: '', reason: 'Ajustement inventaire' }); loadAll();
+    } catch (e: unknown) {
+      showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
+    }
+  };
+
+  // ── Approvisionnement ligne par ligne ──────────────────────────────────────
+  const addSupplyLine = () => setSupplyLines(l => [...l, { product_id: '', quantity: '', unit_price: '' }]);
+  const removeSupplyLine = (idx: number) => setSupplyLines(l => l.filter((_, i) => i !== idx));
+  const updateSupplyLine = (idx: number, field: string, value: string) => {
+    setSupplyLines(l => l.map((line, i) => {
+      if (i !== idx) return line;
+      const updated = { ...line, [field]: value };
+      if (field === 'product_id' && value) {
+        const prod = products.find(p => p.id === parseInt(value));
+        if (prod && prod.buy_price > 0) updated.unit_price = String(prod.buy_price);
+      }
+      return updated;
+    }));
+  };
+  const supplyTotal = supplyLines.reduce((sum, l) => sum + (parseFloat(l.quantity) || 0) * (parseFloat(l.unit_price) || 0), 0);
+
+  const handleSupply = async () => {
+    const validLines = supplyLines.filter(l => l.product_id && l.quantity && parseFloat(l.quantity) > 0);
+    if (!validLines.length) return showAlert('error', 'Ajoutez au moins un produit avec une quantité');
+    try {
+      await superetteApi.addStock({
+        supplier_id: supplyMeta.supplier_id ? parseInt(supplyMeta.supplier_id) : undefined,
+        payment_method: supplyMeta.payment_method,
+        notes: supplyMeta.notes,
+        items: validLines.map(l => ({ product_id: parseInt(l.product_id), quantity: parseFloat(l.quantity), unit_price: parseFloat(l.unit_price || '0') }))
+      });
+      showAlert('success', `Approvisionnement enregistré — ${fmt(supplyTotal)}`);
+      setSupplyDialog(false);
+      setSupplyLines([{ product_id: '', quantity: '', unit_price: '' }]);
       loadAll();
     } catch (e: unknown) {
       showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
     }
   };
 
-  const handleSupply = async () => {
-    const validItems = supplyForm.items.filter(i => i.product_id && parseFloat(i.quantity) > 0);
-    if (!validItems.length) return showAlert('error', 'Saisissez au moins une quantité');
-    try {
-      await superetteApi.addStock({
-        supplier_id: supplyForm.supplier_id ? parseInt(supplyForm.supplier_id) : undefined,
-        payment_method: supplyForm.payment_method,
-        notes: supplyForm.notes,
-        items: validItems.map(i => ({ product_id: i.product_id, quantity: parseFloat(i.quantity), unit_price: parseFloat(i.unit_price || '0') }))
-      });
-      showAlert('success', 'Approvisionnement enregistré');
-      setSupplyDialog(false);
-      loadAll();
-    } catch (e: unknown) {
-      showAlert('error', (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erreur');
-    }
+  // ── Fournisseurs ───────────────────────────────────────────────────────────
+  const openSupplierDialog = (s?: Supplier) => {
+    if (s) { setEditSupplier(s); setSupplierForm({ name: s.name, contact: s.contact || '', phone: s.phone || '', address: s.address || '' }); }
+    else { setEditSupplier(null); setSupplierForm({ name: '', contact: '', phone: '', address: '' }); }
+    setSupplierDialog(true);
   };
 
   const handleSaveSupplier = async () => {
-    if (!supplierForm.name) return showAlert('error', 'Nom requis');
-    try { await superetteApi.createSupplier(supplierForm); showAlert('success', 'Fournisseur créé'); setSupplierDialog(false); setSupplierForm({ name: '', contact: '', phone: '', address: '' }); loadAll(); }
-    catch { showAlert('error', 'Erreur'); }
+    if (!supplierForm.name.trim()) return showAlert('error', 'Le nom du fournisseur est requis');
+    try {
+      if (editSupplier) {
+        await superetteApi.updateSupplier(editSupplier.id, supplierForm);
+        showAlert('success', 'Fournisseur mis à jour');
+      } else {
+        await superetteApi.createSupplier(supplierForm);
+        showAlert('success', 'Fournisseur créé avec succès !');
+      }
+      setSupplierDialog(false); setEditSupplier(null);
+      setSupplierForm({ name: '', contact: '', phone: '', address: '' });
+      loadAll();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showAlert('error', msg || 'Erreur lors de la création du fournisseur');
+    }
   };
 
   const categories = [...new Set(products.map(p => p.category))];
-  const filteredProducts = products.filter(p => {
-    const matchSearch = !searchText || p.name.toLowerCase().includes(searchText.toLowerCase()) || p.category.toLowerCase().includes(searchText.toLowerCase());
-    const matchCat = !filterCat || p.category === filterCat;
-    return matchSearch && matchCat;
-  });
+  const filteredProducts = products
+    .filter(p => {
+      const matchSearch = !searchText || p.name.toLowerCase().includes(searchText.toLowerCase()) || p.category.toLowerCase().includes(searchText.toLowerCase());
+      const matchCat = !filterCat || p.category === filterCat;
+      return matchSearch && matchCat;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+
+  // Grouper par première lettre pour les séparateurs alphabétiques
+  const buildGroupedProducts = (prods: Product[]) => {
+    const result: Array<{ type: 'letter'; letter: string } | { type: 'product'; product: Product }> = [];
+    let lastLetter = '';
+    prods.forEach(p => {
+      const letter = p.name.charAt(0).toUpperCase();
+      if (letter !== lastLetter) {
+        result.push({ type: 'letter', letter });
+        lastLetter = letter;
+      }
+      result.push({ type: 'product', product: p });
+    });
+    return result;
+  };
+  const groupedProducts = buildGroupedProducts(filteredProducts);
 
   return (
     <Layout>
@@ -189,90 +340,94 @@ const Superette: React.FC = () => {
             </Typography>
             <Typography variant="body2" color="text.secondary">Gestion caisse, stock, produits et approvisionnements</Typography>
           </Box>
-          <Stack direction="row" spacing={1}>
-            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll} disabled={loading}>
-              {loading ? <CircularProgress size={16} /> : 'Actualiser'}
-            </Button>
-          </Stack>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll} disabled={loading}>
+            {loading ? <CircularProgress size={16} /> : 'Actualiser'}
+          </Button>
         </Box>
 
         {/* Stats */}
         {stats && (
           <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={6} md={3}>
-              <Card sx={{ borderLeft: '4px solid #1565c0' }}>
-                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                  <Typography variant="caption" color="text.secondary">Ventes aujourd'hui</Typography>
-                  <Typography variant="h6" fontWeight={700} color="primary">{fmt(stats.today?.total_ventes || 0)}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={6} md={3}>
-              <Card sx={{ borderLeft: '4px solid #2e7d32' }}>
-                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                  <Typography variant="caption" color="text.secondary">Valeur stock</Typography>
-                  <Typography variant="h6" fontWeight={700} color="success.main">{fmt(stats.total_stock_value || 0)}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={6} md={3}>
-              <Card sx={{ borderLeft: '4px solid #f44336' }}>
-                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                  <Typography variant="caption" color="text.secondary">Alertes stock</Typography>
-                  <Typography variant="h5" fontWeight={700} color="error">{stats.low_stock_alerts || 0}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={6} md={3}>
-              <Card sx={{ borderLeft: '4px solid #f57c00' }}>
-                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                  <Typography variant="caption" color="text.secondary">Total produits</Typography>
-                  <Typography variant="h5" fontWeight={700} color="warning.main">{stats.total_products || 0}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+            {[
+              { label: "Ventes aujourd'hui", value: fmt(stats.today?.total_ventes || 0), color: '#1565c0' },
+              { label: 'Valeur stock', value: fmt(stats.total_stock_value || 0), color: '#2e7d32' },
+              { label: 'Alertes stock', value: stats.low_stock_alerts || 0, color: '#f44336' },
+              { label: 'Total produits', value: stats.total_products || 0, color: '#f57c00' }
+            ].map((s, i) => (
+              <Grid item xs={6} md={3} key={i}>
+                <Card sx={{ borderLeft: `4px solid ${s.color}` }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+                    <Typography variant="h6" fontWeight={700} color={s.color}>{s.value}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
         )}
 
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Tab label="Caisse" />
-          <Tab label={<Badge badgeContent={stats?.low_stock_alerts || 0} color="error">Stock & Inventaire</Badge>} />
+          <Tab label={<Badge badgeContent={stats?.low_stock_alerts || 0} color="error"><Box sx={{ pr: (stats?.low_stock_alerts || 0) > 0 ? 1.5 : 0 }}>Stock</Box></Badge>} />
           <Tab label="Produits" />
           <Tab label="Approvisionnement" />
           <Tab label="Fournisseurs" />
         </Tabs>
 
-        {/* Tab 0: CAISSE (POS) */}
+        {/* Tab 0: CAISSE */}
         {activeTab === 0 && (
           <Grid container spacing={2}>
             <Grid item xs={12} md={8}>
-              {/* Search & filter */}
               <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                <TextField size="small" placeholder="Rechercher un article..." value={searchText} onChange={e => setSearchText(e.target.value)}
+                <TextField size="small" placeholder="Rechercher un article..." value={searchText}
+                  onChange={e => setSearchText(e.target.value)}
                   InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
                   sx={{ flex: 1 }} />
-                <Select size="small" value={filterCat} onChange={e => setFilterCat(e.target.value)} displayEmpty sx={{ minWidth: 130 }}>
+                <Select size="small" value={filterCat} onChange={e => setFilterCat(e.target.value)} displayEmpty sx={{ minWidth: 140 }}>
                   <MenuItem value="">Toutes catégories</MenuItem>
                   {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                 </Select>
               </Stack>
               <Grid container spacing={1}>
-                {filteredProducts.map(p => (
-                  <Grid item xs={6} sm={4} md={3} key={p.id}>
-                    <Card variant="outlined" sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' }, opacity: p.current_stock <= 0 ? 0.5 : 1 }}
-                      onClick={() => p.current_stock > 0 && addToCart(p)}>
-                      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, textAlign: 'center' }}>
-                        <SuperetteIcon color={p.current_stock <= 0 ? 'disabled' : 'primary'} />
-                        <Typography variant="body2" fontWeight={600} noWrap title={p.name}>{p.name}</Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>{p.category}</Typography>
-                        <Typography fontWeight={700} color="primary">{fmt(p.sell_price)}</Typography>
-                        <Chip label={`${p.current_stock} ${p.unit}`} size="small"
-                          color={p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'default'}
-                          sx={{ mt: 0.5, fontSize: '0.65rem' }} />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
+                {groupedProducts.map((item, idx) => {
+                  if (item.type === 'letter') {
+                    return (
+                      <Grid item xs={12} key={`letter-${item.letter}-${idx}`}>
+                        <Box sx={{
+                          display: 'flex', alignItems: 'center', gap: 1, my: 0.5
+                        }}>
+                          <Box sx={{
+                            bgcolor: '#1565c0', color: 'white', borderRadius: '50%',
+                            width: 28, height: 28, display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem',
+                            flexShrink: 0
+                          }}>
+                            {item.letter}
+                          </Box>
+                          <Box sx={{ flex: 1, height: '1px', bgcolor: '#1565c0', opacity: 0.3 }} />
+                        </Box>
+                      </Grid>
+                    );
+                  }
+                  const p = item.product;
+                  return (
+                    <Grid item xs={6} sm={4} md={3} key={p.id}>
+                      <Card variant="outlined"
+                        sx={{ cursor: p.current_stock > 0 ? 'pointer' : 'not-allowed', opacity: p.current_stock <= 0 ? 0.5 : 1, '&:hover': p.current_stock > 0 ? { borderColor: 'primary.main', bgcolor: '#e3f2fd' } : {} }}
+                        onClick={() => p.current_stock > 0 && addToCart(p)}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, textAlign: 'center' }}>
+                          <SuperetteIcon color={p.current_stock <= 0 ? 'disabled' : 'primary'} />
+                          <Typography variant="body2" fontWeight={600} noWrap title={p.name}>{p.name}</Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap>{p.category}</Typography>
+                          <Typography fontWeight={700} color="primary">{fmt(p.sell_price)}</Typography>
+                          <Chip label={`${p.current_stock} ${p.unit}`} size="small"
+                            color={p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'success'}
+                            sx={{ mt: 0.5, fontSize: '0.65rem' }} />
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
                 {filteredProducts.length === 0 && (
                   <Grid item xs={12}><Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>Aucun produit trouvé</Paper></Grid>
                 )}
@@ -284,9 +439,7 @@ const Superette: React.FC = () => {
               <Paper variant="outlined" sx={{ p: 2, position: 'sticky', top: 16 }}>
                 <Typography fontWeight={700} sx={{ mb: 1 }}>🛒 Panier</Typography>
                 {cart.length === 0 ? (
-                  <Typography color="text.secondary" variant="body2" sx={{ py: 3, textAlign: 'center' }}>
-                    Cliquez sur un article pour l'ajouter
-                  </Typography>
+                  <Typography color="text.secondary" variant="body2" sx={{ py: 3, textAlign: 'center' }}>Cliquez sur un article pour l'ajouter</Typography>
                 ) : (
                   <>
                     <Box sx={{ maxHeight: 350, overflow: 'auto' }}>
@@ -325,7 +478,7 @@ const Superette: React.FC = () => {
           </Grid>
         )}
 
-        {/* Tab 1: STOCK & INVENTAIRE */}
+        {/* Tab 1: STOCK */}
         {activeTab === 1 && (
           <Box>
             {stats?.low_stock_products && stats.low_stock_products.length > 0 && (
@@ -335,15 +488,15 @@ const Superette: React.FC = () => {
             )}
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
-                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                <TableHead sx={{ bgcolor: 'grey.100' }}>
                   <TableRow>
-                    <TableCell>Produit</TableCell>
-                    <TableCell>Catégorie</TableCell>
-                    <TableCell align="right">Stock actuel</TableCell>
-                    <TableCell align="right">Stock min</TableCell>
-                    <TableCell>Niveau</TableCell>
-                    <TableCell align="right">Valeur</TableCell>
-                    <TableCell>Inventaire</TableCell>
+                    <TableCell><strong>Produit</strong></TableCell>
+                    <TableCell><strong>Catégorie</strong></TableCell>
+                    <TableCell align="right"><strong>Stock actuel</strong></TableCell>
+                    <TableCell align="right"><strong>Stock min</strong></TableCell>
+                    <TableCell><strong>Niveau</strong></TableCell>
+                    <TableCell align="right"><strong>Valeur</strong></TableCell>
+                    <TableCell align="center"><strong>Inventaire</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -351,19 +504,17 @@ const Superette: React.FC = () => {
                     const pct = p.min_stock > 0 ? Math.min(100, (p.current_stock / p.min_stock) * 100) : 100;
                     const color: 'error' | 'warning' | 'success' = p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'success';
                     return (
-                      <TableRow key={p.id} hover sx={{ bgcolor: p.current_stock <= 0 ? 'error.50' : p.current_stock <= p.min_stock ? 'warning.50' : 'inherit' }}>
+                      <TableRow key={p.id} hover sx={{ bgcolor: p.current_stock <= 0 ? '#ffebee' : p.current_stock <= p.min_stock ? '#fff8e1' : 'inherit' }}>
                         <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
                         <TableCell><Chip label={p.category} size="small" /></TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: p.current_stock <= 0 ? 'error.main' : 'inherit' }}>
-                          {p.current_stock} {p.unit}
-                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: p.current_stock <= 0 ? 'error.main' : 'inherit' }}>{p.current_stock} {p.unit}</TableCell>
                         <TableCell align="right" sx={{ color: 'text.secondary' }}>{p.min_stock}</TableCell>
                         <TableCell sx={{ minWidth: 100 }}>
                           <LinearProgress variant="determinate" value={pct} color={color} sx={{ height: 8, borderRadius: 4 }} />
                         </TableCell>
                         <TableCell align="right">{fmt(p.current_stock * p.sell_price)}</TableCell>
-                        <TableCell>
-                          <Tooltip title="Ajuster le stock (inventaire)">
+                        <TableCell align="center">
+                          <Tooltip title="Ajuster le stock">
                             <IconButton size="small" color="primary" onClick={() => { setAdjustDialog(p); setAdjustForm({ new_quantity: String(p.current_stock), reason: 'Ajustement inventaire' }); }}>
                               <AdjustIcon fontSize="small" />
                             </IconButton>
@@ -372,6 +523,7 @@ const Superette: React.FC = () => {
                       </TableRow>
                     );
                   })}
+                  {products.length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>Aucun produit</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -384,21 +536,22 @@ const Superette: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <TextField size="small" placeholder="Rechercher..." value={searchText} onChange={e => setSearchText(e.target.value)}
                 InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditProduct(null); setProductForm({ name: '', category: 'Alimentation', sell_price: '', buy_price: '', unit: 'unité', min_stock: '0', description: '' }); setProductDialog(true); }}>
+              <Button variant="contained" startIcon={<AddIcon />}
+                onClick={() => { setEditProduct(null); setProductForm({ name: '', category: 'Alimentation', sell_price: '', buy_price: '', unit: 'unité', min_stock: '0', description: '' }); setProductDialog(true); }}>
                 Nouveau produit
               </Button>
             </Box>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
-                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                <TableHead sx={{ bgcolor: 'grey.100' }}>
                   <TableRow>
-                    <TableCell>Produit</TableCell>
-                    <TableCell>Catégorie</TableCell>
-                    <TableCell align="right">Prix achat</TableCell>
-                    <TableCell align="right">Prix vente</TableCell>
-                    <TableCell>Unité</TableCell>
-                    <TableCell align="right">Marge %</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell><strong>Produit</strong></TableCell>
+                    <TableCell><strong>Catégorie</strong></TableCell>
+                    <TableCell align="right"><strong>Prix achat</strong></TableCell>
+                    <TableCell align="right"><strong>Prix vente</strong></TableCell>
+                    <TableCell><strong>Unité</strong></TableCell>
+                    <TableCell align="right"><strong>Marge %</strong></TableCell>
+                    <TableCell align="center"><strong>Actions</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -414,22 +567,23 @@ const Superette: React.FC = () => {
                         <TableCell align="right">
                           {marge !== null && <Chip label={`${marge}%`} size="small" color={marge >= 20 ? 'success' : marge >= 0 ? 'warning' : 'error'} />}
                         </TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={0.5}>
-                            <IconButton size="small" onClick={() => { setEditProduct(p); setProductForm({ name: p.name, category: p.category, sell_price: String(p.sell_price), buy_price: String(p.buy_price), unit: p.unit, min_stock: String(p.min_stock), description: p.description || '' }); setProductDialog(true); }}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" color="error" onClick={() => handleDeleteProduct(p.id)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Tooltip title="Modifier">
+                              <IconButton size="small" color="primary"
+                                onClick={() => { setEditProduct(p); setProductForm({ name: p.name, category: p.category, sell_price: String(p.sell_price), buy_price: String(p.buy_price), unit: p.unit, min_stock: String(p.min_stock), description: p.description || '' }); setProductDialog(true); }}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Désactiver">
+                              <IconButton size="small" color="error" onClick={() => handleDeleteProduct(p.id)}><DeleteIcon fontSize="small" /></IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
                     );
                   })}
-                  {filteredProducts.length === 0 && (
-                    <TableRow><TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun produit</TableCell></TableRow>
-                  )}
+                  {filteredProducts.length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun produit</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -439,15 +593,43 @@ const Superette: React.FC = () => {
         {/* Tab 3: APPROVISIONNEMENT */}
         {activeTab === 3 && (
           <Box>
-            <Button variant="contained" startIcon={<SupplyIcon />} sx={{ mb: 2 }} onClick={() => {
-              setSupplyForm({ supplier_id: '', payment_method: 'especes', notes: '', items: products.map(p => ({ product_id: p.id, quantity: '', unit_price: String(p.buy_price || ''), name: p.name })) });
-              setSupplyDialog(true);
-            }}>
-              Enregistrer une livraison
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              Entrez les quantités reçues pour chaque produit. Le stock sera mis à jour automatiquement.
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">Enregistrez les livraisons reçues des fournisseurs.</Typography>
+              <Button variant="contained" startIcon={<SupplyIcon />}
+                onClick={() => { setSupplyLines([{ product_id: '', quantity: '', unit_price: '' }]); setSupplyMeta({ supplier_id: '', payment_method: 'especes', notes: '' }); setSupplyDialog(true); }}>
+                Nouvel approvisionnement
+              </Button>
+            </Box>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Cliquez sur <strong>"Nouvel approvisionnement"</strong> pour sélectionner les produits reçus, indiquer les quantités et prix. Le stock sera mis à jour automatiquement.
+            </Alert>
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead sx={{ bgcolor: 'grey.100' }}>
+                  <TableRow>
+                    <TableCell><strong>Produit</strong></TableCell>
+                    <TableCell><strong>Catégorie</strong></TableCell>
+                    <TableCell align="right"><strong>Stock actuel</strong></TableCell>
+                    <TableCell align="right"><strong>Stock min</strong></TableCell>
+                    <TableCell align="right"><strong>Prix achat</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {products.map(p => (
+                    <TableRow key={p.id} hover sx={{ bgcolor: p.current_stock <= p.min_stock ? '#fff8e1' : 'inherit' }}>
+                      <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
+                      <TableCell><Chip label={p.category} size="small" /></TableCell>
+                      <TableCell align="right">
+                        <Chip label={`${p.current_stock} ${p.unit}`} size="small"
+                          color={p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'success'} />
+                      </TableCell>
+                      <TableCell align="right">{p.min_stock}</TableCell>
+                      <TableCell align="right">{fmt(p.buy_price)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
         )}
 
@@ -455,16 +637,17 @@ const Superette: React.FC = () => {
         {activeTab === 4 && (
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setSupplierDialog(true)}>Nouveau fournisseur</Button>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => openSupplierDialog()}>Nouveau fournisseur</Button>
             </Box>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
-                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                <TableHead sx={{ bgcolor: 'grey.100' }}>
                   <TableRow>
-                    <TableCell>Nom</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Téléphone</TableCell>
-                    <TableCell>Adresse</TableCell>
+                    <TableCell><strong>Nom</strong></TableCell>
+                    <TableCell><strong>Contact</strong></TableCell>
+                    <TableCell><strong>Téléphone</strong></TableCell>
+                    <TableCell><strong>Adresse</strong></TableCell>
+                    <TableCell align="center"><strong>Actions</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -473,10 +656,15 @@ const Superette: React.FC = () => {
                       <TableCell sx={{ fontWeight: 600 }}>{s.name}</TableCell>
                       <TableCell>{s.contact || '—'}</TableCell>
                       <TableCell>{s.phone || '—'}</TableCell>
-                      <TableCell>{(s as unknown as { address: string }).address || '—'}</TableCell>
+                      <TableCell>{s.address || '—'}</TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="Modifier">
+                          <IconButton size="small" color="primary" onClick={() => openSupplierDialog(s)}><EditIcon fontSize="small" /></IconButton>
+                        </Tooltip>
+                      </TableCell>
                     </TableRow>
                   ))}
-                  {suppliers.length === 0 && <TableRow><TableCell colSpan={4} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun fournisseur</TableCell></TableRow>}
+                  {suppliers.length === 0 && <TableRow><TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun fournisseur enregistré</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -484,9 +672,13 @@ const Superette: React.FC = () => {
         )}
       </Box>
 
+      {/* ── DIALOGS ─────────────────────────────────────────────────────────── */}
+
       {/* Dialog: Encaissement */}
       <Dialog open={checkoutDialog} onClose={() => setCheckoutDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Encaissement — {fmt(cartTotal)}</DialogTitle>
+        <DialogTitle sx={{ bgcolor: '#2e7d32', color: 'white' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><ReceiptIcon /> Encaissement — {fmt(cartTotal)}</Box>
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Paper variant="outlined" sx={{ p: 1.5, maxHeight: 200, overflow: 'auto' }}>
@@ -502,39 +694,38 @@ const Superette: React.FC = () => {
                 <Typography fontWeight={700} color="primary" variant="h6">{fmt(cartTotal)}</Typography>
               </Box>
             </Paper>
-            <FormControl fullWidth>
-              <InputLabel>Onglet client (optionnel)</InputLabel>
-              <Select value={checkoutForm.tab_id} label="Onglet client (optionnel)" onChange={e => setCheckoutForm(f => ({ ...f, tab_id: e.target.value }))}>
-                <MenuItem value="">Paiement direct</MenuItem>
-                {openTabs.map(t => <MenuItem key={t.id} value={t.id}>{t.customer_name} ({fmt(t.total_amount)})</MenuItem>)}
-              </Select>
-            </FormControl>
-            {!checkoutForm.tab_id && (
+            {openTabs.length > 0 && (
               <FormControl fullWidth>
-                <InputLabel>Mode de paiement</InputLabel>
-                <Select value={checkoutForm.payment_method} label="Mode de paiement" onChange={e => setCheckoutForm(f => ({ ...f, payment_method: e.target.value }))}>
-                  <MenuItem value="especes">Espèces</MenuItem>
-                  <MenuItem value="mobile_money">Mobile Money</MenuItem>
-                  <MenuItem value="carte">Carte bancaire</MenuItem>
+                <InputLabel>Onglet client (optionnel)</InputLabel>
+                <Select value={checkoutForm.tab_id} label="Onglet client (optionnel)"
+                  onChange={e => setCheckoutForm(f => ({ ...f, tab_id: e.target.value }))}>
+                  <MenuItem value="">Aucun onglet</MenuItem>
+                  {openTabs.map(t => <MenuItem key={t.id} value={t.id}>{t.customer_name} ({fmt(t.total_amount)})</MenuItem>)}
                 </Select>
               </FormControl>
             )}
+            <Alert severity="info" sx={{ py: 0.5 }}>
+              🏦 <strong>Paiement à la Caisse</strong> — La commande sera enregistrée. Le client règle à la Caisse.
+            </Alert>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCheckoutDialog(false)}>Annuler</Button>
           <Button variant="contained" color="success" onClick={handleCheckout}>
-            {checkoutForm.tab_id ? 'Ajouter à l\'onglet' : `Encaisser ${fmt(cartTotal)}`}
+            {checkoutForm.tab_id ? "Ajouter à l'onglet" : `🎫 Enregistrer → Caisse`}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Dialog: Reçu */}
+      <ReceiptDialog order={receiptOrder} cashier={cashier} onClose={() => setReceiptOrder(null)} />
 
       {/* Dialog: Produit */}
       <Dialog open={productDialog} onClose={() => setProductDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editProduct ? 'Modifier le produit' : 'Nouveau produit'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField label="Nom du produit *" value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} required />
+            <TextField label="Nom du produit *" value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} fullWidth />
             <FormControl fullWidth>
               <InputLabel>Catégorie</InputLabel>
               <Select value={productForm.category} label="Catégorie" onChange={e => setProductForm(f => ({ ...f, category: e.target.value }))}>
@@ -546,7 +737,7 @@ const Superette: React.FC = () => {
                 <TextField fullWidth label="Prix d'achat (FCFA)" type="number" value={productForm.buy_price} onChange={e => setProductForm(f => ({ ...f, buy_price: e.target.value }))} />
               </Grid>
               <Grid item xs={6}>
-                <TextField fullWidth label="Prix de vente (FCFA) *" type="number" value={productForm.sell_price} onChange={e => setProductForm(f => ({ ...f, sell_price: e.target.value }))} required />
+                <TextField fullWidth label="Prix de vente (FCFA) *" type="number" value={productForm.sell_price} onChange={e => setProductForm(f => ({ ...f, sell_price: e.target.value }))} />
               </Grid>
             </Grid>
             <Grid container spacing={2}>
@@ -566,6 +757,114 @@ const Superette: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Dialog: Approvisionnement ligne par ligne */}
+      <Dialog open={supplyDialog} onClose={() => setSupplyDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><SupplyIcon color="primary" /> Approvisionnement</Box>
+          <IconButton size="small" onClick={() => setSupplyDialog(false)}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Fournisseur (optionnel)</InputLabel>
+                  <Select value={supplyMeta.supplier_id} label="Fournisseur (optionnel)"
+                    onChange={e => setSupplyMeta(f => ({ ...f, supplier_id: e.target.value }))}>
+                    <MenuItem value="">Aucun / Non renseigné</MenuItem>
+                    {suppliers.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Mode de paiement</InputLabel>
+                  <Select value={supplyMeta.payment_method} label="Mode de paiement"
+                    onChange={e => setSupplyMeta(f => ({ ...f, payment_method: e.target.value }))}>
+                    <MenuItem value="especes">💵 Espèces</MenuItem>
+                    <MenuItem value="credit">📋 Crédit / Créance</MenuItem>
+                    <MenuItem value="mobile_money">📱 Mobile Money</MenuItem>
+                    <MenuItem value="virement">🏦 Virement</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle2" fontWeight={700}>Produits reçus :</Typography>
+                <Button size="small" startIcon={<AddIcon />} onClick={addSupplyLine} variant="outlined">Ajouter une ligne</Button>
+              </Box>
+              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 350 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.100' }}>
+                      <TableCell><strong>Produit *</strong></TableCell>
+                      <TableCell align="center"><strong>Quantité *</strong></TableCell>
+                      <TableCell align="center"><strong>Prix unitaire (FCFA)</strong></TableCell>
+                      <TableCell align="right"><strong>Sous-total</strong></TableCell>
+                      <TableCell align="center"><strong>Suppr.</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {supplyLines.map((line, idx) => {
+                      const subTotal = (parseFloat(line.quantity) || 0) * (parseFloat(line.unit_price) || 0);
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell sx={{ minWidth: 180 }}>
+                            <FormControl fullWidth size="small">
+                              <Select value={line.product_id} displayEmpty onChange={e => updateSupplyLine(idx, 'product_id', e.target.value)}>
+                                <MenuItem value=""><em>— Choisir un produit —</em></MenuItem>
+                                {products.map(p => (
+                                  <MenuItem key={p.id} value={String(p.id)}>
+                                    {p.name} <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>({p.current_stock} {p.unit})</Typography>
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                          <TableCell>
+                            <TextField size="small" type="number" value={line.quantity} sx={{ width: 90 }}
+                              onChange={e => updateSupplyLine(idx, 'quantity', e.target.value)} placeholder="0" inputProps={{ min: 0 }} />
+                          </TableCell>
+                          <TableCell>
+                            <TextField size="small" type="number" value={line.unit_price} sx={{ width: 120 }}
+                              onChange={e => updateSupplyLine(idx, 'unit_price', e.target.value)} placeholder="0" inputProps={{ min: 0 }} />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography fontWeight={600} color={subTotal > 0 ? 'primary' : 'text.secondary'}>
+                              {subTotal > 0 ? fmt(subTotal) : '—'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <IconButton size="small" color="error" onClick={() => removeSupplyLine(idx)} disabled={supplyLines.length === 1}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+            {supplyTotal > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Alert severity="info" sx={{ py: 0.5 }}><strong>Total : {fmt(supplyTotal)}</strong></Alert>
+              </Box>
+            )}
+            <TextField label="Notes (facultatif)" multiline rows={2} value={supplyMeta.notes}
+              onChange={e => setSupplyMeta(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Ex: livraison partielle, produits en attente..." />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSupplyDialog(false)}>Annuler</Button>
+          <Button variant="contained" onClick={handleSupply} startIcon={<PaidIcon />}>
+            Enregistrer ({supplyLines.filter(l => l.product_id && l.quantity).length} produit{supplyLines.filter(l => l.product_id && l.quantity).length > 1 ? 's' : ''})
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Dialog: Ajustement stock */}
       <Dialog open={!!adjustDialog} onClose={() => setAdjustDialog(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Ajustement stock — {adjustDialog?.name}</DialogTitle>
@@ -573,8 +872,7 @@ const Superette: React.FC = () => {
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="info">Stock actuel : <strong>{adjustDialog?.current_stock} {adjustDialog?.unit}</strong></Alert>
             <TextField label="Nouveau stock réel" type="number" value={adjustForm.new_quantity}
-              onChange={e => setAdjustForm(f => ({ ...f, new_quantity: e.target.value }))}
-              placeholder="Saisissez le stock réel compté" required />
+              onChange={e => setAdjustForm(f => ({ ...f, new_quantity: e.target.value }))} required />
             <TextField label="Raison" value={adjustForm.reason} onChange={e => setAdjustForm(f => ({ ...f, reason: e.target.value }))} />
           </Stack>
         </DialogContent>
@@ -584,92 +882,24 @@ const Superette: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog: Approvisionnement */}
-      <Dialog open={supplyDialog} onClose={() => setSupplyDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          Approvisionnement supérette
-          <IconButton size="small" onClick={() => setSupplyDialog(false)}><CloseIcon /></IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Fournisseur</InputLabel>
-                  <Select value={supplyForm.supplier_id} label="Fournisseur" onChange={e => setSupplyForm(f => ({ ...f, supplier_id: e.target.value }))}>
-                    <MenuItem value="">Aucun</MenuItem>
-                    {suppliers.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Mode de paiement</InputLabel>
-                  <Select value={supplyForm.payment_method} label="Mode de paiement" onChange={e => setSupplyForm(f => ({ ...f, payment_method: e.target.value }))}>
-                    <MenuItem value="especes">Espèces</MenuItem>
-                    <MenuItem value="credit">Crédit</MenuItem>
-                    <MenuItem value="mobile_money">Mobile Money</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 400 }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Produit</TableCell>
-                    <TableCell>Catégorie</TableCell>
-                    <TableCell>Qté reçue</TableCell>
-                    <TableCell>Prix unitaire</TableCell>
-                    <TableCell>Stock actuel</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {supplyForm.items.map((item, idx) => {
-                    const p = products.find(x => x.id === item.product_id);
-                    return (
-                      <TableRow key={item.product_id}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell><Chip label={p?.category} size="small" /></TableCell>
-                        <TableCell>
-                          <TextField size="small" type="number" value={item.quantity} sx={{ width: 90 }}
-                            onChange={e => setSupplyForm(f => ({ ...f, items: f.items.map((it, i) => i === idx ? { ...it, quantity: e.target.value } : it) }))}
-                            placeholder="0" inputProps={{ min: 0 }} />
-                        </TableCell>
-                        <TableCell>
-                          <TextField size="small" type="number" value={item.unit_price} sx={{ width: 110 }}
-                            onChange={e => setSupplyForm(f => ({ ...f, items: f.items.map((it, i) => i === idx ? { ...it, unit_price: e.target.value } : it) }))} />
-                        </TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>{p?.current_stock || 0} {p?.unit}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TextField label="Notes" multiline rows={2} value={supplyForm.notes} onChange={e => setSupplyForm(f => ({ ...f, notes: e.target.value }))} />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSupplyDialog(false)}>Annuler</Button>
-          <Button variant="contained" onClick={handleSupply} startIcon={<SupplyIcon />}>Valider la livraison</Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Dialog: Fournisseur */}
       <Dialog open={supplierDialog} onClose={() => setSupplierDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Nouveau fournisseur</DialogTitle>
+        <DialogTitle>{editSupplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField label="Nom *" value={supplierForm.name} onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} required />
-            <TextField label="Contact" value={supplierForm.contact} onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} />
-            <TextField label="Téléphone" value={supplierForm.phone} onChange={e => setSupplierForm(f => ({ ...f, phone: e.target.value }))} />
-            <TextField label="Adresse" multiline rows={2} value={supplierForm.address} onChange={e => setSupplierForm(f => ({ ...f, address: e.target.value }))} />
+            <TextField label="Nom du fournisseur *" value={supplierForm.name}
+              onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} fullWidth autoFocus />
+            <TextField label="Contact (nom du responsable)" value={supplierForm.contact}
+              onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} fullWidth />
+            <TextField label="Téléphone" value={supplierForm.phone}
+              onChange={e => setSupplierForm(f => ({ ...f, phone: e.target.value }))} fullWidth />
+            <TextField label="Adresse" multiline rows={2} value={supplierForm.address}
+              onChange={e => setSupplierForm(f => ({ ...f, address: e.target.value }))} fullWidth />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSupplierDialog(false)}>Annuler</Button>
-          <Button variant="contained" onClick={handleSaveSupplier}>Créer</Button>
+          <Button variant="contained" onClick={handleSaveSupplier}>{editSupplier ? 'Modifier' : 'Créer'}</Button>
         </DialogActions>
       </Dialog>
     </Layout>

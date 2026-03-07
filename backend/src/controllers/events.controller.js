@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { Event, Quote, User } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // =====================================================
 // ÉVÉNEMENTS
@@ -83,6 +84,19 @@ const createEvent = async (req, res) => {
       event_date,
       space
     });
+
+    if (parseFloat(event.deposit_paid) > 0) {
+      await createAccountingEntry({
+        company_id: req.user.company_id,
+        amount: event.deposit_paid,
+        entry_type: 'vente',
+        payment_type: req.body.payment_operator || 'especes',
+        description: `Événement - ${event.name}`,
+        source_module: 'events',
+        source_id: event.id,
+        source_type: 'sale'
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -497,6 +511,17 @@ const recordPayment = async (req, res) => {
     await quote.save();
 
     await logAction(req, 'RECORD_PAYMENT', 'events', 'quote', quote.id, { amount });
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: req.body.amount,
+      entry_type: 'vente',
+      payment_type: req.body.payment_operator || 'especes',
+      description: `Événement - paiement devis`,
+      source_module: 'events',
+      source_id: quote.id,
+      source_type: 'sale'
+    });
 
     res.json({
       success: true,

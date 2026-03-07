@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { Ticket, Subscription, User, Incident, PriceSetting } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
+const { createAccountingEntry } = require('../utils/accounting');
 
 const DEFAULT_TICKET_PRICES = { adulte: 2000, enfant: 1000 };
 const DEFAULT_SUBSCRIPTION_PRICES = { mensuel: 25000, trimestriel: 60000, annuel: 200000 };
@@ -48,6 +49,18 @@ const createTicket = async (req, res) => {
     });
 
     await logAction(req, 'CREATE_TICKET', 'piscine', 'ticket', ticket.id, { type, quantity, total });
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: ticket.total,
+      entry_type: 'vente',
+      payment_type: ticket.payment_method,
+      description: 'Ticket piscine',
+      source_module: 'piscine',
+      source_id: ticket.id,
+      source_type: 'sale'
+    });
+
     res.status(201).json({ success: true, message: 'Vente enregistrée', data: ticket });
   } catch (error) {
     console.error('Create ticket error:', error);

@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Print as PrintIcon, Close as CloseIcon, Warning as WarningIcon } from '@mui/icons-material';
 import { receiptsApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ReceiptData {
   receipt_number: string;
@@ -61,6 +62,9 @@ const formatCurrency = (amount: number): string => {
 };
 
 const ReceiptPrint: React.FC<ReceiptPrintProps> = ({ open, onClose, receiptId }) => {
+  const { user } = useAuth();
+  const companyName = (user?.company?.name || 'Mon Entreprise').toUpperCase();
+
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -246,7 +250,7 @@ const ReceiptPrint: React.FC<ReceiptPrintProps> = ({ open, onClose, receiptId })
               {/* Header */}
               <Box className="header" sx={{ textAlign: 'center', borderBottom: '1px dashed #000', pb: 1, mb: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '16px' }}>
-                  COMPLEXE DE LOISIRS OUANGOLO
+                  {companyName}
                 </Typography>
                 <Typography variant="subtitle2" sx={{ fontSize: '14px' }}>
                   RECU DE CLOTURE DE CAISSE

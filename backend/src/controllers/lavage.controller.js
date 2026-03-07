@@ -1,5 +1,6 @@
 const { VehicleType, CarWash, CustomerTab, TabItem } = require('../models');
 const { Op, sequelize } = require('../models');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES DE VÉHICULES
@@ -116,6 +117,19 @@ const createCarWash = async (req, res) => {
       status: 'paye', user_id: req.user?.id, notes
     });
 
+    if (wash.status === 'paye') {
+      await createAccountingEntry({
+        company_id: req.user.company_id,
+        amount: wash.amount,
+        entry_type: 'vente',
+        payment_type: wash.payment_method,
+        description: `Lavage auto`,
+        source_module: 'lavage',
+        source_id: wash.id,
+        source_type: 'sale'
+      });
+    }
+
     res.json({ success: true, data: wash, message: `Lavage enregistré — ${amount.toLocaleString()} FCFA` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -149,8 +163,12 @@ const payCarWash = async (req, res) => {
 
 const getCarWashes = async (req, res) => {
   try {
-    const { date, start_date, end_date } = req.query;
+    const { date, start_date, end_date, status } = req.query;
     let where = {};
+
+    if (status) {
+      where.status = status;
+    }
 
     if (date) {
       where.created_at = {

@@ -31,6 +31,7 @@ echo # localhost name resolution is handled within DNS itself.
 echo #	127.0.0.1       localhost
 echo #	::1             localhost
 echo 127.0.0.1    gestion.piscine.ouangolo
+echo 127.0.0.1    ollentra.uat
 ) > "C:\Windows\System32\drivers\etc\hosts"
 
 if %errorLevel% equ 0 (
@@ -44,7 +45,7 @@ if %errorLevel% equ 0 (
     echo ========================================
     echo.
     echo Ouvre maintenant ton navigateur et va sur :
-    echo   http://gestion.piscine.ouangolo:5173/
+    echo   http://ollentra.uat:5173/
     echo.
     echo ^(Lance d'abord start.bat si les serveurs ne tournent pas^)
 ) else (

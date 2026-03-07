@@ -89,6 +89,9 @@ const createCompany = async (req, res) => {
 
     await t.commit();
 
+    const { initCompanyAccounts } = require('../utils/accounting');
+    await initCompanyAccounts(company.id);
+
     res.status(201).json({
       success: true,
       message: 'Entreprise créée avec succès',

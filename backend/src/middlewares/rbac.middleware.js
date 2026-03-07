@@ -132,13 +132,14 @@ const canAccessModule = (module) => {
   return (req, res, next) => {
     const moduleAccess = {
       piscine: ['maitre_nageur', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
-      restaurant: ['serveuse', 'serveur', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
+      restaurant: ['serveuse', 'serveur', 'cuisinier', 'caissier', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
+      cuisine: ['cuisinier', 'gerant', 'admin', 'responsable', 'directeur'],
       hotel: ['receptionniste', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
       events: ['gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire'],
-      caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur', 'maire'],
+      caisse: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'caissier', 'gerant', 'admin', 'directeur', 'maire'],
       dashboard: ['gerant', 'admin', 'responsable', 'directeur', 'maire'],
-      users: ['gerant', 'admin'],  // Gerant et admin peuvent acceder aux utilisateurs
-      employees: ['admin', 'directeur'],  // Seul admin peut gerer la paie (directeur en lecture)
+      users: ['gerant', 'admin'],
+      employees: ['admin', 'directeur'],
       expenses: ['gerant', 'admin', 'directeur']
     };
 

@@ -30,6 +30,20 @@ const DepotSale = sequelize.define('DepotSale', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  status: {
+    type: DataTypes.STRING(20),
+    defaultValue: 'paye',
+    comment: 'en_attente = ticket en attente encaissement caisse | paye = encaissé'
+  },
+  client_name: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  items_json: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: 'Articles pour affichage reçu'
   }
 }, {
   tableName: 'depot_sales',

@@ -37,10 +37,16 @@ import {
   AttachMoney,
   Print as PrintIcon,
   Warning as WarningIcon,
-  RemoveCircle as DeductIcon
+  RemoveCircle as DeductIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  ShoppingCart as AchatIcon,
+  AccountBalance as ComptaIcon,
+  BarChart as ReportIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
-import { employeesApi, employeeShortagesApi } from '../services/api';
+import { employeesApi, employeeShortagesApi, accountingApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Employee {
   id: number;
@@ -101,6 +107,39 @@ interface PayrollStats {
   total_pending: number;
 }
 
+interface AccountingReport {
+  period: { month: number; year: number; start: string; end: string };
+  ventes: number;
+  achats: number;
+  charges: number;
+  salaires: number;
+  benefice: number;
+  benefice_pct: number;
+}
+
+interface AccountingEntry {
+  id: number;
+  entry_date: string;
+  description: string;
+  amount: number;
+  entry_type: 'vente' | 'achat' | 'charge' | 'salaire';
+  payment_type: string;
+  source_module: string;
+}
+
+const ENTRY_TYPE_LABEL: Record<string, string> = {
+  vente: 'Vente', achat: 'Achat', charge: 'Charge', salaire: 'Salaire'
+};
+const ENTRY_TYPE_COLOR: Record<string, 'success' | 'error' | 'warning' | 'info'> = {
+  vente: 'success', achat: 'error', charge: 'warning', salaire: 'info'
+};
+const MODULE_LABEL: Record<string, string> = {
+  restaurant: 'Restaurant', hotel: 'Hôtel', piscine: 'Piscine',
+  events: 'Événements', depot: 'Dépôt', superette: 'Supérette',
+  maquis: 'Maquis', lavage: 'Lavage', pressing: 'Pressing',
+  expenses: 'Dépenses', employees: 'Salaires'
+};
+
 const positionLabels: Record<string, string> = {
   vigile: 'Vigile',
   agent_entretien: 'Agent d\'entretien',
@@ -123,11 +162,21 @@ const formatCurrency = (amount: number): string => {
 };
 
 const Employees: React.FC = () => {
+  const { user } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [stats, setStats] = useState<PayrollStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // ── Comptabilité ────────────────────────────────────────────
+  const today = new Date();
+  const [acctMonth, setAcctMonth] = useState(today.getMonth() + 1);
+  const [acctYear,  setAcctYear]  = useState(today.getFullYear());
+  const [acctReport,  setAcctReport]  = useState<AccountingReport | null>(null);
+  const [acctEntries, setAcctEntries] = useState<AccountingEntry[]>([]);
+  const [acctFilter,  setAcctFilter]  = useState<string>('all');
+  const [acctLoading, setAcctLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -241,6 +290,24 @@ const Employees: React.FC = () => {
     };
     fetchAll();
   }, []);
+
+  // ── Comptabilité : chargement rapport + écritures ──────────
+  const loadAccounting = async (m: number, y: number) => {
+    setAcctLoading(true);
+    try {
+      const [rRes, eRes] = await Promise.all([
+        accountingApi.getReport(m, y),
+        accountingApi.getEntries({ month: m, year: y })
+      ]);
+      setAcctReport(rRes.data?.data || null);
+      setAcctEntries(eRes.data?.data || []);
+    } catch { /* silencieux */ }
+    setAcctLoading(false);
+  };
+
+  useEffect(() => {
+    if (tabValue === 3 || tabValue === 4) loadAccounting(acctMonth, acctYear);
+  }, [tabValue, acctMonth, acctYear]);
 
   // Employee handlers
   const handleOpenEmployeeDialog = (employee?: Employee) => {
@@ -528,7 +595,7 @@ const Employees: React.FC = () => {
 </head>
 <body>
 <div class="header">
-  <h1>PISCINE DE OUANGOLO</h1>
+  <h1>${(user?.company?.name || 'Mon Entreprise').toUpperCase()}</h1>
   <h2>BULLETIN DE SALAIRE — ${periodLabel.toUpperCase()}</h2>
   <div class="badge">${statusLabel}</div>
 </div>
@@ -691,6 +758,8 @@ ${payroll.notes ? `<div class="section">
           <Tab label="Employes" />
           <Tab label="Fiches de Paie" />
           <Tab label="Manquants Caisse" icon={<WarningIcon color="error" fontSize="small" />} iconPosition="end" />
+          <Tab label="Dashboard Compta" icon={<ComptaIcon fontSize="small" />} iconPosition="start" />
+          <Tab label="Rapport Mensuel"  icon={<ReportIcon fontSize="small" />} iconPosition="start" />
         </Tabs>
 
         <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -835,6 +904,278 @@ ${payroll.notes ? `<div class="section">
             </>
           )}
           {/* Tab Manquants Caisse */}
+          {/* ── Tab 3 : Dashboard Comptabilité ───────────────────── */}
+          {tabValue === 3 && (
+            <>
+              {/* Sélecteur période */}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+                <ComptaIcon color="primary" />
+                <Typography variant="h6" fontWeight={700}>Comptabilité Simplifiée</Typography>
+                <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+                  <TextField select size="small" label="Mois" value={acctMonth}
+                    onChange={e => setAcctMonth(Number(e.target.value))} sx={{ width: 130 }}>
+                    {monthNames.map((m, i) => (
+                      <MenuItem key={i} value={i + 1}>{m}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField select size="small" label="Année" value={acctYear}
+                    onChange={e => setAcctYear(Number(e.target.value))} sx={{ width: 100 }}>
+                    {[2024, 2025, 2026, 2027].map(y => (
+                      <MenuItem key={y} value={y}>{y}</MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              </Box>
+
+              {acctLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+              ) : acctReport ? (
+                <>
+                  {/* 5 cartes KPI */}
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #4caf50' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <TrendingUpIcon color="success" fontSize="small" />
+                            <Typography variant="caption" color="text.secondary">Ventes</Typography>
+                          </Box>
+                          <Typography variant="h6" fontWeight={700} color="success.main">
+                            {formatCurrency(acctReport.ventes)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #f44336' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <AchatIcon color="error" fontSize="small" />
+                            <Typography variant="caption" color="text.secondary">Achats</Typography>
+                          </Box>
+                          <Typography variant="h6" fontWeight={700} color="error.main">
+                            {formatCurrency(acctReport.achats)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #ff9800' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <TrendingDownIcon color="warning" fontSize="small" />
+                            <Typography variant="caption" color="text.secondary">Charges</Typography>
+                          </Box>
+                          <Typography variant="h6" fontWeight={700} color="warning.main">
+                            {formatCurrency(acctReport.charges)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #2196f3' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <People color="info" fontSize="small" />
+                            <Typography variant="caption" color="text.secondary">Salaires</Typography>
+                          </Box>
+                          <Typography variant="h6" fontWeight={700} color="info.main">
+                            {formatCurrency(acctReport.salaires)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={4} md>
+                      <Card sx={{ borderLeft: `4px solid ${acctReport.benefice >= 0 ? '#4caf50' : '#f44336'}`,
+                        bgcolor: acctReport.benefice >= 0 ? 'success.50' : 'error.50' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <AttachMoney color={acctReport.benefice >= 0 ? 'success' : 'error'} fontSize="small" />
+                            <Typography variant="caption" color="text.secondary">Bénéfice estimé</Typography>
+                          </Box>
+                          <Typography variant="h6" fontWeight={700}
+                            color={acctReport.benefice >= 0 ? 'success.main' : 'error.main'}>
+                            {formatCurrency(acctReport.benefice)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {acctReport.benefice_pct}% de marge
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
+
+                  {/* Formule */}
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <strong>Bénéfice</strong> = Ventes ({formatCurrency(acctReport.ventes)}) –
+                    (Achats {formatCurrency(acctReport.achats)} +
+                    Charges {formatCurrency(acctReport.charges)} +
+                    Salaires {formatCurrency(acctReport.salaires)})
+                    = <strong>{formatCurrency(acctReport.benefice)}</strong>
+                  </Alert>
+                </>
+              ) : (
+                <Alert severity="info">Aucune donnée comptable pour cette période.</Alert>
+              )}
+            </>
+          )}
+
+          {/* ── Tab 4 : Rapport Mensuel détaillé ───────────────── */}
+          {tabValue === 4 && (
+            <>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+                <ReportIcon color="primary" />
+                <Typography variant="h6" fontWeight={700}>Rapport Mensuel Détaillé</Typography>
+                <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+                  <TextField select size="small" label="Filtre" value={acctFilter}
+                    onChange={e => setAcctFilter(e.target.value)} sx={{ width: 130 }}>
+                    <MenuItem value="all">Tous</MenuItem>
+                    <MenuItem value="vente">Ventes</MenuItem>
+                    <MenuItem value="achat">Achats</MenuItem>
+                    <MenuItem value="charge">Charges</MenuItem>
+                    <MenuItem value="salaire">Salaires</MenuItem>
+                  </TextField>
+                  <TextField select size="small" label="Mois" value={acctMonth}
+                    onChange={e => setAcctMonth(Number(e.target.value))} sx={{ width: 130 }}>
+                    {monthNames.map((m, i) => (
+                      <MenuItem key={i} value={i + 1}>{m}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField select size="small" label="Année" value={acctYear}
+                    onChange={e => setAcctYear(Number(e.target.value))} sx={{ width: 100 }}>
+                    {[2024, 2025, 2026, 2027].map(y => (
+                      <MenuItem key={y} value={y}>{y}</MenuItem>
+                    ))}
+                  </TextField>
+                  <Button variant="outlined" size="small" startIcon={<PrintIcon />} onClick={() => {
+                    const filtered = acctFilter === 'all' ? acctEntries : acctEntries.filter(e => e.entry_type === acctFilter);
+                    const totV = acctReport?.ventes || 0;
+                    const totA = acctReport?.achats || 0;
+                    const totC = acctReport?.charges || 0;
+                    const totS = acctReport?.salaires || 0;
+                    const ben  = acctReport?.benefice || 0;
+                    const w = window.open('', '_blank');
+                    if (!w) return;
+                    w.document.write(`<html><head><title>Rapport Comptable</title>
+                      <style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}
+                      th,td{border:1px solid #ccc;padding:6px 10px;text-align:left}
+                      th{background:#1a237e;color:white}.total{font-weight:bold;background:#f5f5f5}
+                      .success{color:green}.error{color:red}.warning{color:orange}.info{color:#2196f3}
+                      @media print{button{display:none}}</style></head><body>
+                      <h2>Rapport Comptable — ${monthNames[acctMonth-1]} ${acctYear}</h2>
+                      <table><thead><tr><th>Date</th><th>Description</th><th>Module</th><th>Type</th><th>Montant</th></tr></thead>
+                      <tbody>${filtered.map(e => `<tr>
+                        <td>${new Date(e.entry_date).toLocaleDateString('fr-FR')}</td>
+                        <td>${e.description || '—'}</td>
+                        <td>${MODULE_LABEL[e.source_module] || e.source_module || '—'}</td>
+                        <td class="${ENTRY_TYPE_COLOR[e.entry_type]}">${ENTRY_TYPE_LABEL[e.entry_type]}</td>
+                        <td>${formatCurrency(e.amount)}</td></tr>`).join('')}
+                      </tbody></table>
+                      <br/><table><thead><tr><th colspan="2">Résumé</th></tr></thead><tbody>
+                      <tr><td>Total Ventes</td><td class="success">${formatCurrency(totV)}</td></tr>
+                      <tr><td>Total Achats</td><td class="error">${formatCurrency(totA)}</td></tr>
+                      <tr><td>Total Charges</td><td class="warning">${formatCurrency(totC)}</td></tr>
+                      <tr><td>Total Salaires</td><td class="info">${formatCurrency(totS)}</td></tr>
+                      <tr class="total"><td><strong>Bénéfice estimé</strong></td>
+                      <td class="${ben >= 0 ? 'success' : 'error'}"><strong>${formatCurrency(ben)}</strong></td></tr>
+                      </tbody></table>
+                      <script>window.print();</script></body></html>`);
+                    w.document.close();
+                  }}>
+                    Imprimer
+                  </Button>
+                </Box>
+              </Box>
+
+              {acctLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+              ) : (
+                <>
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: 'primary.main' }}>
+                          <TableCell sx={{ color: 'white' }}><strong>Date</strong></TableCell>
+                          <TableCell sx={{ color: 'white' }}><strong>Description</strong></TableCell>
+                          <TableCell sx={{ color: 'white' }}><strong>Module</strong></TableCell>
+                          <TableCell sx={{ color: 'white' }}><strong>Type</strong></TableCell>
+                          <TableCell sx={{ color: 'white' }} align="right"><strong>Montant</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {(acctFilter === 'all' ? acctEntries : acctEntries.filter(e => e.entry_type === acctFilter))
+                          .map(entry => (
+                            <TableRow key={entry.id} hover>
+                              <TableCell>
+                                {new Date(entry.entry_date).toLocaleDateString('fr-FR')}
+                              </TableCell>
+                              <TableCell>{entry.description || '—'}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={MODULE_LABEL[entry.source_module] || entry.source_module || '—'}
+                                  size="small" variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={ENTRY_TYPE_LABEL[entry.entry_type]}
+                                  color={ENTRY_TYPE_COLOR[entry.entry_type]}
+                                  size="small"
+                                />
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography
+                                  fontWeight={600}
+                                  color={entry.entry_type === 'vente' ? 'success.main' : 'error.main'}
+                                >
+                                  {entry.entry_type === 'vente' ? '+' : '−'}{formatCurrency(entry.amount)}
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        {acctEntries.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                              Aucune écriture pour cette période
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  {/* Totaux en bas */}
+                  {acctReport && (
+                    <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="text.secondary">Ventes</Typography>
+                          <Typography fontWeight={700} color="success.main">{formatCurrency(acctReport.ventes)}</Typography>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="text.secondary">Achats + Charges + Salaires</Typography>
+                          <Typography fontWeight={700} color="error.main">
+                            {formatCurrency(acctReport.achats + acctReport.charges + acctReport.salaires)}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="caption" color="text.secondary">Bénéfice estimé</Typography>
+                          <Typography variant="h6" fontWeight={700}
+                            color={acctReport.benefice >= 0 ? 'success.main' : 'error.main'}>
+                            {formatCurrency(acctReport.benefice)}
+                            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                              ({acctReport.benefice_pct}% marge)
+                            </Typography>
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
           {tabValue === 2 && (
             <>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>

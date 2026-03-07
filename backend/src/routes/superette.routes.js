@@ -6,7 +6,7 @@ const {
   createSale, getStock, getStockMovements, adjustStock,
   addStock, getPurchases,
   getSuppliers, createSupplier, updateSupplier,
-  getSuperetteStats
+  getSuperetteStats, getOpenTickets, payTicket
 } = require('../controllers/superette.controller');
 
 router.use(authenticateToken);
@@ -36,5 +36,9 @@ router.get('/purchases', getPurchases);
 router.get('/suppliers', getSuppliers);
 router.post('/suppliers', createSupplier);
 router.put('/suppliers/:id', updateSupplier);
+
+// Tickets en attente (Encaissement caisse)
+router.get('/tickets/open', getOpenTickets);
+router.put('/tickets/:id/pay', payTicket);
 
 module.exports = router;

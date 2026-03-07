@@ -1,6 +1,7 @@
 const { Expense, User, Payroll, Employee } = require('../models');
 const { Op } = require('sequelize');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // Categories labels
 const categoryLabels = {
@@ -171,6 +172,17 @@ const createExpense = async (req, res) => {
       user_id: req.user.id,
       notes,
       company_id: req.user.company_id
+    });
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: expense.amount,
+      entry_type: 'charge',
+      payment_type: expense.payment_method,
+      description: expense.description,
+      source_module: 'expenses',
+      source_id: expense.id,
+      source_type: 'expense'
     });
 
     const fullExpense = await Expense.findByPk(expense.id, {

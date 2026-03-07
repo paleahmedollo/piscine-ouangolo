@@ -1,4 +1,4 @@
-// Types pour l'application GESTIX
+// Types pour l'application OLLENTRA
 
 export type UserRole =
   | 'admin'
@@ -11,7 +11,14 @@ export type UserRole =
   | 'responsable'
   | 'directeur'
   | 'maire'
-  | 'super_admin';
+  | 'super_admin'
+  | 'cuisinier'
+  | 'caissier'
+  | 'caissier_lavage'
+  | 'caissier_pressing'
+  | 'caissier_maquis'
+  | 'caissier_superette'
+  | 'caissier_depot';
 
 export interface Company {
   id: number;
@@ -197,7 +204,17 @@ export interface Quote {
 }
 
 // Caisse
-export type CashRegisterModule = 'piscine' | 'restaurant' | 'hotel' | 'events';
+export type CashRegisterModule =
+  | 'piscine'
+  | 'restaurant'
+  | 'hotel'
+  | 'events'
+  | 'lavage'
+  | 'pressing'
+  | 'maquis'
+  | 'superette'
+  | 'depot';
+
 export type CashRegisterStatus = 'en_attente' | 'validee' | 'rejetee';
 
 export interface CashRegister {
@@ -282,6 +299,11 @@ export interface Dashboard {
     restaurant?: DashboardModule;
     hotel?: DashboardModule;
     events?: DashboardModule;
+    lavage?: DashboardModule;
+    pressing?: DashboardModule;
+    maquis?: DashboardModule;
+    superette?: DashboardModule;
+    depot?: DashboardModule;
   };
   global?: {
     ca_aujourd_hui: number;

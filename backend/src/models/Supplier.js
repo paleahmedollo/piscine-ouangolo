@@ -17,12 +17,25 @@ const Supplier = sequelize.define('Supplier', {
   phone: {
     type: DataTypes.STRING(50)
   },
+  email: {
+    type: DataTypes.STRING(200),
+    allowNull: true
+  },
   address: {
     type: DataTypes.TEXT
   },
   service_type: {
-    type: DataTypes.ENUM('maquis', 'superette', 'both'),
+    type: DataTypes.ENUM('maquis', 'superette', 'both', 'depot'),
     defaultValue: 'both'
+  },
+  delai_paiement: {
+    type: DataTypes.INTEGER,
+    defaultValue: 30,
+    comment: 'Délai de paiement en jours'
+  },
+  mode_paiement_habituel: {
+    type: DataTypes.STRING(50),
+    defaultValue: 'especes'
   },
   is_active: {
     type: DataTypes.BOOLEAN,

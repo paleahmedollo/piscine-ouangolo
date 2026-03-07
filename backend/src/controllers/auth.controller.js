@@ -89,7 +89,7 @@ const login = async (req, res) => {
     let company = null;
     if (user.company_id) {
       company = await Company.findByPk(user.company_id, {
-        attributes: ['id', 'name', 'code', 'logo_url', 'plan']
+        attributes: ['id', 'name', 'code', 'logo_url', 'plan', 'modules']
       });
     }
 
@@ -146,7 +146,7 @@ const logout = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      include: [{ association: 'company', attributes: ['id', 'name', 'code', 'logo_url'] }]
+      include: [{ association: 'company', attributes: ['id', 'name', 'code', 'logo_url', 'modules'] }]
     });
 
     if (!user) {

@@ -1,5 +1,5 @@
 /**
- * Super Admin Controller — Gestix SaaS Platform
+ * Super Admin Controller — Ollentra SaaS Platform
  * Gère les 9 modules du tableau de bord superadmin :
  *  1. Tableau de bord (stats globales)
  *  2. Entreprises (via companies.controller.js)
@@ -663,7 +663,7 @@ const getSettings = async (req, res) => {
     // Retourner les paramètres système depuis les variables d'env et configs
     const settings = {
       platform: {
-        name: 'Gestix',
+        name: 'Ollentra',
         version: '2.0',
         environment: process.env.NODE_ENV || 'development',
         api_url: process.env.API_URL || 'http://localhost:3001'

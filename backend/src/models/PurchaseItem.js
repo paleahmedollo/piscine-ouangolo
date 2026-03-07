@@ -17,7 +17,13 @@ const PurchaseItem = sequelize.define('PurchaseItem', {
   },
   quantity: {
     type: DataTypes.DECIMAL(12, 2),
-    allowNull: false
+    allowNull: false,
+    comment: 'Quantité commandée'
+  },
+  quantite_recue: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0,
+    comment: 'Quantité effectivement reçue (peut être partielle)'
   },
   unit_price: {
     type: DataTypes.DECIMAL(12, 0),
@@ -26,6 +32,10 @@ const PurchaseItem = sequelize.define('PurchaseItem', {
   subtotal: {
     type: DataTypes.DECIMAL(12, 0),
     defaultValue: 0
+  },
+  date_expiration: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
   }
 }, {
   tableName: 'purchase_items',

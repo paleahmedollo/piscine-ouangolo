@@ -16,13 +16,12 @@ module.exports = {
     GERANT: 'gerant',
     RESPONSABLE: 'responsable',
     DIRECTEUR: 'directeur',
-    MAIRE: 'maire'
+    MAIRE: 'maire',
+    CUISINIER: 'cuisinier',
+    CAISSIER: 'caissier'
   },
 
   // Permissions par module et action
-  // ADMIN = super admin (acces complet a tout, y compris paie)
-  // GERANT = gestion complete de l'etablissement
-  // DIRECTEUR = acces complet (supervision generale)
   permissions: {
     piscine: {
       vente_tickets: ['maitre_nageur', 'gerant', 'admin', 'directeur'],
@@ -31,9 +30,14 @@ module.exports = {
       lecture: ['maitre_nageur', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
     },
     restaurant: {
-      ventes: ['serveuse', 'serveur', 'gerant', 'admin', 'directeur'],
+      ventes: ['serveuse', 'serveur', 'gerant', 'admin', 'directeur', 'caissier'],
       gestion_menu: ['gerant', 'admin', 'directeur'],
-      lecture: ['serveuse', 'serveur', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
+      gestion_tables: ['serveuse', 'serveur', 'gerant', 'admin', 'directeur', 'caissier'],
+      lecture: ['serveuse', 'serveur', 'cuisinier', 'caissier', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
+    },
+    cuisine: {
+      lecture: ['cuisinier', 'gerant', 'admin', 'directeur', 'responsable'],
+      gestion_commandes: ['cuisinier', 'gerant', 'admin', 'directeur']
     },
     hotel: {
       reservations: ['receptionniste', 'gerant', 'admin', 'directeur'],
@@ -47,9 +51,9 @@ module.exports = {
       lecture: ['gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
     },
     caisse: {
-      cloture_propre: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'directeur'],
+      cloture_propre: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'caissier', 'gerant', 'admin', 'directeur'],
       validation: ['gerant', 'admin', 'directeur'],
-      lecture: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
+      lecture: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'caissier', 'gerant', 'admin', 'responsable', 'directeur', 'maire']
     },
     dashboard: {
       complet: ['gerant', 'admin', 'directeur'],
@@ -70,7 +74,7 @@ module.exports = {
     },
     rapports: {
       tous_rapports: ['admin', 'gerant', 'responsable', 'directeur', 'maire'],
-      propres_transactions: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events']
+      propres_transactions: ['maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events', 'caissier', 'cuisinier']
     }
   }
 };

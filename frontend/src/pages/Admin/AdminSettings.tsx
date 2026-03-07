@@ -42,7 +42,7 @@ const AdminSettings: React.FC = () => {
           <SettingsIcon sx={{ fontSize: 28, color: '#37474f' }} />
           <Box>
             <Typography variant="h5" fontWeight={700}>Paramètres</Typography>
-            <Typography variant="body2" color="text.secondary">Configuration de la plateforme Gestix</Typography>
+            <Typography variant="body2" color="text.secondary">Configuration de la plateforme Ollentra</Typography>
           </Box>
         </Box>
         <Tooltip title="Actualiser"><IconButton onClick={loadSettings}><RefreshIcon /></IconButton></Tooltip>

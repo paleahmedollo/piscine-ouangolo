@@ -113,6 +113,7 @@ export const restaurantApi = {
     items: Array<{ menu_item_id: number; quantity: number }>;
     table_number?: string;
     room_number?: string;
+    order_type?: 'table' | 'livraison' | 'hotel';
   }) => api.post('/restaurant/sales', data),
   getOpenSales: () => api.get('/restaurant/sales/open'),
   closeSale: (id: number, data: {
@@ -128,7 +129,36 @@ export const restaurantApi = {
   getRoomBill: (roomNumber: string) =>
     api.get(`/restaurant/bills/room/${roomNumber}`),
   closeRoomSales: (roomNumber: string, paymentMethod: string) =>
-    api.put(`/restaurant/bills/room/${roomNumber}/close`, { payment_method: paymentMethod })
+    api.put(`/restaurant/bills/room/${roomNumber}/close`, { payment_method: paymentMethod }),
+  // ── Tables V2 ──────────────────────────────────────────────────────────
+  getTables: () => api.get('/restaurant/tables'),
+  createTable: (data: { numero: number; capacite?: number; notes?: string }) =>
+    api.post('/restaurant/tables', data),
+  updateTableStatus: (id: number, statut: 'libre' | 'occupee' | 'reservee') =>
+    api.put(`/restaurant/tables/${id}/status`, { statut }),
+  updateTable: (id: number, data: { numero?: number; capacite?: number; notes?: string }) =>
+    api.put(`/restaurant/tables/${id}`, data),
+  deleteTable: (id: number) => api.delete(`/restaurant/tables/${id}`),
+  // ── Commandes V2 ────────────────────────────────────────────────────────
+  getOrders: (params?: Record<string, string>) =>
+    api.get('/restaurant/orders', { params }),
+  getActiveOrders: () => api.get('/restaurant/orders/active'),
+  getOrderById: (id: number) => api.get(`/restaurant/orders/${id}`),
+  createOrder: (data: {
+    table_id?: number;
+    order_type?: 'table' | 'livraison';
+    items: Array<{ menu_item_id?: number; nom_plat: string; quantite: number; prix_unitaire: number }>;
+    notes?: string;
+  }) => api.post('/restaurant/orders', data),
+  acknowledgeOrder: (id: number, temps_preparation: 15 | 25 | 45) =>
+    api.put(`/restaurant/orders/${id}/acknowledge`, { temps_preparation }),
+  markOrderReady: (id: number) => api.put(`/restaurant/orders/${id}/ready`),
+  payOrder: (id: number, mode_paiement: string) =>
+    api.put(`/restaurant/orders/${id}/pay`, { mode_paiement }),
+  getCaisseStats: () => api.get('/restaurant/orders/stats/caisse'),
+  // ── Notifications (polling) ──────────────────────────────────────────────
+  getNotifications: () => api.get('/restaurant/notifications'),
+  markNotificationsRead: () => api.put('/restaurant/notifications/read')
 };
 
 // Hotel API
@@ -481,6 +511,7 @@ export const lavageApi = {
     api.put(`/lavage/washes/${id}/pay`, data),
   getCarWashes: (params?: { date?: string; start_date?: string; end_date?: string }) =>
     api.get('/lavage/washes', { params }),
+  getOpenWashes: () => api.get('/lavage/washes', { params: { status: 'en_attente' } }),
   getStats: () => api.get('/lavage/stats')
 };
 
@@ -528,7 +559,11 @@ export const maquisApi = {
   getSuppliers: () => api.get('/maquis/suppliers'),
   createSupplier: (data: { name: string; contact?: string; phone?: string; address?: string }) =>
     api.post('/maquis/suppliers', data),
-  updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/maquis/suppliers/${id}`, data)
+  updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/maquis/suppliers/${id}`, data),
+  // Tickets en attente (Encaissement caisse)
+  getOpenTickets: () => api.get('/maquis/tickets/open'),
+  payTicket: (id: number, data: { payment_method: string; payment_operator?: string; payment_reference?: string }) =>
+    api.put(`/maquis/tickets/${id}/pay`, data)
 };
 
 // Superette API
@@ -560,7 +595,11 @@ export const superetteApi = {
   getSuppliers: () => api.get('/superette/suppliers'),
   createSupplier: (data: { name: string; contact?: string; phone?: string; address?: string }) =>
     api.post('/superette/suppliers', data),
-  updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/superette/suppliers/${id}`, data)
+  updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/superette/suppliers/${id}`, data),
+  // Tickets en attente (Encaissement caisse)
+  getOpenTickets: () => api.get('/superette/tickets/open'),
+  payTicket: (id: number, data: { payment_method: string; payment_operator?: string; payment_reference?: string }) =>
+    api.put(`/superette/tickets/${id}/pay`, data)
 };
 
 // Pressing API
@@ -572,13 +611,14 @@ export const pressingApi = {
     api.put(`/pressing/types/${id}`, data),
   deleteType: (id: number) => api.delete(`/pressing/types/${id}`),
   createOrder: (data: {
-    pressing_type_id: number; customer_name: string; customer_phone?: string;
-    quantity?: number; payment_method?: string; tab_id?: number; notes?: string; status?: string;
+    customer_name: string; customer_phone?: string; notes?: string;
+    items: Array<{ pressing_type_id: number; quantity: number }>;
   }) => api.post('/pressing/orders', data),
   payOrder: (id: number, data: { payment_method: string }) =>
     api.put(`/pressing/orders/${id}/pay`, data),
   getOrders: (params?: { date?: string; start_date?: string; end_date?: string; status?: string }) =>
     api.get('/pressing/orders', { params }),
+  getOpenOrders: () => api.get('/pressing/orders', { params: { status: 'en_attente' } }),
   getStats: () => api.get('/pressing/stats')
 };
 
@@ -610,7 +650,21 @@ export const depotApi = {
   payCredit: (data: { depot_client_id: number; amount: number; payment_method?: string }) =>
     api.post('/depot/pay-credit', data),
   // Stats
-  getStats: () => api.get('/depot/stats')
+  getStats: () => api.get('/depot/stats'),
+  // Fournisseurs
+  getSuppliers: () => api.get('/depot/suppliers'),
+  createSupplier: (data: Record<string, unknown>) => api.post('/depot/suppliers', data),
+  updateSupplier: (id: number, data: Record<string, unknown>) => api.put(`/depot/suppliers/${id}`, data),
+  // Commandes fournisseurs
+  getOrders: (params?: { statut?: string; supplier_id?: number }) => api.get('/depot/orders', { params }),
+  createOrder: (data: Record<string, unknown>) => api.post('/depot/orders', data),
+  receiveOrder: (id: number, data: { items_received: Array<{ purchase_item_id: number; quantite_recue: number }>; date_reception?: string }) =>
+    api.post(`/depot/orders/${id}/receive`, data),
+  payOrder: (id: number, data: { montant: number }) => api.post(`/depot/orders/${id}/pay`, data),
+  cancelOrder: (id: number) => api.post(`/depot/orders/${id}/cancel`, {}),
+  // Tickets en attente (Encaissement caisse)
+  getPendingSales: () => api.get('/depot/sales/pending'),
+  payDepotSale: (id: number, data: { payment_method: string }) => api.put(`/depot/sales/${id}/pay`, data)
 };
 
 // Maquis Shortages API
@@ -626,4 +680,15 @@ export const employeeShortagesApi = {
   getShortages: (employeeId: number) => api.get(`/employees/${employeeId}/shortages`),
   deductShortage: (employeeId: number, data: { shortage_id: number; payroll_id: number }) =>
     api.post(`/employees/${employeeId}/deduct-shortage`, data)
+};
+
+// Accounting API — Comptabilité Simplifiée
+export const accountingApi = {
+  getReport:  (month: number, year: number) =>
+    api.get('/accounting/report', { params: { month, year } }),
+  getEntries: (params?: { month?: number; year?: number; type?: string }) =>
+    api.get('/accounting/entries', { params }),
+  getAccounts: () => api.get('/accounting/accounts'),
+  getAnnualReport: (year: number) =>
+    api.get('/accounting/annual', { params: { year } })
 };

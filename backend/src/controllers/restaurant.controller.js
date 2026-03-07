@@ -2,15 +2,12 @@ const { Op } = require('sequelize');
 const { MenuItem, Sale, User, Room, Reservation } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // =====================================================
 // MENU
 // =====================================================
 
-/**
- * GET /api/restaurant/menu
- * Récupérer le menu
- */
 const getMenu = async (req, res) => {
   try {
     const { category, available_only } = req.query;
@@ -31,7 +28,6 @@ const getMenu = async (req, res) => {
       order: [['category', 'ASC'], ['name', 'ASC']]
     });
 
-    // Grouper par catégorie
     const menuByCategory = menuItems.reduce((acc, item) => {
       if (!acc[item.category]) {
         acc[item.category] = [];
@@ -56,10 +52,6 @@ const getMenu = async (req, res) => {
   }
 };
 
-/**
- * POST /api/restaurant/menu
- * Ajouter un article au menu (directeur uniquement)
- */
 const createMenuItem = async (req, res) => {
   try {
     const { name, category, price, description } = req.body;
@@ -96,10 +88,6 @@ const createMenuItem = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/restaurant/menu/:id
- * Modifier un article du menu
- */
 const updateMenuItem = async (req, res) => {
   try {
     const menuItem = await MenuItem.findByPk(req.params.id);
@@ -137,10 +125,6 @@ const updateMenuItem = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/restaurant/menu/:id
- * Supprimer un article du menu
- */
 const deleteMenuItem = async (req, res) => {
   try {
     const menuItem = await MenuItem.findByPk(req.params.id);
@@ -169,10 +153,6 @@ const deleteMenuItem = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/restaurant/menu/:id/availability
- * Modifier la disponibilité d'un article
- */
 const toggleAvailability = async (req, res) => {
   try {
     const menuItem = await MenuItem.findByPk(req.params.id);
@@ -205,27 +185,17 @@ const toggleAvailability = async (req, res) => {
 // VENTES
 // =====================================================
 
-/**
- * POST /api/restaurant/sales
- * Créer une vente
- */
 const createSale = async (req, res) => {
   try {
     const { items, payment_method, payment_operator, payment_reference, table_number, room_number } = req.body;
 
-    // Si facturation à une chambre, vérifier que la chambre est bien occupée
+    // Si facturation à une chambre, vérifier que la chambre existe
     if (room_number) {
       const room = await Room.findOne({ where: { number: room_number } });
       if (!room) {
         return res.status(400).json({
           success: false,
           message: `Chambre ${room_number} introuvable`
-        });
-      }
-      if (room.status !== 'occupee') {
-        return res.status(400).json({
-          success: false,
-          message: `La chambre ${room_number} n'est pas occupée actuellement`
         });
       }
     }
@@ -237,7 +207,6 @@ const createSale = async (req, res) => {
       });
     }
 
-    // Calculer les totaux
     let subtotal = 0;
     const itemsWithDetails = [];
 
@@ -270,8 +239,6 @@ const createSale = async (req, res) => {
       });
     }
 
-    // Ticket toujours créé ouvert — l'employé viendra fermer en encaissant
-    // Si chambre → payment_method = 'chambre' et reste ouvert jusqu'au check-out
     const sale = await Sale.create({
       user_id: req.user.id,
       items_json: itemsWithDetails,
@@ -292,6 +259,19 @@ const createSale = async (req, res) => {
       total: subtotal
     });
 
+    if (sale.payment_method && sale.payment_method !== 'en_attente') {
+      await createAccountingEntry({
+        company_id: req.user.company_id || sale.company_id,
+        amount: sale.total,
+        entry_type: 'vente',
+        payment_type: sale.payment_method,
+        description: 'Vente restaurant',
+        source_module: 'restaurant',
+        source_id: sale.id,
+        source_type: 'sale'
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: room_number
@@ -308,16 +288,11 @@ const createSale = async (req, res) => {
   }
 };
 
-/**
- * GET /api/restaurant/sales/open
- * Lister les tickets ouverts (non encaissés)
- */
 const getOpenSales = async (req, res) => {
   try {
     const cf = getCompanyFilter(req);
     let whereClause = { status: 'ouvert', ...cf };
 
-    // Les serveurs/serveuses voient seulement leurs tickets ouverts
     if (!['directeur', 'maire', 'gerant', 'responsable', 'admin'].includes(req.user.role)) {
       whereClause.user_id = req.user.id;
     }
@@ -335,10 +310,6 @@ const getOpenSales = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/restaurant/sales/:id/close
- * Fermer (encaisser) un ticket ouvert
- */
 const closeSale = async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id);
@@ -351,7 +322,6 @@ const closeSale = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Ce ticket est déjà encaissé' });
     }
 
-    // Les tickets chambre ne se ferment pas manuellement (ils restent liés à la chambre)
     if (sale.room_number) {
       return res.status(400).json({
         success: false,
@@ -377,7 +347,6 @@ const closeSale = async (req, res) => {
       total: sale.total
     });
 
-    // Recharger avec l'utilisateur pour la réponse
     await sale.reload({ include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }] });
 
     res.json({
@@ -391,10 +360,6 @@ const closeSale = async (req, res) => {
   }
 };
 
-/**
- * GET /api/restaurant/sales
- * Lister les ventes (par défaut: fermées du jour)
- */
 const getSales = async (req, res) => {
   try {
     const { date, start_date, end_date, status, page = 1, limit = 50 } = req.query;
@@ -403,7 +368,6 @@ const getSales = async (req, res) => {
 
     let whereClause = { ...cf };
 
-    // Par défaut on ne montre que les ventes fermées (encaissées)
     whereClause.status = status || 'ferme';
 
     if (date) {
@@ -416,7 +380,6 @@ const getSales = async (req, res) => {
         [Op.between]: [new Date(start_date), new Date(end_date)]
       };
     } else {
-      // Par défaut: ventes du jour
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -427,7 +390,6 @@ const getSales = async (req, res) => {
       };
     }
 
-    // Filtrer par utilisateur si pas directeur/maire/gerant
     if (!['directeur', 'maire', 'gerant', 'responsable', 'admin'].includes(req.user.role)) {
       whereClause.user_id = req.user.id;
     }
@@ -461,10 +423,6 @@ const getSales = async (req, res) => {
   }
 };
 
-/**
- * GET /api/restaurant/sales/:id
- * Détails d'une vente
- */
 const getSaleById = async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id, {
@@ -491,10 +449,6 @@ const getSaleById = async (req, res) => {
   }
 };
 
-/**
- * GET /api/restaurant/sales/stats
- * Statistiques des ventes
- */
 const getSaleStats = async (req, res) => {
   try {
     const { date } = req.query;
@@ -506,7 +460,7 @@ const getSaleStats = async (req, res) => {
 
     const cf = getCompanyFilter(req);
     let whereClause = {
-      status: 'ferme',  // Seulement les tickets encaissés dans les stats
+      status: 'ferme',
       created_at: {
         [Op.gte]: targetDate,
         [Op.lt]: nextDay
@@ -535,7 +489,6 @@ const getSaleStats = async (req, res) => {
       stats.total_montant += parseFloat(sale.total);
       stats.par_mode_paiement[sale.payment_method] += parseFloat(sale.total);
 
-      // Compter les articles vendus
       const items = sale.items_json;
       items.forEach(item => {
         if (!stats.articles_vendus[item.name]) {
@@ -559,15 +512,10 @@ const getSaleStats = async (req, res) => {
   }
 };
 
-/**
- * GET /api/restaurant/bills/room/:roomNumber
- * Obtenir toutes les consommations restaurant facturées à une chambre
- */
 const getRoomBill = async (req, res) => {
   try {
     const { roomNumber } = req.params;
 
-    // Vérifier que la chambre existe
     const room = await Room.findOne({ where: { number: roomNumber } });
     if (!room) {
       return res.status(404).json({
@@ -576,14 +524,11 @@ const getRoomBill = async (req, res) => {
       });
     }
 
-    // Trouver la réservation en cours pour cette chambre
     const activeReservation = await Reservation.findOne({
       where: { room_id: room.id, status: 'en_cours' },
       order: [['created_at', 'DESC']]
     });
 
-    // Récupérer toutes les ventes liées à cette chambre
-    // Si une réservation est en cours, on prend depuis la date de check-in
     let whereClause = { room_number: roomNumber };
     if (activeReservation) {
       whereClause.created_at = {
@@ -626,10 +571,6 @@ const getRoomBill = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/restaurant/bills/room/:roomNumber/close
- * Clôturer toutes les ventes ouvertes d'une chambre au moment du check-out hôtel
- */
 const closeRoomSales = async (req, res) => {
   try {
     const { roomNumber } = req.params;

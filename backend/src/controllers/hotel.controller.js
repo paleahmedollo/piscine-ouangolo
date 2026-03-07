@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { Room, Reservation, User, Sale } = require('../models');
 const { logAction } = require('../middlewares/audit.middleware');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // =====================================================
 // CHAMBRES
@@ -324,6 +325,19 @@ const createReservation = async (req, res) => {
       total_price
     });
 
+    if (parseFloat(reservation.deposit_paid) > 0) {
+      await createAccountingEntry({
+        company_id: reservation.company_id || req.user.company_id,
+        amount: reservation.deposit_paid,
+        entry_type: 'vente',
+        payment_type: req.body.payment_operator || 'especes',
+        description: `Réservation hôtel - ${reservation.client_name}`,
+        source_module: 'hotel',
+        source_id: reservation.id,
+        source_type: 'sale'
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: 'Réservation créée',
@@ -585,6 +599,19 @@ const checkOut = async (req, res) => {
       deposit_paid: reservation.deposit_paid,
       payment_at_checkout: payment_amount || 0
     });
+
+    if (payment_amount && parseFloat(payment_amount) > 0) {
+      await createAccountingEntry({
+        company_id: reservation.company_id || req.user.company_id,
+        amount: payment_amount,
+        entry_type: 'vente',
+        payment_type: req.body.payment_operator || 'especes',
+        description: `Réservation hôtel - ${reservation.client_name}`,
+        source_module: 'hotel',
+        source_id: reservation.id,
+        source_type: 'sale'
+      });
+    }
 
     res.json({
       success: true,

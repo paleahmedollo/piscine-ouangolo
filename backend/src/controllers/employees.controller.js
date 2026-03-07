@@ -1,6 +1,7 @@
 const { Employee, Payroll, User, Expense } = require('../models');
 const { Op } = require('sequelize');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
+const { createAccountingEntry } = require('../utils/accounting');
 
 // Position labels
 const positionLabels = {
@@ -428,6 +429,17 @@ const payPayroll = async (req, res) => {
       user_id: req.user.id,
       notes: notes,
       company_id: req.user.company_id
+    });
+
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: payroll.net_salary,
+      entry_type: 'salaire',
+      payment_type: payroll.payment_method,
+      description: `Salaire ${payroll.period_month}/${payroll.period_year}`,
+      source_module: 'employees',
+      source_id: payroll.id,
+      source_type: 'payroll'
     });
 
     const fullPayroll = await Payroll.findByPk(payroll.id, {

@@ -1,7 +1,7 @@
 {
-  "name": "gestix-piscine-ouangolo",
+  "name": "ollentra-piscine-ouangolo",
   "version": "1.0.0",
-  "description": "Gestix - Système de gestion Piscine de Ouangolo",
+  "description": "Ollentra - Système de gestion Piscine de Ouangolo",
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
     "start": "cd backend && node src/app.js",

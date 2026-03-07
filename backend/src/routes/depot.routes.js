@@ -6,7 +6,10 @@ const {
   getProducts, createProduct, updateProduct, receiveStock,
   createSale, getSales,
   payCredit,
-  getDepotStats
+  getDepotStats,
+  getSuppliers, createSupplier, updateSupplier,
+  getOrders, createOrder, receiveOrder, payOrder, cancelOrder,
+  getPendingSales, payDepotSale
 } = require('../controllers/depot.controller');
 
 router.use(authenticateToken);
@@ -31,5 +34,21 @@ router.post('/pay-credit', payCredit);
 
 // Stats
 router.get('/stats', getDepotStats);
+
+// Fournisseurs
+router.get('/suppliers', getSuppliers);
+router.post('/suppliers', createSupplier);
+router.put('/suppliers/:id', updateSupplier);
+
+// Commandes fournisseurs
+router.get('/orders', getOrders);
+router.post('/orders', createOrder);
+router.post('/orders/:id/receive', receiveOrder);
+router.post('/orders/:id/pay', payOrder);
+router.post('/orders/:id/cancel', cancelOrder);
+
+// Tickets en attente (Encaissement caisse)
+router.get('/sales/pending', getPendingSales);
+router.put('/sales/:id/pay', payDepotSale);
 
 module.exports = router;

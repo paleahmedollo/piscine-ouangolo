@@ -4,6 +4,7 @@ import {
   Button, Typography, Box, Divider
 } from '@mui/material';
 import { Print as PrintIcon } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 
 const fmt = (amount: number): string =>
   new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA';
@@ -69,7 +70,7 @@ interface Props {
 
 // ─── HTML du reçu pour l'impression ─────────────────────────────────────────
 
-const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateStr: string): string => {
+const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateStr: string, companyName: string): string => {
   const css = `
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:10px}
@@ -83,8 +84,8 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
   `;
 
   let body = `
-    <div class="title">PISCINE DE OUANGOLO</div>
-    <div class="center" style="font-size:10px">Ouangolo, Côte d'Ivoire</div>
+    <div class="title">${companyName}</div>
+    <div class="center" style="font-size:10px">Reçu client</div>
     <div class="sep"></div>
     <div class="center bold">REÇU CLIENT</div>
     <div class="sep"></div>
@@ -192,6 +193,9 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
 // ─── Composant ───────────────────────────────────────────────────────────────
 
 const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
+  const { user } = useAuth();
+  const companyName = (user?.company?.name || 'Mon Entreprise').toUpperCase();
+
   if (!data) return null;
 
   const now = new Date();
@@ -199,7 +203,7 @@ const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
   const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const handlePrint = () => {
-    const html = buildReceiptHtml(data, receiptNumber, dateStr);
+    const html = buildReceiptHtml(data, receiptNumber, dateStr, companyName);
     const win = window.open('', '_blank', 'width=400,height=600');
     if (!win) return;
     win.document.write(html);
@@ -224,7 +228,7 @@ const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
           fontFamily: 'Courier New, monospace', fontSize: '12px', backgroundColor: '#fafafa'
         }}>
           <Typography align="center" fontWeight="bold" sx={{ fontFamily: 'inherit', fontSize: '14px' }}>
-            PISCINE DE OUANGOLO
+            {companyName}
           </Typography>
           <Typography align="center" variant="caption" sx={{ fontFamily: 'inherit', display: 'block', mb: 1 }}>
             REÇU CLIENT
