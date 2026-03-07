@@ -913,6 +913,98 @@ const getFullReceipt = async (req, res) => {
   }
 };
 
+/**
+ * PUT /api/hotel/reservations/:id/extend
+ * Prolonger le séjour d'un client en repoussant la date de départ
+ */
+const extendStay = async (req, res) => {
+  try {
+    const { new_check_out, additional_nights } = req.body;
+
+    const reservation = await Reservation.findByPk(req.params.id, {
+      include: [{ model: Room, as: 'room' }]
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ success: false, message: 'Réservation non trouvée' });
+    }
+    if (reservation.status !== 'en_cours') {
+      return res.status(400).json({ success: false, message: 'Impossible de prolonger : la réservation n\'est pas en cours' });
+    }
+
+    // Calculer la nouvelle date de départ
+    let newCheckOut;
+    if (new_check_out) {
+      newCheckOut = new Date(new_check_out);
+    } else if (additional_nights && parseInt(additional_nights) > 0) {
+      newCheckOut = new Date(reservation.check_out);
+      newCheckOut.setDate(newCheckOut.getDate() + parseInt(additional_nights));
+    } else {
+      return res.status(400).json({ success: false, message: 'Nouvelle date de départ ou nombre de nuits supplémentaires requis' });
+    }
+
+    const oldCheckOut = new Date(reservation.check_out);
+    if (newCheckOut <= oldCheckOut) {
+      return res.status(400).json({ success: false, message: 'La nouvelle date doit être postérieure à la date de départ actuelle' });
+    }
+
+    // Vérifier les conflits avec d'autres réservations
+    const conflicting = await Reservation.findOne({
+      where: {
+        room_id: reservation.room_id,
+        id: { [Op.ne]: reservation.id },
+        status: { [Op.in]: ['confirmee', 'en_cours'] },
+        check_in: { [Op.lt]: newCheckOut },
+        check_out: { [Op.gt]: reservation.check_out }
+      }
+    });
+
+    if (conflicting) {
+      return res.status(409).json({
+        success: false,
+        message: `Chambre non disponible : une autre réservation commence le ${new Date(conflicting.check_in).toLocaleDateString('fr-FR')}`
+      });
+    }
+
+    // Calculer les nuits et montant supplémentaires
+    const extraNights = Math.ceil((newCheckOut - oldCheckOut) / (1000 * 60 * 60 * 24));
+    const pricePerNight = parseFloat(reservation.room ? reservation.room.price_per_night : 0);
+    const extraAmount = extraNights * pricePerNight;
+
+    const oldCheckOutStr = oldCheckOut.toLocaleDateString('fr-FR');
+    const newCheckOutStr = newCheckOut.toLocaleDateString('fr-FR');
+
+    // Mettre à jour la réservation
+    reservation.check_out = newCheckOut;
+    reservation.nights = (reservation.nights || 0) + extraNights;
+    reservation.total_price = parseFloat(reservation.total_price || 0) + extraAmount;
+    reservation.notes = [
+      reservation.notes,
+      `[Prolongation +${extraNights} nuit(s)] Ancien départ: ${oldCheckOutStr} → Nouveau départ: ${newCheckOutStr} (+${extraAmount.toLocaleString()} FCFA)`
+    ].filter(Boolean).join('\n');
+
+    await reservation.save();
+
+    await logAction(req, 'EXTEND_STAY', 'hotel', 'reservation', reservation.id, {
+      extra_nights: extraNights,
+      extra_amount: extraAmount,
+      old_check_out: oldCheckOutStr,
+      new_check_out: newCheckOutStr
+    });
+
+    return res.json({
+      success: true,
+      data: reservation,
+      extra_nights: extraNights,
+      extra_amount: extraAmount,
+      message: `✅ Séjour prolongé de ${extraNights} nuit(s) — +${extraAmount.toLocaleString()} FCFA (départ: ${newCheckOutStr})`
+    });
+  } catch (error) {
+    console.error('Extend stay error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getRooms,
   getRoomById,
@@ -928,5 +1020,6 @@ module.exports = {
   checkOut,
   cancelReservation,
   getHotelStats,
-  getFullReceipt
+  getFullReceipt,
+  extendStay
 };

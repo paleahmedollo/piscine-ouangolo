@@ -206,6 +206,8 @@ export const hotelApi = {
   checkOut: (id: number, data?: { payment_amount?: number; payment_notes?: string }) =>
     api.put(`/hotel/reservations/${id}/checkout`, data || {}),
   cancelReservation: (id: number) => api.put(`/hotel/reservations/${id}/cancel`),
+  extendStay: (id: number, data: { new_check_out: string }) =>
+    api.put(`/hotel/reservations/${id}/extend`, data),
   getStats: () => api.get('/hotel/stats'),
   getFullReceipt: (id: number) => api.get(`/hotel/reservations/${id}/full-receipt`)
 };

@@ -44,7 +44,8 @@ import {
   Edit as EditIcon,
   Save as SaveIcon,
   Restaurant as RestaurantIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Update as ExtendIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import PaymentSelector, { PaymentInfo } from '../components/PaymentSelector';
@@ -156,6 +157,12 @@ const Hotel: React.FC = () => {
   const [checkoutPaymentAmount, setCheckoutPaymentAmount] = useState<number>(0);
   const [checkoutNotes, setCheckoutNotes] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // Prolonger le séjour
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [extendReservation, setExtendReservation] = useState<Reservation | null>(null);
+  const [extendNewCheckOut, setExtendNewCheckOut] = useState('');
+  const [extendLoading, setExtendLoading] = useState(false);
 
   // Restaurant → intégration check-out
   const [roomRestaurantTotals, setRoomRestaurantTotals] = useState<Record<string, { total: number; sales: Sale[] }>>({});
@@ -462,6 +469,49 @@ const Hotel: React.FC = () => {
       });
     }
   };
+
+  const openExtendDialog = (reservation: Reservation) => {
+    setExtendReservation(reservation);
+    // Pré-remplir avec la date de checkout actuelle + 1 jour
+    const currentCheckOut = new Date(reservation.check_out);
+    currentCheckOut.setDate(currentCheckOut.getDate() + 1);
+    setExtendNewCheckOut(currentCheckOut.toISOString().split('T')[0]);
+    setExtendDialogOpen(true);
+  };
+
+  const handleExtendStay = async () => {
+    if (!extendReservation || !extendNewCheckOut) return;
+    try {
+      setExtendLoading(true);
+      const res = await hotelApi.extendStay(extendReservation.id, { new_check_out: extendNewCheckOut });
+      const msg = res.data?.message || '✅ Séjour prolongé avec succès';
+      setSnackbar({ open: true, message: msg, severity: 'success' });
+      setExtendDialogOpen(false);
+      setExtendReservation(null);
+      fetchData();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erreur lors de la prolongation',
+        severity: 'error'
+      });
+    } finally {
+      setExtendLoading(false);
+    }
+  };
+
+  // Calcul aperçu nuits supplémentaires pour le dialog
+  const extendPreview = (() => {
+    if (!extendReservation || !extendNewCheckOut) return null;
+    const oldDate = new Date(extendReservation.check_out);
+    const newDate = new Date(extendNewCheckOut);
+    const extraNights = Math.ceil((newDate.getTime() - oldDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (extraNights <= 0) return null;
+    const room = rooms.find(r => r.id === extendReservation.room_id);
+    const pricePerNight = room ? parseFloat(String(room.price_per_night)) : 0;
+    return { extraNights, extraAmount: extraNights * pricePerNight };
+  })();
 
   const handleUpdateRoomStatus = async (roomId: number, status: RoomStatus) => {
     try {
@@ -794,6 +844,13 @@ const Hotel: React.FC = () => {
                                 <Tooltip title="Check-in">
                                   <IconButton color="success" size="small" onClick={() => handleCheckIn(res.id)}>
                                     <CheckInIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              {res.status === 'en_cours' && (
+                                <Tooltip title="Prolonger le séjour">
+                                  <IconButton color="warning" size="small" onClick={() => openExtendDialog(res)}>
+                                    <ExtendIcon />
                                   </IconButton>
                                 </Tooltip>
                               )}
@@ -1593,6 +1650,74 @@ const Hotel: React.FC = () => {
             startIcon={<RestaurantIcon />}
           >
             Inclure dans la facture
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Dialog : Prolonger le séjour ─────────────────────────────────── */}
+      <Dialog open={extendDialogOpen} onClose={() => setExtendDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold' }}>
+          <ExtendIcon color="warning" />
+          Prolonger le séjour
+        </DialogTitle>
+        <DialogContent>
+          {extendReservation && (
+            <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Infos client */}
+              <Alert severity="info" sx={{ py: 0.5 }}>
+                <Typography variant="body2" fontWeight="bold">{extendReservation.client_name}</Typography>
+                <Typography variant="caption">
+                  Chambre {rooms.find(r => r.id === extendReservation.room_id)?.number || extendReservation.room_id}
+                  {' · '}Départ actuel : {new Date(extendReservation.check_out).toLocaleDateString('fr-FR')}
+                </Typography>
+              </Alert>
+
+              {/* Sélection nouvelle date */}
+              <TextField
+                label="Nouvelle date de départ"
+                type="date"
+                value={extendNewCheckOut}
+                onChange={(e) => setExtendNewCheckOut(e.target.value)}
+                fullWidth
+                inputProps={{ min: (() => {
+                  const d = new Date(extendReservation.check_out);
+                  d.setDate(d.getDate() + 1);
+                  return d.toISOString().split('T')[0];
+                })() }}
+                InputLabelProps={{ shrink: true }}
+              />
+
+              {/* Aperçu du coût supplémentaire */}
+              {extendPreview && extendPreview.extraNights > 0 ? (
+                <Alert severity="success">
+                  <Typography variant="body2" fontWeight="bold">
+                    +{extendPreview.extraNights} nuit{extendPreview.extraNights > 1 ? 's' : ''} supplémentaire{extendPreview.extraNights > 1 ? 's' : ''}
+                  </Typography>
+                  <Typography variant="body2">
+                    Supplément : <strong>{formatCurrency(extendPreview.extraAmount)}</strong>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    (à régler à la Caisse au moment du check-out)
+                  </Typography>
+                </Alert>
+              ) : extendNewCheckOut ? (
+                <Alert severity="warning">La nouvelle date doit être postérieure au départ actuel.</Alert>
+              ) : null}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setExtendDialogOpen(false)} color="inherit" disabled={extendLoading}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleExtendStay}
+            variant="contained"
+            color="warning"
+            startIcon={extendLoading ? <CircularProgress size={18} /> : <ExtendIcon />}
+            disabled={extendLoading || !extendPreview || extendPreview.extraNights <= 0}
+          >
+            Prolonger le séjour
           </Button>
         </DialogActions>
       </Dialog>

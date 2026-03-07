@@ -24,6 +24,7 @@ router.put('/reservations/:id', checkPermission('hotel', 'reservations'), hotelC
 router.put('/reservations/:id/checkin', checkPermission('hotel', 'reservations'), hotelController.checkIn);
 router.put('/reservations/:id/checkout', checkPermission('hotel', 'reservations'), hotelController.checkOut);
 router.put('/reservations/:id/cancel', checkPermission('hotel', 'reservations'), hotelController.cancelReservation);
+router.put('/reservations/:id/extend', checkPermission('hotel', 'reservations'), hotelController.extendStay);
 
 // Stats
 router.get('/stats', checkPermission('hotel', 'lecture'), hotelController.getHotelStats);
