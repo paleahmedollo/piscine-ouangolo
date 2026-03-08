@@ -26,6 +26,7 @@ const superetteRoutes = require('./routes/superette.routes');
 const pressingRoutes = require('./routes/pressing.routes');
 const depotRoutes = require('./routes/depot.routes');
 const accountingRoutes = require('./routes/accounting.routes');
+const landingRoutes = require('./routes/landing.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -106,6 +107,7 @@ app.use('/api/superette', superetteRoutes);
 app.use('/api/pressing', pressingRoutes);
 app.use('/api/depot', depotRoutes);
 app.use('/api/accounting', accountingRoutes);
+app.use('/api/landing', landingRoutes);  // public — landing page contact form
 
 const fs = require('fs');
 const frontendDist = path.join(__dirname, '../../frontend/dist');
