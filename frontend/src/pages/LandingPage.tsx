@@ -622,7 +622,7 @@ export default function LandingPage() {
     }
   };
 
-  const APP_URL = 'https://ouangolo-frontend.onrender.com';
+  const APP_URL = 'https://ollentra.onrender.com';
   const screens = [<CaisseScreen key="c"/>, <RestaurantScreen key="r"/>, <PressingScreen key="p"/>];
   const sidebarItems = [
     { i:'🏊', l:'Piscine' }, { i:'🍽️', l:'Restaurant', a: activeScreen===1 },
