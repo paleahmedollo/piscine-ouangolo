@@ -23,6 +23,7 @@ import Maquis from './pages/Maquis';
 import Superette from './pages/Superette';
 import Depot from './pages/Depot';
 import Cuisine from './pages/Cuisine';
+import LandingPage from './pages/LandingPage';
 
 // Super Admin pages
 import SuperAdminLayout from './pages/Admin/SuperAdminLayout';
@@ -125,6 +126,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      {/* ─── Landing Page (publique, sans auth) ──────── */}
+      <Route path="/landing" element={<LandingPage />} />
+
       {/* ─── Public Routes ────────────────────────────── */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
 
