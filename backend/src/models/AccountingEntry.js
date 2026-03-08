@@ -10,10 +10,12 @@ module.exports = (sequelize) => {
     amount:        { type: DataTypes.DECIMAL(15, 2), allowNull: false },
     entry_type:    { type: DataTypes.STRING(20), allowNull: false }, // vente|achat|charge|salaire
     payment_type:  { type: DataTypes.STRING(30), allowNull: true },  // especes|mobile|credit|virement
-    source_module: { type: DataTypes.STRING(50), allowNull: true },  // restaurant|hotel|depot...
-    source_id:     { type: DataTypes.INTEGER, allowNull: true },
-    source_type:   { type: DataTypes.STRING(50), allowNull: true },  // sale|purchase|expense|payroll
-    created_at:    { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+    source_module:     { type: DataTypes.STRING(50), allowNull: true },  // restaurant|hotel|depot...
+    source_id:         { type: DataTypes.INTEGER, allowNull: true },
+    source_type:       { type: DataTypes.STRING(50), allowNull: true },  // sale|purchase|expense|payroll
+    payment_operator:  { type: DataTypes.STRING(20), allowNull: true },  // moov|orange|wave|mtn
+    payment_reference: { type: DataTypes.STRING(200), allowNull: true }, // 7 derniers chiffres réf transaction
+    created_at:        { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
   }, {
     tableName: 'accounting_entries',
     timestamps: false

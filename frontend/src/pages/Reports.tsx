@@ -18,7 +18,8 @@ import { useAuth } from '../contexts/AuthContext';
 interface Transaction {
   id: string; date: string; time: string; module: string; type: string;
   description: string; quantity: number; unit_price: number; amount: number;
-  payment_method: string; user_id: number; user_name: string; reference: string;
+  payment_method: string; payment_operator?: string; payment_reference?: string;
+  user_id: number; user_name: string; reference: string;
   client_name?: string;
 }
 
@@ -86,7 +87,7 @@ const allColumns = [
   { id: 'reference', label: 'Référence' }, { id: 'client_name', label: 'Client' }
 ];
 
-const visibleColumns = ['date', 'time', 'module', 'type', 'quantity', 'amount', 'payment_method', 'user_name'];
+const visibleColumns = ['date', 'time', 'module', 'type', 'quantity', 'amount', 'payment_method', 'reference', 'user_name'];
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 
@@ -280,6 +281,13 @@ const Reports: React.FC = () => {
   };
 
   // ── Rendu cellule ──────────────────────────────────────────────────────────
+  const OPERATOR_CONFIG: Record<string, { label: string; color: string; textColor: string }> = {
+    moov:   { label: '🟢 Moov Money',   color: '#4caf50', textColor: '#fff' },
+    orange: { label: '🟠 Orange Money', color: '#f4511e', textColor: '#fff' },
+    wave:   { label: '🔵 Wave',          color: '#1565c0', textColor: '#fff' },
+    mtn:    { label: '🟡 MTN Money',    color: '#ffc107', textColor: '#333' }
+  };
+
   const renderCell = (t: Transaction, colId: string) => {
     const color = moduleColors[t.module] || '#607d8b';
     switch (colId) {
@@ -288,7 +296,32 @@ const Reports: React.FC = () => {
       case 'module': return <Chip label={t.module} size="small" sx={{ bgcolor: `${color}20`, color, fontWeight: 'bold' }} />;
       case 'amount': return <Typography fontWeight="bold" color="primary">{formatCurrency(t.amount)}</Typography>;
       case 'unit_price': return t.unit_price > 0 ? formatCurrency(t.unit_price) : '—';
-      case 'payment_method': return paymentLabels[t.payment_method] || t.payment_method;
+      case 'payment_method': {
+        const op = t.payment_operator;
+        if (t.payment_method === 'mobile_money' && op && OPERATOR_CONFIG[op]) {
+          const cfg = OPERATOR_CONFIG[op];
+          return <Chip label={cfg.label} size="small" sx={{ bgcolor: cfg.color, color: cfg.textColor, fontWeight: 'bold', fontSize: '0.65rem' }} />;
+        }
+        if (t.payment_method === 'carte') {
+          return <Chip label="💳 Carte bancaire" size="small" sx={{ bgcolor: '#9c27b020', color: '#9c27b0', fontWeight: 'bold', fontSize: '0.65rem' }} />;
+        }
+        if (t.payment_method === 'mobile_money') {
+          return <Chip label="📱 Mobile Money" size="small" sx={{ bgcolor: '#e3f2fd', color: '#1565c0', fontWeight: 'bold', fontSize: '0.65rem' }} />;
+        }
+        if (t.payment_method === 'especes') {
+          return <Chip label="💵 Espèces" size="small" sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 'bold', fontSize: '0.65rem' }} />;
+        }
+        return <Chip label={paymentLabels[t.payment_method] || t.payment_method} size="small" variant="outlined" sx={{ fontSize: '0.65rem' }} />;
+      }
+      case 'reference': {
+        const ref = t.reference;
+        if (!ref) return '—';
+        // Si c'est une référence de paiement réelle (7 chiffres), la mettre en avant
+        if (/^\d{4,7}$/.test(ref)) {
+          return <Chip label={`🔑 ${ref}`} size="small" sx={{ bgcolor: '#fff3e0', color: '#e65100', fontWeight: 'bold', fontSize: '0.65rem' }} />;
+        }
+        return <Typography variant="caption" color="text.secondary">{ref}</Typography>;
+      }
       case 'quantity': return t.quantity;
       default: return (t as any)[colId] || '—';
     }

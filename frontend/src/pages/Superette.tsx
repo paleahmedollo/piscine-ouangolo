@@ -135,7 +135,12 @@ const Superette: React.FC = () => {
   // Forms
   const [productForm, setProductForm] = useState({ name: '', category: 'Alimentation', sell_price: '', buy_price: '', unit: 'unité', min_stock: '0', description: '' });
   const [supplierForm, setSupplierForm] = useState({ name: '', contact: '', phone: '', email: '', address: '', ville: '', marque: '', secteur_activite: '', date_debut_collaboration: '', mode_paiement_habituel: 'especes', delai_paiement: '30', notes: '' });
-  const [checkoutForm, setCheckoutForm] = useState({ payment_method: 'especes' as 'especes' | 'mobile_money', tab_id: '' });
+  const [checkoutForm, setCheckoutForm] = useState({
+    payment_method: 'especes' as 'especes' | 'mobile_money' | 'carte',
+    mobile_operator: '' as '' | 'moov' | 'orange' | 'wave' | 'mtn',
+    transaction_ref: '',
+    tab_id: ''
+  });
   const [adjustForm, setAdjustForm] = useState({ new_quantity: '', reason: 'Ajustement inventaire' });
 
   const showAlert = (type: 'success' | 'error', msg: string) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
@@ -188,11 +193,13 @@ const Superette: React.FC = () => {
       await superetteApi.createSale({
         items: cart.map(c => ({ product_id: c.product.id, quantity: c.quantity })),
         payment_method: checkoutForm.tab_id ? 'tab' : checkoutForm.payment_method,
+        payment_operator: checkoutForm.payment_method === 'mobile_money' && checkoutForm.mobile_operator ? checkoutForm.mobile_operator : undefined,
+        payment_reference: checkoutForm.transaction_ref || undefined,
         tab_id: checkoutForm.tab_id ? parseInt(checkoutForm.tab_id) : undefined
       });
       setCart([]);
       setCheckoutDialog(false);
-      setCheckoutForm({ payment_method: 'especes', tab_id: '' });
+      setCheckoutForm({ payment_method: 'especes', mobile_operator: '', transaction_ref: '', tab_id: '' });
       loadAll();
       if (checkoutForm.tab_id) {
         showAlert('success', "Articles ajoutés à l'onglet !");
@@ -719,15 +726,59 @@ const Superette: React.FC = () => {
                 <Typography variant="body2" fontWeight={600} color="text.secondary" gutterBottom>Mode de paiement :</Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Button fullWidth variant={checkoutForm.payment_method === 'especes' ? 'contained' : 'outlined'} color="success"
-                    onClick={() => setCheckoutForm(f => ({ ...f, payment_method: 'especes' }))} sx={{ py: 1 }}>
+                    onClick={() => setCheckoutForm(f => ({ ...f, payment_method: 'especes', mobile_operator: '', transaction_ref: '' }))} sx={{ py: 1 }}>
                     💵 Espèces
                   </Button>
                   <Button fullWidth variant={checkoutForm.payment_method === 'mobile_money' ? 'contained' : 'outlined'} color="info"
-                    onClick={() => setCheckoutForm(f => ({ ...f, payment_method: 'mobile_money' }))} sx={{ py: 1 }}>
+                    onClick={() => setCheckoutForm(f => ({ ...f, payment_method: 'mobile_money', transaction_ref: '' }))} sx={{ py: 1 }}>
                     📱 Mobile Money
+                  </Button>
+                  <Button fullWidth variant={checkoutForm.payment_method === 'carte' ? 'contained' : 'outlined'}
+                    sx={{ py: 1, borderColor: '#9c27b0', color: checkoutForm.payment_method === 'carte' ? 'white' : '#9c27b0', bgcolor: checkoutForm.payment_method === 'carte' ? '#9c27b0' : 'transparent', '&:hover': { bgcolor: '#9c27b020', borderColor: '#9c27b0' } }}
+                    onClick={() => setCheckoutForm(f => ({ ...f, payment_method: 'carte', mobile_operator: '', transaction_ref: '' }))}>
+                    💳 Carte
                   </Button>
                 </Box>
               </Box>
+            )}
+
+            {/* Opérateurs Mobile Money */}
+            {!checkoutForm.tab_id && checkoutForm.payment_method === 'mobile_money' && (
+              <Box>
+                <Typography variant="body2" fontWeight={600} color="text.secondary" gutterBottom>Opérateur :</Typography>
+                <Grid container spacing={1}>
+                  {[
+                    { id: 'moov',   label: 'Moov Money',   color: '#4caf50', textDark: false },
+                    { id: 'orange', label: 'Orange Money',  color: '#f4511e', textDark: false },
+                    { id: 'wave',   label: 'Wave',          color: '#1565c0', textDark: false },
+                    { id: 'mtn',    label: 'MTN Money',     color: '#ffc107', textDark: true  }
+                  ].map(op => {
+                    const selected = checkoutForm.mobile_operator === op.id;
+                    return (
+                      <Grid item xs={6} key={op.id}>
+                        <Button fullWidth onClick={() => setCheckoutForm(f => ({ ...f, mobile_operator: op.id as typeof f.mobile_operator }))}
+                          sx={{ fontWeight: 700, py: 1, bgcolor: selected ? op.color : 'transparent', color: selected ? (op.textDark ? '#333' : 'white') : op.color, borderColor: op.color, border: '1px solid', '&:hover': { bgcolor: `${op.color}22`, borderColor: op.color } }}>
+                          {op.label}
+                        </Button>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </Box>
+            )}
+
+            {/* Référence transaction (Mobile Money ou Carte) */}
+            {!checkoutForm.tab_id && (checkoutForm.payment_method === 'mobile_money' || checkoutForm.payment_method === 'carte') && (
+              <TextField
+                label={checkoutForm.payment_method === 'carte' ? '💳 Référence carte (7 derniers chiffres)' : '📱 Référence transaction (7 derniers chiffres)'}
+                value={checkoutForm.transaction_ref}
+                onChange={e => setCheckoutForm(f => ({ ...f, transaction_ref: e.target.value.replace(/\D/g, '').slice(0, 7) }))}
+                inputProps={{ maxLength: 7, inputMode: 'numeric', pattern: '[0-9]*' }}
+                placeholder="Ex : 1234567"
+                helperText="Optionnel — lie le reçu à la transaction"
+                fullWidth
+                size="small"
+              />
             )}
             {openTabs.length > 0 && (
               <FormControl fullWidth>

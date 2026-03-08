@@ -32,15 +32,17 @@ const createAccountingEntry = async (data) => {
   try {
     const Model = getModel();
     await Model.create({
-      company_id:    data.company_id,
-      entry_date:    data.entry_date || new Date().toISOString().split('T')[0],
-      description:   data.description || null,
-      amount:        Math.abs(parseFloat(data.amount)) || 0,
-      entry_type:    data.entry_type,
-      payment_type:  data.payment_type || null,
-      source_module: data.source_module || null,
-      source_id:     data.source_id || null,
-      source_type:   data.source_type || null
+      company_id:        data.company_id,
+      entry_date:        data.entry_date || new Date().toISOString().split('T')[0],
+      description:       data.description || null,
+      amount:            Math.abs(parseFloat(data.amount)) || 0,
+      entry_type:        data.entry_type,
+      payment_type:      data.payment_type || null,
+      source_module:     data.source_module || null,
+      source_id:         data.source_id || null,
+      source_type:       data.source_type || null,
+      payment_operator:  data.payment_operator || null,
+      payment_reference: data.payment_reference || null
     });
   } catch (err) {
     console.error('[ACCOUNTING] Erreur écriture (non-bloquant):', err.message);

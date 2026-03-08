@@ -116,6 +116,14 @@ const createSale = async (req, res) => {
       return res.json({ success: true, message: `Articles ajoutés à l'onglet — ${totalAmount.toLocaleString()} FCFA` });
     }
 
+    // Construire les items pour le Sale record
+    const saleItems = orderItems.map(item => ({
+      name: item.product.name,
+      quantity: item.quantity,
+      unit_price: parseFloat(item.product.sell_price),
+      total: item.subtotal
+    }));
+
     // Vente directe — déduire stock
     for (const item of orderItems) {
       await item.product.decrement('current_stock', { by: item.quantity });
@@ -128,14 +136,8 @@ const createSale = async (req, res) => {
       });
     }
 
-    // Si paiement en attente → créer un ticket Sale pour la caisse
+    // Si paiement en attente → créer un ticket Sale pour la caisse (status: ouvert)
     if (payment_method === 'en_attente') {
-      const saleItems = orderItems.map(item => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        unit_price: parseFloat(item.product.sell_price),
-        total: item.subtotal
-      }));
       const saleRecord = await Sale.create({
         user_id: req.user.id,
         items_json: saleItems,
@@ -154,18 +156,36 @@ const createSale = async (req, res) => {
       });
     }
 
+    // Paiement direct (especes / mobile_money / carte) → Sale fermé + écriture comptable
+    const operatorLabel = payment_operator ? payment_operator.toUpperCase() : null;
+    const saleRecord = await Sale.create({
+      user_id: req.user.id,
+      items_json: saleItems,
+      subtotal: totalAmount,
+      tax: 0,
+      total: totalAmount,
+      payment_method: payment_method || 'especes',
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null,
+      status: 'ferme',
+      module: 'superette',
+      company_id: req.user.company_id
+    });
+
     await createAccountingEntry({
       company_id: req.user.company_id,
       amount: totalAmount,
       entry_type: 'vente',
       payment_type: payment_method,
-      description: 'Vente supérette',
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null,
+      description: `Vente supérette${operatorLabel ? ` (${operatorLabel})` : ''}${payment_reference ? ` — Réf: ${payment_reference}` : ''}`,
       source_module: 'superette',
-      source_id: undefined,
+      source_id: saleRecord.id,
       source_type: 'sale'
     });
 
-    res.json({ success: true, message: `Vente enregistrée — ${totalAmount.toLocaleString()} FCFA`, data: { total: totalAmount } });
+    res.json({ success: true, message: `Vente enregistrée — ${totalAmount.toLocaleString()} FCFA`, data: { total: totalAmount, id: saleRecord.id } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

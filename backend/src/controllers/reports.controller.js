@@ -129,14 +129,15 @@ const getTransactionsReport = async (req, res) => {
       });
     }
 
-    // Récupérer les ventes restaurant
+    // Récupérer les ventes restaurant (exclure module superette/maquis qui ont leur propre section)
     if (!restrictedModule || restrictedModule === 'restaurant') {
       const sales = await Sale.findAll({
         where: {
           ...cf,
           created_at: { [Op.between]: [startDate, endDate] },
           ...(restrictedUserId && { user_id: restrictedUserId }),
-          ...(payment_method && { payment_method })
+          ...(payment_method && { payment_method }),
+          module: { [Op.or]: ['restaurant', null] }
         },
         include: [{ model: User, as: 'user', attributes: ['id', 'full_name', 'username'] }]
       });
@@ -164,6 +165,52 @@ const getTransactionsReport = async (req, res) => {
           });
         }
       });
+    }
+
+    // Récupérer les ventes supérette (paiements directs + tickets caisse encaissés)
+    if (!restrictedModule || restrictedModule === 'superette') {
+      try {
+        const superetteSales = await Sale.findAll({
+          where: {
+            ...cf,
+            module: 'superette',
+            status: 'ferme',
+            created_at: { [Op.between]: [startDate, endDate] },
+            ...(restrictedUserId && { user_id: restrictedUserId }),
+            ...(payment_method && { payment_method })
+          },
+          include: [{ model: User, as: 'user', attributes: ['id', 'full_name', 'username'] }]
+        });
+
+        const OPERATOR_LABELS = { moov: 'Moov Money', orange: 'Orange Money', wave: 'Wave', mtn: 'MTN Money' };
+
+        superetteSales.forEach(s => {
+          const amount = parseFloat(s.total);
+          if ((!min_amount || amount >= parseFloat(min_amount)) && (!max_amount || amount <= parseFloat(max_amount))) {
+            const items = s.items_json || [];
+            const itemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            const opLabel = s.payment_operator ? (OPERATOR_LABELS[s.payment_operator] || s.payment_operator) : null;
+            transactions.push({
+              id: `superette_${s.id}`,
+              date: s.created_at,
+              time: new Date(s.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+              module: 'Superette',
+              type: 'Vente',
+              description: `Supérette — ${itemCount} article(s)${opLabel ? ` (${opLabel})` : ''}`,
+              quantity: itemCount,
+              unit_price: amount / (itemCount || 1),
+              amount: amount,
+              payment_method: s.payment_method,
+              payment_operator: s.payment_operator || null,
+              payment_reference: s.payment_reference || null,
+              user_id: s.user_id,
+              user_name: s.user?.full_name || 'N/A',
+              reference: s.payment_reference || `SP-${s.id}`,
+              client_name: null
+            });
+          }
+        });
+      } catch (e) { /* fail silently */ }
     }
 
     // Récupérer les réservations hôtel
