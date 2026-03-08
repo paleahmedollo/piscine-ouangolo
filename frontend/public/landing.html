@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ollentra — Gestion de complexes touristiques en Afrique</title>
+  <meta name="description" content="Ollentra centralise la gestion de votre piscine, restaurant, hôtel, superette, dépôt et événements en une seule plateforme intelligente." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #1565c0;
+      --blue2:  #1976d2;
+      --teal:   #00897b;
+      --orange: #f57c00;
+      --green:  #2e7d32;
+      --dark:   #0a1628;
+      --dark2:  #132340;
+      --gray:   #64748b;
+      --light:  #f1f5f9;
+      --white:  #ffffff;
+      --radius: 16px;
+      --shadow: 0 20px 60px rgba(0,0,0,.12);
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--white); color: var(--dark); overflow-x: hidden; }
+
+    /* ── NAVBAR ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 6%; backdrop-filter: blur(20px);
+      background: rgba(255,255,255,.88); border-bottom: 1px solid rgba(21,101,192,.1);
+      transition: box-shadow .3s;
+    }
+    nav.scrolled { box-shadow: 0 4px 30px rgba(0,0,0,.08); }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo span.logo-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .nav-logo span.logo-text { font-size: 22px; font-weight: 800; color: var(--dark); letter-spacing: -.5px; }
+    .nav-logo span.logo-text em { color: var(--blue); font-style: normal; }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a { text-decoration: none; color: var(--gray); font-size: 15px; font-weight: 500; transition: color .2s; }
+    .nav-links a:hover { color: var(--blue); }
+    .nav-cta {
+      background: var(--blue); color: #fff; border: none; padding: 10px 22px;
+      border-radius: 50px; font-size: 14px; font-weight: 600; cursor: pointer;
+      text-decoration: none; transition: transform .2s, box-shadow .2s;
+    }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(21,101,192,.35); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 120px 6% 80px;
+      background: linear-gradient(160deg, #0a1628 0%, #132340 40%, #0d2f5e 70%, #003d6b 100%);
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(21,101,192,.4) 0%, transparent 70%);
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+      padding: 8px 18px; border-radius: 50px; color: #93c5fd;
+      font-size: 13px; font-weight: 600; margin-bottom: 28px;
+      backdrop-filter: blur(10px); position: relative; z-index: 1;
+      animation: fadeDown .8s ease both;
+    }
+    .hero-badge .dot { width: 7px; height: 7px; background: #4ade80; border-radius: 50%; animation: pulse 2s infinite; }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4.2rem); font-weight: 900; color: #fff;
+      line-height: 1.1; max-width: 820px; margin-bottom: 24px;
+      position: relative; z-index: 1; animation: fadeUp .8s .1s ease both;
+    }
+    .hero h1 .accent { color: #60a5fa; }
+    .hero h1 .accent2 { color: #34d399; }
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.2rem); color: rgba(255,255,255,.72);
+      max-width: 600px; line-height: 1.7; margin-bottom: 40px;
+      position: relative; z-index: 1; animation: fadeUp .8s .2s ease both;
+    }
+    .hero-btns { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; position: relative; z-index: 1; animation: fadeUp .8s .3s ease both; }
+    .btn-primary {
+      background: linear-gradient(135deg, #1976d2, #00897b); color: #fff;
+      padding: 16px 36px; border-radius: 50px; font-size: 16px; font-weight: 700;
+      text-decoration: none; border: none; cursor: pointer;
+      box-shadow: 0 8px 32px rgba(21,101,192,.45); transition: transform .2s, box-shadow .2s;
+    }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(21,101,192,.55); }
+    .btn-secondary {
+      background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.3);
+      padding: 16px 36px; border-radius: 50px; font-size: 16px; font-weight: 600;
+      text-decoration: none; backdrop-filter: blur(10px); transition: background .2s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.2); }
+
+    /* ── FLOATING CARDS ── */
+    .hero-visual {
+      position: relative; z-index: 1; margin-top: 60px; width: 100%; max-width: 900px;
+      animation: fadeUp .8s .4s ease both;
+    }
+    .hero-screen {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 20px; padding: 24px; backdrop-filter: blur(20px);
+    }
+    .screen-bar { display: flex; gap: 6px; margin-bottom: 16px; }
+    .screen-bar span { width: 12px; height: 12px; border-radius: 50%; }
+    .screen-bar span:nth-child(1) { background: #ff5f57; }
+    .screen-bar span:nth-child(2) { background: #febc2e; }
+    .screen-bar span:nth-child(3) { background: #28c840; }
+    .screen-modules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .screen-mod {
+      background: rgba(255,255,255,.08); border-radius: 12px; padding: 16px 12px;
+      text-align: center; border: 1px solid rgba(255,255,255,.1);
+      transition: transform .3s, background .3s;
+    }
+    .screen-mod:hover { transform: translateY(-4px); background: rgba(255,255,255,.14); }
+    .screen-mod .icon { font-size: 28px; margin-bottom: 8px; }
+    .screen-mod .name { color: rgba(255,255,255,.9); font-size: 13px; font-weight: 600; }
+    .screen-mod .val { color: rgba(255,255,255,.5); font-size: 11px; margin-top: 4px; }
+
+    /* ── STATS ── */
+    .stats { background: var(--blue); padding: 60px 6%; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 32px; max-width: 1000px; margin: 0 auto; text-align: center; }
+    .stat-item .num { font-size: 3rem; font-weight: 900; color: #fff; }
+    .stat-item .unit { font-size: 1.6rem; color: #93c5fd; }
+    .stat-item p { color: rgba(255,255,255,.7); font-size: 14px; margin-top: 6px; }
+
+    /* ── SECTION BASE ── */
+    section { padding: 100px 6%; }
+    .section-tag {
+      display: inline-block; background: rgba(21,101,192,.1); color: var(--blue);
+      padding: 6px 16px; border-radius: 50px; font-size: 13px; font-weight: 700;
+      margin-bottom: 16px; letter-spacing: .5px;
+    }
+    h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; color: var(--dark); line-height: 1.2; margin-bottom: 16px; }
+    .subtitle { font-size: 1.05rem; color: var(--gray); max-width: 600px; line-height: 1.7; margin-bottom: 56px; }
+    .text-center { text-align: center; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+
+    /* ── MODULES ── */
+    .modules-bg { background: var(--light); }
+    .modules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+    .module-card {
+      background: var(--white); border-radius: var(--radius); padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.06);
+      transition: transform .3s, box-shadow .3s; position: relative; overflow: hidden;
+    }
+    .module-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--card-color);
+    }
+    .module-card:hover { transform: translateY(-6px); box-shadow: var(--shadow); }
+    .module-icon {
+      width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; font-size: 28px; margin-bottom: 20px;
+      background: color-mix(in srgb, var(--card-color) 12%, white);
+    }
+    .module-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; color: var(--dark); }
+    .module-card p { color: var(--gray); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+    .module-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag {
+      font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 50px;
+      background: color-mix(in srgb, var(--card-color) 10%, white);
+      color: var(--card-color);
+    }
+
+    /* ── FEATURES ── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .feature-card {
+      padding: 28px; border-radius: var(--radius); background: var(--light);
+      border: 1px solid rgba(0,0,0,.05); transition: transform .3s;
+    }
+    .feature-card:hover { transform: translateY(-4px); }
+    .feature-icon { font-size: 36px; margin-bottom: 16px; }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { color: var(--gray); font-size: 14px; line-height: 1.6; }
+
+    /* ── PAYMENT ── */
+    .payment-section { background: var(--dark); color: #fff; }
+    .payment-section h2 { color: #fff; }
+    .payment-section .subtitle { color: rgba(255,255,255,.6); }
+    .payment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+    .payment-card {
+      border-radius: var(--radius); padding: 28px 20px; text-align: center;
+      border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05);
+      backdrop-filter: blur(10px); transition: transform .3s, background .3s;
+    }
+    .payment-card:hover { transform: translateY(-4px); background: rgba(255,255,255,.1); }
+    .payment-card .pay-icon { font-size: 42px; margin-bottom: 12px; }
+    .payment-card .pay-name { font-weight: 700; font-size: 15px; }
+    .payment-card .pay-sub { color: rgba(255,255,255,.5); font-size: 12px; margin-top: 4px; }
+    .pay-especes { border-color: rgba(76,175,80,.3); }
+    .pay-moov { border-color: rgba(76,175,80,.4); }
+    .pay-orange { border-color: rgba(244,81,30,.4); }
+    .pay-wave { border-color: rgba(21,101,192,.4); }
+    .pay-mtn { border-color: rgba(255,193,7,.4); }
+    .pay-carte { border-color: rgba(156,39,176,.4); }
+
+    /* ── WORKFLOW ── */
+    .workflow-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 32px; position: relative; }
+    .step {
+      text-align: center; padding: 32px 20px;
+    }
+    .step-num {
+      width: 56px; height: 56px; border-radius: 50%; background: var(--blue);
+      color: #fff; font-size: 22px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+      box-shadow: 0 8px 24px rgba(21,101,192,.35);
+    }
+    .step h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 10px; }
+    .step p { color: var(--gray); font-size: 14px; line-height: 1.6; }
+
+    /* ── TESTIMONIALS ── */
+    .testimonials-bg { background: linear-gradient(135deg, #f8faff 0%, #eff6ff 100%); }
+    .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+    .testimonial-card {
+      background: var(--white); border-radius: var(--radius); padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.07); border: 1px solid rgba(21,101,192,.08);
+    }
+    .stars { color: #f59e0b; font-size: 18px; margin-bottom: 16px; }
+    .testimonial-card p { color: var(--gray); font-size: 15px; line-height: 1.7; margin-bottom: 20px; font-style: italic; }
+    .author { display: flex; align-items: center; gap: 12px; }
+    .author-avatar {
+      width: 44px; height: 44px; border-radius: 50%; background: var(--blue);
+      display: flex; align-items: center; justify-content: center; color: #fff;
+      font-weight: 700; font-size: 16px;
+    }
+    .author-name { font-weight: 700; font-size: 14px; }
+    .author-role { color: var(--gray); font-size: 12px; }
+
+    /* ── CTA ── */
+    .cta-section {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--teal) 100%);
+      text-align: center; padding: 100px 6%;
+    }
+    .cta-section h2 { color: #fff; font-size: clamp(1.8rem, 4vw, 3rem); margin-bottom: 20px; }
+    .cta-section p { color: rgba(255,255,255,.8); font-size: 1.1rem; margin-bottom: 40px; max-width: 540px; margin-left: auto; margin-right: auto; }
+    .btn-white {
+      background: #fff; color: var(--blue); padding: 18px 44px;
+      border-radius: 50px; font-size: 17px; font-weight: 800;
+      text-decoration: none; display: inline-block;
+      box-shadow: 0 12px 40px rgba(0,0,0,.2); transition: transform .2s;
+    }
+    .btn-white:hover { transform: translateY(-3px); }
+    .cta-note { color: rgba(255,255,255,.6); font-size: 13px; margin-top: 20px; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--dark); color: rgba(255,255,255,.5);
+      padding: 60px 6% 40px; text-align: center;
+    }
+    footer .footer-logo { font-size: 24px; font-weight: 900; color: #fff; margin-bottom: 12px; }
+    footer .footer-logo em { color: #60a5fa; font-style: normal; }
+    footer p { font-size: 14px; line-height: 1.7; max-width: 440px; margin: 0 auto 32px; }
+    footer .footer-links { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+    footer .footer-links a { color: rgba(255,255,255,.5); text-decoration: none; font-size: 14px; transition: color .2s; }
+    footer .footer-links a:hover { color: #fff; }
+    footer hr { border: none; border-top: 1px solid rgba(255,255,255,.1); margin-bottom: 24px; }
+    footer .copy { font-size: 13px; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: .7; } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+    .reveal { opacity: 0; transform: translateY(40px); transition: opacity .7s, transform .7s; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .screen-modules { grid-template-columns: repeat(2, 1fr); }
+      .hero-btns { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <a href="#" class="nav-logo">
+    <span class="logo-icon">🌊</span>
+    <span class="logo-text">Ollen<em>tra</em></span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#modules">Modules</a></li>
+    <li><a href="#features">Fonctionnalités</a></li>
+    <li><a href="#paiements">Paiements</a></li>
+    <li><a href="#temoignages">Avis</a></li>
+  </ul>
+  <a href="#contact" class="nav-cta">Demander une démo</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">
+    <span class="dot"></span>
+    Plateforme de gestion tout-en-un · Adapté à l'Afrique
+  </div>
+  <h1>Gérez votre <span class="accent">complexe touristique</span><br/>comme un <span class="accent2">pro</span></h1>
+  <p>Piscine, restaurant, hôtel, superette, dépôt de boissons et événements — tout centralisé en une seule plateforme intelligente avec Mobile Money intégré.</p>
+  <div class="hero-btns">
+    <a href="#contact" class="btn-primary">🚀 Demander une démo gratuite</a>
+    <a href="#modules" class="btn-secondary">Découvrir les modules →</a>
+  </div>
+
+  <div class="hero-visual">
+    <div class="hero-screen">
+      <div class="screen-bar">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="screen-modules">
+        <div class="screen-mod"><div class="icon">🏊</div><div class="name">Piscine</div><div class="val">Tickets & abonnements</div></div>
+        <div class="screen-mod"><div class="icon">🍽️</div><div class="name">Restaurant</div><div class="val">Tables & commandes</div></div>
+        <div class="screen-mod"><div class="icon">🏨</div><div class="name">Hôtel</div><div class="val">Réservations & chambres</div></div>
+        <div class="screen-mod"><div class="icon">🛒</div><div class="name">Superette</div><div class="val">Stock & ventes</div></div>
+        <div class="screen-mod"><div class="icon">🍺</div><div class="name">Dépôt</div><div class="val">Boissons & crédit client</div></div>
+        <div class="screen-mod"><div class="icon">🎉</div><div class="name">Événements</div><div class="val">Devis & planning</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stats-grid">
+    <div class="stat-item reveal">
+      <div class="num">6<span class="unit">+</span></div>
+      <p>Modules de gestion intégrés</p>
+    </div>
+    <div class="stat-item reveal">
+      <div class="num">5<span class="unit"></span></div>
+      <p>Modes de paiement Mobile Money</p>
+    </div>
+    <div class="stat-item reveal">
+      <div class="num">100<span class="unit">%</span></div>
+      <p>Adapté au contexte africain</p>
+    </div>
+    <div class="stat-item reveal">
+      <div class="num">24<span class="unit">h</span></div>
+      <p>Rapports & comptabilité en temps réel</p>
+    </div>
+  </div>
+</div>
+
+<!-- MODULES -->
+<section id="modules" class="modules-bg">
+  <div class="text-center">
+    <span class="section-tag">📦 NOS MODULES</span>
+    <h2>Une plateforme pour <br/>tout votre complexe</h2>
+    <p class="subtitle mx-auto">Chaque département de votre complexe a son propre espace de gestion, interconnecté avec la comptabilité centrale.</p>
+  </div>
+
+  <div class="modules-grid">
+    <div class="module-card reveal" style="--card-color: #1976d2">
+      <div class="module-icon">🏊</div>
+      <h3>Piscine</h3>
+      <p>Vendez des tickets d'entrée, gérez les abonnements mensuels/annuels, suivez les entrées journalières et les revenus en temps réel.</p>
+      <div class="module-tags">
+        <span class="tag">Tickets journaliers</span>
+        <span class="tag">Abonnements</span>
+        <span class="tag">Statistiques</span>
+      </div>
+    </div>
+
+    <div class="module-card reveal" style="--card-color: #e53935">
+      <div class="module-icon">🍽️</div>
+      <h3>Restaurant</h3>
+      <p>Prenez les commandes par table, gérez la carte et les prix, encaissez directement ou via la caisse centrale avec impression de reçus.</p>
+      <div class="module-tags">
+        <span class="tag">Commandes par table</span>
+        <span class="tag">Caisse intégrée</span>
+        <span class="tag">Reçus</span>
+      </div>
+    </div>
+
+    <div class="module-card reveal" style="--card-color: #7b1fa2">
+      <div class="module-icon">🏨</div>
+      <h3>Hôtel</h3>
+      <p>Gérez vos chambres, les réservations, les check-in/check-out, les acomptes et les extensions de séjour depuis un seul écran.</p>
+      <div class="module-tags">
+        <span class="tag">Réservations</span>
+        <span class="tag">Check-in/out</span>
+        <span class="tag">Prolongation séjour</span>
+      </div>
+    </div>
+
+    <div class="module-card reveal" style="--card-color: #f57c00">
+      <div class="module-icon">🛒</div>
+      <h3>Superette</h3>
+      <p>Gérez votre stock produit par produit avec alerte de rupture, encaissez directement au panier avec Mobile Money ou espèces.</p>
+      <div class="module-tags">
+        <span class="tag">Gestion stock</span>
+        <span class="tag">Approvisionnement</span>
+        <span class="tag">Fournisseurs</span>
+      </div>
+    </div>
+
+    <div class="module-card reveal" style="--card-color: #00897b">
+      <div class="module-icon">🍺</div>
+      <h3>Dépôt de boissons</h3>
+      <p>Vendez à vos clients revendeurs, gérez le crédit client avec historique complet, passez et recevez vos commandes fournisseurs.</p>
+      <div class="module-tags">
+        <span class="tag">Crédit client</span>
+        <span class="tag">Commandes fournisseurs</span>
+        <span class="tag">Mobile Money</span>
+      </div>
+    </div>
+
+    <div class="module-card reveal" style="--card-color: #c62828">
+      <div class="module-icon">🎉</div>
+      <h3>Événements</h3>
+      <p>Planifiez mariages, conférences et fêtes. Créez des devis détaillés, suivez l'avancement et facturez vos clients en quelques clics.</p>
+      <div class="module-tags">
+        <span class="tag">Devis automatiques</span>
+        <span class="tag">Planning</span>
+        <span class="tag">Facturation</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="text-center">
+    <span class="section-tag">⚡ FONCTIONNALITÉS</span>
+    <h2>Tout ce dont vous avez besoin<br/>pour gérer efficacement</h2>
+    <p class="subtitle mx-auto">Des outils puissants conçus pour les réalités du terrain africain, sans complexité inutile.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon">📊</div>
+      <h3>Rapports & Statistiques</h3>
+      <p>Visualisez vos revenus par module, par employé, par mode de paiement. Exportez vos données pour votre comptable en un clic.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🏦</div>
+      <h3>Comptabilité intégrée</h3>
+      <p>Chaque transaction génère automatiquement une écriture comptable. Suivez vos entrées, sorties et bénéfices en temps réel.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📱</div>
+      <h3>Mobile Money natif</h3>
+      <p>Moov Money, Orange Money, Wave, MTN Money et carte bancaire. Chaque paiement lié à sa référence de transaction.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🔔</div>
+      <h3>Alertes de stock</h3>
+      <p>Recevez une alerte automatique quand un produit atteint son stock minimum. Ne soyez plus jamais en rupture.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">👥</div>
+      <h3>Multi-utilisateurs & rôles</h3>
+      <p>Créez des comptes pour vos caissiers, serveurs, réceptionnistes. Chaque employé n'accède qu'à son module.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🔐</div>
+      <h3>Sécurisé & fiable</h3>
+      <p>Vos données sont sauvegardées en temps réel dans le cloud. Aucun risque de perte, accessible depuis n'importe quel appareil.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🧾</div>
+      <h3>Caisse centralisée</h3>
+      <p>Une seule caisse pour encaisser tous les tickets en attente (restaurant, dépôt, piscine). Zéro confusion, traçabilité totale.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📦</div>
+      <h3>Commandes fournisseurs</h3>
+      <p>Créez vos bons de commande, enregistrez les réceptions partielles, suivez les paiements avec numérotation automatique.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">💬</div>
+      <h3>Interface en français</h3>
+      <p>Entièrement en français, conçu pour les opérateurs francophones d'Afrique de l'Ouest et Centrale.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PAIEMENTS -->
+<section id="paiements" class="payment-section">
+  <div class="text-center">
+    <span class="section-tag" style="background:rgba(255,255,255,.1);color:#93c5fd;">💳 PAIEMENTS</span>
+    <h2>Tous les modes de paiement<br/>de votre marché</h2>
+    <p class="subtitle" style="color:rgba(255,255,255,.6);margin:0 auto 56px;">Ollentra accepte tous les moyens de paiement courants en Afrique de l'Ouest. Chaque transaction est tracée et référencée.</p>
+  </div>
+
+  <div class="payment-grid">
+    <div class="payment-card pay-especes reveal">
+      <div class="pay-icon">💵</div>
+      <div class="pay-name">Espèces</div>
+      <div class="pay-sub">Paiement direct</div>
+    </div>
+    <div class="payment-card pay-moov reveal">
+      <div class="pay-icon">🟢</div>
+      <div class="pay-name">Moov Money</div>
+      <div class="pay-sub">Avec référence transaction</div>
+    </div>
+    <div class="payment-card pay-orange reveal">
+      <div class="pay-icon">🟠</div>
+      <div class="pay-name">Orange Money</div>
+      <div class="pay-sub">Avec référence transaction</div>
+    </div>
+    <div class="payment-card pay-wave reveal">
+      <div class="pay-icon">🔵</div>
+      <div class="pay-name">Wave</div>
+      <div class="pay-sub">Avec référence transaction</div>
+    </div>
+    <div class="payment-card pay-mtn reveal">
+      <div class="pay-icon">🟡</div>
+      <div class="pay-name">MTN Money</div>
+      <div class="pay-sub">Avec référence transaction</div>
+    </div>
+    <div class="payment-card pay-carte reveal">
+      <div class="pay-icon">💳</div>
+      <div class="pay-name">Carte bancaire</div>
+      <div class="pay-sub">7 derniers chiffres tracés</div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOW -->
+<section style="background: var(--light);">
+  <div class="text-center">
+    <span class="section-tag">🚀 DÉMARRAGE</span>
+    <h2>En ligne en moins de 24h</h2>
+    <p class="subtitle mx-auto">Pas de matériel à acheter, pas de logiciel à installer. Ollentra fonctionne sur n'importe quel navigateur.</p>
+  </div>
+  <div class="workflow-steps">
+    <div class="step reveal">
+      <div class="step-num">1</div>
+      <h3>Contactez-nous</h3>
+      <p>Décrivez votre complexe, vos modules et le nombre d'utilisateurs. On configure tout pour vous.</p>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">2</div>
+      <h3>Configuration sur mesure</h3>
+      <p>On paramètre vos produits, chambres, menus, tarifs et employés selon vos besoins.</p>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">3</div>
+      <h3>Formation de votre équipe</h3>
+      <p>Une session de formation pour vos équipes. Interface simple, prise en main rapide.</p>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">4</div>
+      <h3>Go ! Vous gérez en pro</h3>
+      <p>Votre complexe tourne sur Ollentra. Vous avez accès aux rapports depuis votre téléphone.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="temoignages" class="testimonials-bg">
+  <div class="text-center">
+    <span class="section-tag">⭐ TÉMOIGNAGES</span>
+    <h2>Ils nous font confiance</h2>
+    <p class="subtitle mx-auto">Des gestionnaires de complexes comme le vôtre utilisent Ollentra au quotidien.</p>
+  </div>
+
+  <div class="testimonials-grid">
+    <div class="testimonial-card reveal">
+      <div class="stars">★★★★★</div>
+      <p>"Avant Ollentra, je passais des heures à tout noter dans des cahiers. Maintenant, en 30 secondes, j'ai le chiffre d'affaires de la journée sur mon téléphone."</p>
+      <div class="author">
+        <div class="author-avatar" style="background:#1976d2">A</div>
+        <div>
+          <div class="author-name">Amadou K.</div>
+          <div class="author-role">Gérant, Complexe touristique — Côte d'Ivoire</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="testimonial-card reveal">
+      <div class="stars">★★★★★</div>
+      <p>"Le module dépôt avec le crédit client est une révolution pour nous. On sait exactement qui nous doit quoi, et les encaissements par Moov Money sont tracés automatiquement."</p>
+      <div class="author">
+        <div class="author-avatar" style="background:#00897b">F</div>
+        <div>
+          <div class="author-name">Fatou D.</div>
+          <div class="author-role">Responsable dépôt — Burkina Faso</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="testimonial-card reveal">
+      <div class="stars">★★★★★</div>
+      <p>"J'ai 3 activités dans mon complexe. Ollentra m'a donné une vue globale que je n'avais jamais eue. Mon comptable est ravi, tout est déjà organisé pour lui."</p>
+      <div class="author">
+        <div class="author-avatar" style="background:#7b1fa2">M</div>
+        <div>
+          <div class="author-name">Michel O.</div>
+          <div class="author-role">Directeur, Resort & Loisirs — Congo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section id="contact" class="cta-section">
+  <h2>Prêt à transformer<br/>la gestion de votre complexe ?</h2>
+  <p>Rejoignez les gestionnaires qui pilotent leur activité sereinement grâce à Ollentra.</p>
+  <a href="mailto:contact@ollentra.com" class="btn-white">📩 Contacter l'équipe Ollentra</a>
+  <p class="cta-note">Réponse sous 24h · Démo gratuite · Sans engagement</p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Ollen<em>tra</em></div>
+  <p>La plateforme de gestion tout-en-un pour les complexes touristiques et de loisirs en Afrique.</p>
+  <div class="footer-links">
+    <a href="#modules">Modules</a>
+    <a href="#features">Fonctionnalités</a>
+    <a href="#paiements">Paiements</a>
+    <a href="#temoignages">Témoignages</a>
+    <a href="#contact">Contact</a>
+  </div>
+  <hr/>
+  <div class="copy">© 2026 Ollentra. Tous droits réservés. Conçu pour l'Afrique 🌍</div>
+</footer>
+
+<script>
+  // Navbar scroll effect
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 30);
+  });
+
+  // Reveal on scroll
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 80);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(el => observer.observe(el));
+
+  // Counter animation
+  function animateCounter(el, target, suffix = '') {
+    let start = 0;
+    const step = target / 50;
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= target) { start = target; clearInterval(timer); }
+      el.textContent = Math.floor(start) + suffix;
+    }, 30);
+  }
+
+  const statsObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const nums = entry.target.querySelectorAll('.num');
+        nums.forEach(num => {
+          const text = num.textContent;
+          const val = parseInt(text);
+          const unit = num.querySelector('.unit')?.textContent || '';
+          const span = document.createElement('span');
+          num.innerHTML = '';
+          num.appendChild(span);
+          const unitSpan = document.createElement('span');
+          unitSpan.className = 'unit';
+          unitSpan.textContent = unit;
+          num.appendChild(unitSpan);
+          animateCounter(span, val);
+        });
+        statsObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  const statsSection = document.querySelector('.stats');
+  if (statsSection) statsObserver.observe(statsSection);
+</script>
+</body>
+</html>
