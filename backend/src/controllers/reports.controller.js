@@ -304,23 +304,29 @@ const getTransactionsReport = async (req, res) => {
           ]
         });
 
+        const DEPOT_OPERATOR_LABELS = { moov: 'Moov Money', orange: 'Orange Money', wave: 'Wave', mtn: 'MTN Money' };
         depotSales.forEach(ds => {
           const amount = parseFloat(ds.total_amount);
           if ((!min_amount || amount >= parseFloat(min_amount)) && (!max_amount || amount <= parseFloat(max_amount))) {
+            const dsItems = ds.items_json || [];
+            const itemCount = dsItems.reduce((sum, it) => sum + (parseFloat(it.quantity) || 1), 0);
+            const opLabel = ds.payment_operator ? (DEPOT_OPERATOR_LABELS[ds.payment_operator] || ds.payment_operator) : null;
             transactions.push({
               id: `depot_${ds.id}`,
               date: ds.created_at,
               time: new Date(ds.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
               module: 'Dépôt',
               type: ds.payment_method === 'credit' ? 'Vente à crédit' : 'Vente',
-              description: `Vente dépôt — ${ds.client?.name || 'Client'}`,
-              quantity: 1,
-              unit_price: amount,
+              description: `Dépôt — ${ds.client?.name || 'Client'}${itemCount > 0 ? ` (${itemCount} article${itemCount > 1 ? 's' : ''})` : ''}${opLabel ? ` · ${opLabel}` : ''}`,
+              quantity: itemCount || 1,
+              unit_price: amount / (itemCount || 1),
               amount: amount,
-              payment_method: ds.payment_method || 'cash',
+              payment_method: ds.payment_method || 'especes',
+              payment_operator: ds.payment_operator || null,
+              payment_reference: ds.payment_reference || null,
               user_id: ds.user_id,
               user_name: ds.user?.full_name || 'N/A',
-              reference: `DEP-${ds.id}`,
+              reference: ds.payment_reference || `DEP-${ds.id}`,
               client_name: ds.client?.name
             });
           }

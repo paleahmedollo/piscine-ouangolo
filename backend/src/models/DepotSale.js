@@ -36,6 +36,20 @@ const DepotSale = sequelize.define('DepotSale', {
     defaultValue: 'paye',
     comment: 'en_attente = ticket en attente encaissement caisse | paye = encaissé'
   },
+  payment_operator: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    comment: 'moov|orange|wave|mtn'
+  },
+  payment_reference: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    comment: '7 derniers chiffres réf transaction mobile/carte'
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   client_name: {
     type: DataTypes.STRING(100),
     allowNull: true

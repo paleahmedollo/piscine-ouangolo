@@ -144,7 +144,7 @@ const receiveStock = async (req, res) => {
 
 const createSale = async (req, res) => {
   try {
-    const { depot_client_id, items, payment_method, notes } = req.body;
+    const { depot_client_id, items, payment_method, notes, payment_operator, payment_reference } = req.body;
 
     if (!items || !items.length) {
       return res.status(400).json({ success: false, message: 'Articles requis' });
@@ -189,12 +189,16 @@ const createSale = async (req, res) => {
 
     // Créer la vente
     const isPending = payment_method === 'en_attente';
+    const isCredit = payment_method === 'credit';
     const sale = await DepotSale.create({
       depot_client_id,
       total_amount: totalAmount,
       payment_method: payment_method || 'especes',
+      payment_operator: (!isPending && !isCredit) ? (payment_operator || null) : null,
+      payment_reference: (!isPending && !isCredit) ? (payment_reference || null) : null,
       tab_id: tab ? tab.id : null,
       user_id: req.user?.id,
+      company_id: req.user?.company_id || null,
       notes,
       status: isPending ? 'en_attente' : 'paye',
       client_name: client.name,
@@ -245,13 +249,17 @@ const createSale = async (req, res) => {
     }
 
     // Ne créer l'écriture comptable que si paiement immédiat
-    if (!isPending && payment_method !== 'credit') {
+    if (!isPending && !isCredit) {
+      const OPERATOR_LABELS = { moov: 'Moov Money', orange: 'Orange Money', wave: 'Wave', mtn: 'MTN Money' };
+      const opLabel = payment_operator ? (OPERATOR_LABELS[payment_operator] || payment_operator) : null;
       await createAccountingEntry({
         company_id: req.user.company_id,
         amount: sale.total_amount,
         entry_type: 'vente',
-        payment_type: req.body.payment_method,
-        description: 'Vente dépôt',
+        payment_type: payment_method || 'especes',
+        payment_operator: payment_operator || null,
+        payment_reference: payment_reference || null,
+        description: `Vente dépôt — ${client.name}${opLabel ? ` (${opLabel})` : ''}${payment_reference ? ` — Réf: ${payment_reference}` : ''}`,
         source_module: 'depot',
         source_id: sale.id,
         source_type: 'sale'
@@ -367,6 +375,17 @@ const payCredit = async (req, res) => {
     const newBalance = Math.max(0, currentBalance - payAmount);
     await client.update({ credit_balance: newBalance });
 
+    // Écriture comptable du remboursement de crédit
+    await createAccountingEntry({
+      company_id: req.user?.company_id,
+      amount: payAmount,
+      entry_type: 'vente',
+      payment_type: payment_method || 'especes',
+      description: `Remboursement crédit dépôt — ${client.name}`,
+      source_module: 'depot',
+      source_type: 'credit_payment'
+    });
+
     res.json({
       success: true,
       message: `Paiement de ${payAmount.toLocaleString()} FCFA enregistré. Solde restant: ${newBalance.toLocaleString()} FCFA`,
@@ -388,9 +407,9 @@ const getDepotStats = async (req, res) => {
     const [todayStats] = await sequelize.query(`
       SELECT
         COUNT(*) as total_ventes,
-        COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END), 0) as total_cash,
+        COALESCE(SUM(CASE WHEN payment_method = 'especes' THEN total_amount ELSE 0 END), 0) as total_cash,
         COALESCE(SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END), 0) as total_credit,
-        COALESCE(SUM(CASE WHEN payment_method = 'mobile' THEN total_amount ELSE 0 END), 0) as total_mobile
+        COALESCE(SUM(CASE WHEN payment_method IN ('mobile_money', 'mobile') THEN total_amount ELSE 0 END), 0) as total_mobile
       FROM depot_sales
       WHERE DATE(created_at) = :today
     `, { replacements: { today }, type: sequelize.QueryTypes.SELECT });
@@ -466,14 +485,19 @@ const getSuppliers = async (req, res) => {
 
 const createSupplier = async (req, res) => {
   try {
-    const { name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes } = req.body;
+    const { name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes,
+            marque, secteur_activite, ville, date_debut_collaboration } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Nom du fournisseur requis' });
     const supplier = await Supplier.create({
       name, contact, phone, email, address,
       service_type: 'depot',
       delai_paiement: delai_paiement || 30,
       mode_paiement_habituel: mode_paiement_habituel || 'especes',
-      notes
+      notes,
+      marque: marque || null,
+      secteur_activite: secteur_activite || null,
+      ville: ville || null,
+      date_debut_collaboration: date_debut_collaboration || null
     });
     res.json({ success: true, data: supplier, message: `Fournisseur "${name}" créé` });
   } catch (error) {
@@ -485,8 +509,10 @@ const updateSupplier = async (req, res) => {
   try {
     const supplier = await Supplier.findByPk(req.params.id);
     if (!supplier) return res.status(404).json({ success: false, message: 'Fournisseur non trouvé' });
-    const { name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes, is_active } = req.body;
-    await supplier.update({ name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes, is_active });
+    const { name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes, is_active,
+            marque, secteur_activite, ville, date_debut_collaboration } = req.body;
+    await supplier.update({ name, contact, phone, email, address, delai_paiement, mode_paiement_habituel, notes, is_active,
+      marque, secteur_activite, ville, date_debut_collaboration });
     res.json({ success: true, data: supplier, message: 'Fournisseur mis à jour' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -672,7 +698,7 @@ const payOrder = async (req, res) => {
     if (!order) return res.status(404).json({ success: false, message: 'Commande introuvable' });
     if (order.statut === 'annule') return res.status(400).json({ success: false, message: 'Commande annulée' });
 
-    const { montant } = req.body;
+    const { montant, payment_method: orderPaymentMethod } = req.body;
     if (!montant || parseFloat(montant) <= 0) {
       return res.status(400).json({ success: false, message: 'Montant requis' });
     }
@@ -690,8 +716,8 @@ const payOrder = async (req, res) => {
       company_id: req.user.company_id,
       amount: req.body.montant,
       entry_type: 'achat',
-      payment_type: undefined,
-      description: 'Paiement fournisseur',
+      payment_type: orderPaymentMethod || 'especes',
+      description: `Paiement fournisseur dépôt — commande ${order.numero_commande}`,
       source_module: 'depot',
       source_id: req.params.id,
       source_type: 'purchase'
@@ -725,8 +751,9 @@ const cancelOrder = async (req, res) => {
 
 const getPendingSales = async (req, res) => {
   try {
+    const companyCf = req.user?.company_id ? { company_id: req.user.company_id } : {};
     const sales = await DepotSale.findAll({
-      where: { status: 'en_attente' },
+      where: { ...companyCf, status: 'en_attente' },
       include: [
         { model: DepotClient, as: 'client', attributes: ['id', 'name', 'phone'] },
         { model: User, as: 'user', attributes: ['id', 'full_name'] }
@@ -751,14 +778,24 @@ const payDepotSale = async (req, res) => {
     });
     if (!sale) return res.status(404).json({ success: false, message: 'Ticket introuvable' });
 
-    await sale.update({ status: 'paye', payment_method });
+    const OPERATOR_LABELS = { moov: 'Moov Money', orange: 'Orange Money', wave: 'Wave', mtn: 'MTN Money' };
+    const opLabel = payment_operator ? (OPERATOR_LABELS[payment_operator] || payment_operator) : null;
+
+    await sale.update({
+      status: 'paye',
+      payment_method,
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null
+    });
 
     await createAccountingEntry({
       company_id: req.user.company_id,
       amount: parseFloat(sale.total_amount),
       entry_type: 'vente',
       payment_type: payment_method,
-      description: `Vente dépôt — ${sale.client_name || ''}`,
+      payment_operator: payment_operator || null,
+      payment_reference: payment_reference || null,
+      description: `Vente dépôt — ${sale.client_name || ''}${opLabel ? ` (${opLabel})` : ''}${payment_reference ? ` — Réf: ${payment_reference}` : ''}`,
       source_module: 'depot',
       source_id: sale.id,
       source_type: 'sale'
