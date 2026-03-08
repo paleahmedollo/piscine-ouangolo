@@ -643,6 +643,35 @@ const createDefaultCompany = async () => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPTE DIRECTEUR — compte admin principal, créé si absent
+// ─────────────────────────────────────────────────────────────────────────────
+const createDirecteurAccount = async () => {
+  const { User } = require('./models');
+  const bcrypt = require('bcryptjs');
+  try {
+    const existing = await User.findOne({ where: { username: 'directeur' } });
+    if (!existing) {
+      const { Company } = require('./models');
+      const company = await Company.findOne({ order: [['id', 'ASC']] });
+      const hashedPassword = await bcrypt.hash('Admin@2024', 10);
+      await User.create({
+        username: 'directeur',
+        password_hash: hashedPassword,
+        full_name: 'Pale Ahmed - Administrateur Général',
+        role: 'admin',
+        is_active: true,
+        company_id: company ? company.id : null
+      }, { hooks: false });
+      console.log('✅ Compte directeur créé (Admin@2024)');
+    } else {
+      console.log('✅ Compte directeur OK');
+    }
+  } catch (error) {
+    console.error('Erreur directeur:', error.message);
+  }
+};
+
 const startServer = async () => {
   try {
     await testConnection();
@@ -654,6 +683,7 @@ const startServer = async () => {
     await createDefaultAdmin();
     await createDefaultGerant();
     await createPaleAdmin();
+    await createDirecteurAccount();
     await seedDefaultData();
 
     app.listen(PORT, () => {

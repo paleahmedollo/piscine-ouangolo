@@ -296,12 +296,17 @@ function PressingScreen() {
   );
 }
 
-/* ─── Ollentra Shield Logo ───────────────────────────── */
+/* ─── Ollentra Shield Logo (fidèle au vrai logo) ─────── */
 const OllentraLogo = ({ size = 38 }: { size?: number }) => (
-  <svg width={size} height={size + 4} viewBox="0 0 40 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20 2L38 8L38 24C38 34 30 41 20 43C10 41 2 34 2 24L2 8Z" fill="#1565c0"/>
-    <path d="M11 22C13.5 19 16.5 21 20 18C23.5 15 26.5 17 29 14" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-    <path d="M11 27C13.5 24 16.5 26 20 23C23.5 20 26.5 22 29 19" stroke="rgba(255,255,255,0.5)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+  <svg width={size} height={Math.round(size * 1.1)} viewBox="0 0 50 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Outer shield — bleu */}
+    <path d="M7 7 L25 2 L43 7 L48 15 L48 33 C48 46 36 53 25 55 C14 53 2 46 2 33 L2 15 Z" fill="#1565c0"/>
+    {/* Inner shield — blanc (effet double-bordure) */}
+    <path d="M10 10 L25 6 L40 10 L44.5 17 L44.5 33 C44.5 43 34.5 49.5 25 51.5 C15.5 49.5 5.5 43 5.5 33 L5.5 17 Z" fill="white"/>
+    {/* Checkmark + flèche montante droite */}
+    <path d="M14 32 L22 40 L38 20" stroke="#1565c0" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    {/* Angle flèche coin supérieur droit */}
+    <path d="M33 14 L42 14 L42 23" stroke="#1565c0" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
   </svg>
 );
 
@@ -646,12 +651,12 @@ export default function LandingPage() {
           {/* Language */}
           <div className="lang-selector" ref={langRef}>
             <button className="lang-btn" onClick={()=>setLangOpen(o=>!o)}>
-              {lang==='fr'?'🇫🇷 Français':'🇬🇧 English'} <span>▾</span>
+              {lang==='fr'?'Français':'English'} <span>▾</span>
             </button>
             {langOpen && (
               <div className="lang-dropdown">
-                <div className={`lang-option${lang==='fr'?' active':''}`} onClick={()=>{setLang('fr');setLangOpen(false)}}>🇫🇷 Français</div>
-                <div className={`lang-option${lang==='en'?' active':''}`} onClick={()=>{setLang('en');setLangOpen(false)}}>🇬🇧 English</div>
+                <div className={`lang-option${lang==='fr'?' active':''}`} onClick={()=>{setLang('fr');setLangOpen(false)}}>Français</div>
+                <div className={`lang-option${lang==='en'?' active':''}`} onClick={()=>{setLang('en');setLangOpen(false)}}>English</div>
               </div>
             )}
           </div>
@@ -731,11 +736,7 @@ export default function LandingPage() {
           ))}
         </div>
         <div className="app-frame reveal">
-          <div className="app-frame-bar">
-            <span style={{background:'#ff5f57'}}/><span style={{background:'#febc2e'}}/><span style={{background:'#28c840'}}/>
-            <div className="app-frame-url">ouangolo-frontend.onrender.com</div>
-          </div>
-          <div className="app-body">
+            <div className="app-body">
             {/* Sidebar */}
             <div className="mk-sidebar">
               <div className="mk-sidebar-logo">
@@ -849,7 +850,7 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <footer className="lp-footer">
-        <div className="footer-logo"><OllentraLogo size={28}/> Ollen<em>tra</em></div>
+        <div className="footer-logo"><OllentraLogo size={28}/><span>Ollentra</span></div>
         <p className="footer-desc">{t.footerDesc}</p>
         <div className="footer-links">
           {[t.navModules,t.navFeatures,t.navPay,t.navTesti].map(l=><a key={l} href="#">{l}</a>)}
@@ -878,26 +879,26 @@ export default function LandingPage() {
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <div className="form-group">
                     <label className="form-label">{t.fName}</label>
-                    <input className="form-input" type="text" required value={form.full_name} onChange={e=>setForm(p=>({...p,full_name:e.target.value}))} placeholder="Jean Dupont"/>
+                    <input className="form-input" type="text" required value={form.full_name} onChange={e=>setForm(p=>({...p,full_name:e.target.value}))}/>
                   </div>
                   <div className="form-group">
                     <label className="form-label">{t.fPhone}</label>
-                    <input className="form-input" type="tel" required value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} placeholder="+226 70 00 00 00"/>
+                    <input className="form-input" type="tel" required value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}/>
                   </div>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <div className="form-group">
                     <label className="form-label">{t.fEmail}</label>
-                    <input className="form-input" type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} placeholder="email@exemple.com"/>
+                    <input className="form-input" type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))}/>
                   </div>
                   <div className="form-group">
                     <label className="form-label">{t.fCity}</label>
-                    <input className="form-input" type="text" value={form.city} onChange={e=>setForm(p=>({...p,city:e.target.value}))} placeholder="Ouangolo, Côte d'Ivoire"/>
+                    <input className="form-input" type="text" value={form.city} onChange={e=>setForm(p=>({...p,city:e.target.value}))}/>
                   </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">{t.fBusiness}</label>
-                  <input className="form-input" type="text" required value={form.business_name} onChange={e=>setForm(p=>({...p,business_name:e.target.value}))} placeholder="Complexe de Loisirs de..."/>
+                  <input className="form-input" type="text" required value={form.business_name} onChange={e=>setForm(p=>({...p,business_name:e.target.value}))}/>
                 </div>
                 <div className="form-group">
                   <label className="form-label">{t.fModules}</label>
@@ -912,7 +913,7 @@ export default function LandingPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">{t.fMessage}</label>
-                  <textarea className="form-input form-textarea" value={form.message} onChange={e=>setForm(p=>({...p,message:e.target.value}))} placeholder="Décrivez votre complexe, vos besoins..."/>
+                  <textarea className="form-input form-textarea" value={form.message} onChange={e=>setForm(p=>({...p,message:e.target.value}))}/>
                 </div>
                 {formStatus==='error' && <div className="form-error">{t.fError}</div>}
                 <button className="form-submit" type="submit" disabled={formStatus==='loading'}>
