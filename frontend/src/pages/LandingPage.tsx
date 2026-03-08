@@ -604,7 +604,7 @@ export default function LandingPage() {
     e.preventDefault();
     setFormStatus('loading');
     try {
-      const BACKEND = import.meta.env.VITE_BACKEND_URL || 'https://ouangolo-backend.onrender.com';
+      const BACKEND = import.meta.env.VITE_BACKEND_URL || 'https://ollentra.onrender.com';
       const res = await fetch(`${BACKEND}/api/landing/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -622,7 +622,7 @@ export default function LandingPage() {
     }
   };
 
-  const APP_URL = 'https://ouangolo-frontend.onrender.com';
+  const APP_URL = 'https://ollentra.onrender.com';
   const screens = [<CaisseScreen key="c"/>, <RestaurantScreen key="r"/>, <PressingScreen key="p"/>];
   const sidebarItems = [
     { i:'🏊', l:'Piscine' }, { i:'🍽️', l:'Restaurant', a: activeScreen===1 },
