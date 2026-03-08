@@ -1,13 +1,13 @@
 databases:
-  - name: gestix-db
-    databaseName: gestix
-    user: gestix
+  - name: ollentra-db
+    databaseName: ollentra
+    user: ollentra
     region: frankfurt
     plan: free
 
 services:
   - type: web
-    name: gestix
+    name: ollentra
     env: node
     region: frankfurt
     plan: free
@@ -26,5 +26,5 @@ services:
         value: 24h
       - key: DATABASE_URL
         fromDatabase:
-          name: gestix-db
+          name: ollentra-db
           property: connectionString
