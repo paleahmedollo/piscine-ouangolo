@@ -38,6 +38,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:80',
   'http://localhost',
+  // Domaine de production
+  'https://ollentra.com',
+  'https://www.ollentra.com',
   process.env.FRONTEND_URL,
   process.env.RENDER_URL
 ].filter(Boolean);
@@ -50,6 +53,7 @@ app.use(cors({
       return callback(null, true);
     }
     if (/\.onrender\.com$/.test(origin)) return callback(null, true);
+    if (/\.ollentra\.com$/.test(origin)) return callback(null, true);
     callback(null, true);
   },
   credentials: true
