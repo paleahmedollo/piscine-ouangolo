@@ -95,6 +95,15 @@ app.use((req, res, next) => {
   } catch (e) { console.log('Migration landing_visitors:', e.message); }
 })();
 
+// ─── Migration: colonne source sur landing_visitors ───────────────────────────
+(async () => {
+  try {
+    const { sequelize: seq } = require('./config/database');
+    await seq.query(`ALTER TABLE landing_visitors ADD COLUMN IF NOT EXISTS source VARCHAR(100)`);
+    console.log('✅ Migration landing_visitors.source OK');
+  } catch (e) { console.log('Migration landing_visitors.source:', e.message); }
+})();
+
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.set('Pragma', 'no-cache');

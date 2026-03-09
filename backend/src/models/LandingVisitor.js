@@ -9,6 +9,7 @@ const LandingVisitor = sequelize.define('LandingVisitor', {
   user_agent: { type: DataTypes.TEXT, allowNull: true },
   referrer: { type: DataTypes.STRING(500), allowNull: true },
   lang: { type: DataTypes.STRING(10), allowNull: true, defaultValue: 'fr' },
+  source: { type: DataTypes.STRING(100), allowNull: true }, // hostname (ex: ollentra.com / ollentra.uat)
 }, {
   tableName: 'landing_visitors',
   timestamps: true,

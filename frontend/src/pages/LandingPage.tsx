@@ -683,6 +683,7 @@ export default function LandingPage() {
         body: JSON.stringify({
           referrer: document.referrer || null,
           lang,
+          source: window.location.hostname,
         }),
       }).catch(() => {});
     } catch {}

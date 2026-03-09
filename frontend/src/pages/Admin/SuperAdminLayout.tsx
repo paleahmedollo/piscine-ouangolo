@@ -187,11 +187,12 @@ const SuperAdminLayout: React.FC = () => {
           color: 'text.primary'
         }}>
           <Toolbar sx={{ gap: 1 }}>
-            <Tooltip title={drawerOpen ? "Réduire le menu" : "Ouvrir le menu"}>
+            {/* Bouton menu uniquement sur mobile */}
+            {isMobile && (
               <IconButton onClick={() => setDrawerOpen(!drawerOpen)} edge="start">
                 <MenuIcon />
               </IconButton>
-            </Tooltip>
+            )}
 
             {/* Breadcrumb dynamique */}
             <Box sx={{ flex: 1 }}>
