@@ -44,6 +44,62 @@ const T = {
     fError: '❌ Erreur. Vérifiez votre connexion et réessayez.',
     footerDesc: 'La plateforme de gestion tout-en-un pour les complexes touristiques et de loisirs en Afrique.',
     copy: '© 2026 Ollentra. Tous droits réservés.',
+    customBadge: 'Sur mesure',
+    fLoading: '⏳ Envoi en cours...',
+    alreadyClient: 'Déjà client ?',
+    heroModules: [
+      {i:'🏊',n:'Piscine',v:'Tickets & abonnements'},{i:'🍽️',n:'Restaurant',v:'Tables & commandes'},
+      {i:'🏨',n:'Hôtel',v:'Réservations'},{i:'🚗',n:'Lavage Auto',v:'Prestations & tickets'},
+      {i:'👔',n:'Pressing',v:'Commandes & retrait'},{i:'🎉',n:'Événements',v:'Devis & planning'},
+      {i:'🍺',n:'Maquis / Bar',v:'Additions & encaissement'},{i:'🛒',n:'Supérette',v:'Stock & ventes'},
+      {i:'📦',n:'Dépôt',v:'Crédit & fournisseurs'},
+    ],
+    sidebarItems: [
+      {i:'🏊',l:'Piscine'},{i:'🍽️',l:'Restaurant'},{i:'🏨',l:'Hôtel'},{i:'🎉',l:'Événements'},
+      {i:'🚗',l:'Lavage Auto'},{i:'👔',l:'Pressing'},{i:'🍺',l:'Maquis / Bar'},
+      {i:'🛒',l:'Supérette'},{i:'📦',l:'Dépôt'},{i:'🧾',l:'Caisse'},{i:'📊',l:'Mes Rapports'},
+    ],
+    screenTitles: ['Caisse','Restaurant','Pressing / Repassage'],
+    paymentItems: [
+      {name:'Espèces',sub:'Paiement direct'},{name:'Orange Money',sub:'Avec référence transaction'},
+      {name:'Moov Africa',sub:'Avec référence transaction'},{name:'MTN Money',sub:'Avec référence transaction'},
+      {name:'Wave',sub:'Avec référence transaction'},{name:'Carte bancaire',sub:'7 derniers chiffres tracés'},
+    ],
+    moduleChoices: ['Piscine','Restaurant','Hôtel','Événements','Lavage Auto','Pressing','Maquis / Bar','Supérette','Dépôt'],
+    steps: [
+      {num:1,title:'Contactez-nous',desc:'Décrivez votre complexe, vos modules et le nombre d\'utilisateurs. On configure tout pour vous.'},
+      {num:2,title:'Configuration sur mesure',desc:'On paramètre vos produits, chambres, menus, tarifs et employés. Champs adaptables à votre demande.'},
+      {num:3,title:'Formation de votre équipe',desc:'Une session de formation pour vos équipes. Interface simple, prise en main rapide.'},
+      {num:4,title:'Go ! Vous gérez en pro',desc:'Votre complexe tourne sur Ollentra. Rapports accessibles depuis votre téléphone.'},
+    ],
+    testimonials: [
+      {stars:5,text:'"Avant Ollentra, je passais des heures à tout noter dans des cahiers. Maintenant, en 30 secondes, j\'ai le chiffre d\'affaires de la journée sur mon téléphone."',initials:'A',name:'Amadou K.',role:'Gérant, Complexe touristique — Côte d\'Ivoire',color:'#1976d2'},
+      {stars:5,text:'"Le module dépôt avec le crédit client est une révolution. On sait exactement qui nous doit quoi, et les encaissements par Moov Money sont tracés automatiquement."',initials:'F',name:'Fatou D.',role:'Responsable dépôt — Burkina Faso',color:'#00897b'},
+      {stars:5,text:'"J\'ai 3 activités dans mon complexe. Ollentra m\'a donné une vue globale que je n\'avais jamais eue. Mon comptable est ravi."',initials:'M',name:'Michel O.',role:'Directeur, Resort & Loisirs — Congo',color:'#7b1fa2'},
+    ],
+    modules: [
+      {icon:'🏊',title:'Piscine',color:'#1976d2',desc:'Vendez des tickets d\'entrée, gérez les abonnements mensuels/annuels, suivez les entrées journalières et les revenus en temps réel.',tags:['Tickets journaliers','Abonnements','Statistiques']},
+      {icon:'🍽️',title:'Restaurant',color:'#e53935',desc:'Prenez les commandes par table, gérez la carte et les prix, envoyez directement en cuisine et encaissez via la caisse centrale.',tags:['Commandes par table','Cuisine en direct','Reçus']},
+      {icon:'🏨',title:'Hôtel',color:'#7b1fa2',desc:'Gérez vos chambres, les réservations, les check-in/check-out, les acomptes et les extensions de séjour depuis un seul écran.',tags:['Réservations','Check-in/out','Prolongation séjour']},
+      {icon:'🎉',title:'Événements',color:'#c62828',desc:'Planifiez mariages, conférences et fêtes. Créez des devis détaillés, suivez l\'avancement et facturez vos clients.',tags:['Devis automatiques','Planning','Facturation']},
+      {icon:'🚗',title:'Lavage Auto',color:'#0097a7',desc:'Enregistrez chaque prestation (lavage intérieur, extérieur, complet), la plaque du véhicule et le montant. Ticket imprimable.',tags:['Types de lavage','Plaque véhicule','Ticket caisse']},
+      {icon:'👔',title:'Pressing',color:'#6d4c41',desc:'Créez vos types de vêtements (chemise, pantalon, costume...), enregistrez les commandes et transférez le paiement à la caisse.',tags:['Types vêtements','Commandes','Caisse centrale']},
+      {icon:'🍺',title:'Maquis / Bar',color:'#f9a825',desc:'Gérez les ventes de boissons et repas au bar, ouvrez des additions et encaissez en fin de service depuis la caisse centrale.',tags:['Additions ouvertes','Bar & restauration','Encaissement']},
+      {icon:'🛒',title:'Supérette',color:'#f57c00',desc:'Gérez votre stock produit par produit avec alerte de rupture, encaissez au panier avec Mobile Money ou espèces.',tags:['Gestion stock','Approvisionnement','Fournisseurs']},
+      {icon:'📦',title:'Dépôt',color:'#00897b',desc:'Vendez à vos clients revendeurs, gérez le crédit client avec historique complet, passez et recevez vos commandes fournisseurs.',tags:['Crédit client','Commandes fournisseurs','Mobile Money']},
+    ],
+    features: [
+      {icon:'📊',title:'Rapports & Statistiques',desc:'Visualisez vos revenus par module, par employé, par mode de paiement. Exportez vos données pour votre comptable.'},
+      {icon:'🏦',title:'Comptabilité intégrée',desc:'Chaque transaction génère automatiquement une écriture comptable. Suivez vos entrées, sorties et bénéfices en temps réel.'},
+      {icon:'📱',title:'Mobile Money natif',desc:'Moov, Orange, Wave, MTN. Chaque paiement lié à sa référence de transaction — aucune perte non tracée.'},
+      {icon:'🔔',title:'Alertes de stock',desc:'Recevez une alerte automatique quand un produit atteint son stock minimum. Ne soyez plus jamais en rupture.'},
+      {icon:'👥',title:'Multi-utilisateurs & rôles',desc:'Caissiers, serveurs, réceptionnistes, directeur, maire. Chaque employé n\'accède qu\'à son module.'},
+      {icon:'🔐',title:'Sécurisé & cloud',desc:'Vos données sont sauvegardées en temps réel dans le cloud. Aucun risque de perte, accessible depuis n\'importe quel appareil.'},
+      {icon:'🧾',title:'Caisse centralisée',desc:'Une seule caisse pour encaisser tous les tickets en attente (restaurant, dépôt, piscine). Traçabilité totale.'},
+      {icon:'📦',title:'Commandes fournisseurs',desc:'Créez vos bons de commande, enregistrez les réceptions partielles, suivez les paiements.'},
+      {icon:'⚙️',title:'Configuration personnalisée',desc:'Certains libellés, champs et paramètres peuvent être adaptés à votre demande selon vos besoins spécifiques.',custom:true},
+      {icon:'💬',title:'Interface en français',desc:'Entièrement en français, conçu pour les opérateurs francophones d\'Afrique de l\'Ouest et Centrale.'},
+    ],
   },
   en: {
     badge: 'All-in-one management platform · Built for Africa',
@@ -84,49 +140,67 @@ const T = {
     fError: '❌ Error. Check your connection and try again.',
     footerDesc: 'The all-in-one management platform for tourist and leisure complexes in Africa.',
     copy: '© 2026 Ollentra. All rights reserved.',
+    customBadge: 'Custom',
+    fLoading: '⏳ Sending...',
+    alreadyClient: 'Already a client?',
+    heroModules: [
+      {i:'🏊',n:'Pool',v:'Tickets & subscriptions'},{i:'🍽️',n:'Restaurant',v:'Tables & orders'},
+      {i:'🏨',n:'Hotel',v:'Reservations'},{i:'🚗',n:'Car Wash',v:'Services & tickets'},
+      {i:'👔',n:'Laundry',v:'Orders & pickup'},{i:'🎉',n:'Events',v:'Quotes & planning'},
+      {i:'🍺',n:'Bar',v:'Tabs & cashout'},{i:'🛒',n:'Store',v:'Stock & sales'},
+      {i:'📦',n:'Depot',v:'Credit & suppliers'},
+    ],
+    sidebarItems: [
+      {i:'🏊',l:'Pool'},{i:'🍽️',l:'Restaurant'},{i:'🏨',l:'Hotel'},{i:'🎉',l:'Events'},
+      {i:'🚗',l:'Car Wash'},{i:'👔',l:'Laundry'},{i:'🍺',l:'Bar'},
+      {i:'🛒',l:'Store'},{i:'📦',l:'Depot'},{i:'🧾',l:'Cashier'},{i:'📊',l:'My Reports'},
+    ],
+    screenTitles: ['Cashier','Restaurant','Laundry / Ironing'],
+    paymentItems: [
+      {name:'Cash',sub:'Direct payment'},{name:'Orange Money',sub:'With transaction reference'},
+      {name:'Moov Africa',sub:'With transaction reference'},{name:'MTN Money',sub:'With transaction reference'},
+      {name:'Wave',sub:'With transaction reference'},{name:'Bank card',sub:'Last 7 digits tracked'},
+    ],
+    moduleChoices: ['Pool','Restaurant','Hotel','Events','Car Wash','Laundry','Bar','Store','Depot'],
+    steps: [
+      {num:1,title:'Contact us',desc:'Describe your complex, modules and number of users. We configure everything for you.'},
+      {num:2,title:'Custom setup',desc:'We configure your products, rooms, menus, pricing and staff. Fields adaptable on request.'},
+      {num:3,title:'Train your team',desc:'A training session for your teams. Simple interface, quick to learn.'},
+      {num:4,title:'Go! Manage like a pro',desc:'Your complex runs on Ollentra. Reports accessible from your phone.'},
+    ],
+    testimonials: [
+      {stars:5,text:'"Before Ollentra, I spent hours writing everything in notebooks. Now, in 30 seconds, I have the day\'s revenue on my phone."',initials:'A',name:'Amadou K.',role:'Manager, Tourist Complex — Côte d\'Ivoire',color:'#1976d2'},
+      {stars:5,text:'"The depot module with customer credit is a revolution. We know exactly who owes us what, and Moov Money payments are tracked automatically."',initials:'F',name:'Fatou D.',role:'Depot Manager — Burkina Faso',color:'#00897b'},
+      {stars:5,text:'"I have 3 activities in my complex. Ollentra gave me an overall view I never had before. My accountant is thrilled."',initials:'M',name:'Michel O.',role:'Director, Resort & Leisure — Congo',color:'#7b1fa2'},
+    ],
+    modules: [
+      {icon:'🏊',title:'Pool',color:'#1976d2',desc:'Sell entry tickets, manage monthly/annual subscriptions, track daily entries and revenue in real time.',tags:['Daily tickets','Subscriptions','Statistics']},
+      {icon:'🍽️',title:'Restaurant',color:'#e53935',desc:'Take orders by table, manage the menu and prices, send directly to kitchen and collect via the central cashier.',tags:['Table orders','Live kitchen','Receipts']},
+      {icon:'🏨',title:'Hotel',color:'#7b1fa2',desc:'Manage your rooms, reservations, check-in/check-out, deposits and stay extensions from one screen.',tags:['Reservations','Check-in/out','Stay extension']},
+      {icon:'🎉',title:'Events',color:'#c62828',desc:'Plan weddings, conferences and parties. Create detailed quotes, track progress and invoice your clients.',tags:['Auto quotes','Planning','Invoicing']},
+      {icon:'🚗',title:'Car Wash',color:'#0097a7',desc:'Record each service (interior, exterior, full wash), the vehicle plate and amount. Printable ticket.',tags:['Wash types','Vehicle plate','Cashier ticket']},
+      {icon:'👔',title:'Laundry',color:'#6d4c41',desc:'Create your clothing types (shirt, trousers, suit...), record orders and transfer payment to the cashier.',tags:['Clothing types','Orders','Central cashier']},
+      {icon:'🍺',title:'Bar',color:'#f9a825',desc:'Manage drink and food sales at the bar, open tabs and collect at end of service from the central cashier.',tags:['Open tabs','Bar & food','Collection']},
+      {icon:'🛒',title:'Store',color:'#f57c00',desc:'Manage your stock product by product with low-stock alerts, checkout with Mobile Money or cash.',tags:['Stock management','Restocking','Suppliers']},
+      {icon:'📦',title:'Depot',color:'#00897b',desc:'Sell to reseller clients, manage customer credit with full history, place and receive supplier orders.',tags:['Customer credit','Supplier orders','Mobile Money']},
+    ],
+    features: [
+      {icon:'📊',title:'Reports & Statistics',desc:'View your revenue by module, employee, payment method. Export your data for your accountant.'},
+      {icon:'🏦',title:'Integrated accounting',desc:'Every transaction automatically generates an accounting entry. Track income, expenses and profit in real time.'},
+      {icon:'📱',title:'Native Mobile Money',desc:'Moov, Orange, Wave, MTN. Every payment linked to its transaction reference — no untracked loss.'},
+      {icon:'🔔',title:'Stock alerts',desc:'Get an automatic alert when a product reaches its minimum stock. Never run out again.'},
+      {icon:'👥',title:'Multi-user & roles',desc:'Cashiers, waiters, receptionists, director, mayor. Each employee only accesses their module.'},
+      {icon:'🔐',title:'Secure & cloud',desc:'Your data is backed up in real time to the cloud. No risk of loss, accessible from any device.'},
+      {icon:'🧾',title:'Centralized cashier',desc:'One cashier to collect all pending tickets (restaurant, depot, pool). Full traceability.'},
+      {icon:'📦',title:'Supplier orders',desc:'Create purchase orders, record partial receipts, track payments.'},
+      {icon:'⚙️',title:'Custom configuration',desc:'Certain labels, fields and settings can be adapted to your request based on your specific needs.',custom:true},
+      {icon:'💬',title:'French interface',desc:'Fully in French, designed for francophone operators in West and Central Africa.'},
+    ],
   }
 };
 
-/* ─── Data ───────────────────────────────────────────── */
-const modules = [
-  { icon:'🏊', title:'Piscine', color:'#1976d2', desc:'Vendez des tickets d\'entrée, gérez les abonnements mensuels/annuels, suivez les entrées journalières et les revenus en temps réel.', tags:['Tickets journaliers','Abonnements','Statistiques'] },
-  { icon:'🍽️', title:'Restaurant', color:'#e53935', desc:'Prenez les commandes par table, gérez la carte et les prix, envoyez directement en cuisine et encaissez via la caisse centrale.', tags:['Commandes par table','Cuisine en direct','Reçus'] },
-  { icon:'🏨', title:'Hôtel', color:'#7b1fa2', desc:'Gérez vos chambres, les réservations, les check-in/check-out, les acomptes et les extensions de séjour depuis un seul écran.', tags:['Réservations','Check-in/out','Prolongation séjour'] },
-  { icon:'🎉', title:'Événements', color:'#c62828', desc:'Planifiez mariages, conférences et fêtes. Créez des devis détaillés, suivez l\'avancement et facturez vos clients.', tags:['Devis automatiques','Planning','Facturation'] },
-  { icon:'🚗', title:'Lavage Auto', color:'#0097a7', desc:'Enregistrez chaque prestation (lavage intérieur, extérieur, complet), la plaque du véhicule et le montant. Ticket imprimable.', tags:['Types de lavage','Plaque véhicule','Ticket caisse'] },
-  { icon:'👔', title:'Pressing', color:'#6d4c41', desc:'Créez vos types de vêtements (chemise, pantalon, costume...), enregistrez les commandes et transférez le paiement à la caisse.', tags:['Types vêtements','Commandes','Caisse centrale'] },
-  { icon:'🍺', title:'Maquis / Bar', color:'#f9a825', desc:'Gérez les ventes de boissons et repas au bar, ouvrez des additions et encaissez en fin de service depuis la caisse centrale.', tags:['Additions ouvertes','Bar & restauration','Encaissement'] },
-  { icon:'🛒', title:'Supérette', color:'#f57c00', desc:'Gérez votre stock produit par produit avec alerte de rupture, encaissez au panier avec Mobile Money ou espèces.', tags:['Gestion stock','Approvisionnement','Fournisseurs'] },
-  { icon:'📦', title:'Dépôt', color:'#00897b', desc:'Vendez à vos clients revendeurs, gérez le crédit client avec historique complet, passez et recevez vos commandes fournisseurs.', tags:['Crédit client','Commandes fournisseurs','Mobile Money'] },
-];
-
-const features = [
-  { icon:'📊', title:'Rapports & Statistiques', desc:'Visualisez vos revenus par module, par employé, par mode de paiement. Exportez vos données pour votre comptable.' },
-  { icon:'🏦', title:'Comptabilité intégrée', desc:'Chaque transaction génère automatiquement une écriture comptable. Suivez vos entrées, sorties et bénéfices en temps réel.' },
-  { icon:'📱', title:'Mobile Money natif', desc:'Moov, Orange, Wave, MTN. Chaque paiement lié à sa référence de transaction — aucune perte non tracée.' },
-  { icon:'🔔', title:'Alertes de stock', desc:'Recevez une alerte automatique quand un produit atteint son stock minimum. Ne soyez plus jamais en rupture.' },
-  { icon:'👥', title:'Multi-utilisateurs & rôles', desc:'Caissiers, serveurs, réceptionnistes, directeur, maire. Chaque employé n\'accède qu\'à son module.' },
-  { icon:'🔐', title:'Sécurisé & cloud', desc:'Vos données sont sauvegardées en temps réel dans le cloud. Aucun risque de perte, accessible depuis n\'importe quel appareil.' },
-  { icon:'🧾', title:'Caisse centralisée', desc:'Une seule caisse pour encaisser tous les tickets en attente (restaurant, dépôt, piscine). Traçabilité totale.' },
-  { icon:'📦', title:'Commandes fournisseurs', desc:'Créez vos bons de commande, enregistrez les réceptions partielles, suivez les paiements.' },
-  { icon:'⚙️', title:'Configuration personnalisée', desc:'Certains libellés, champs et paramètres peuvent être adaptés à votre demande selon vos besoins spécifiques.', custom: true },
-  { icon:'💬', title:'Interface en français', desc:'Entièrement en français, conçu pour les opérateurs francophones d\'Afrique de l\'Ouest et Centrale.' },
-];
-
-const moduleChoices = ['Piscine','Restaurant','Hôtel','Événements','Lavage Auto','Pressing','Maquis / Bar','Supérette','Dépôt'];
-
-const steps = [
-  { num:1, title:'Contactez-nous', desc:'Décrivez votre complexe, vos modules et le nombre d\'utilisateurs. On configure tout pour vous.' },
-  { num:2, title:'Configuration sur mesure', desc:'On paramètre vos produits, chambres, menus, tarifs et employés. Champs adaptables à votre demande.' },
-  { num:3, title:'Formation de votre équipe', desc:'Une session de formation pour vos équipes. Interface simple, prise en main rapide.' },
-  { num:4, title:'Go ! Vous gérez en pro', desc:'Votre complexe tourne sur Ollentra. Rapports accessibles depuis votre téléphone.' },
-];
-
-const testimonials = [
-  { stars:5, text:'"Avant Ollentra, je passais des heures à tout noter dans des cahiers. Maintenant, en 30 secondes, j\'ai le chiffre d\'affaires de la journée sur mon téléphone."', initials:'A', name:'Amadou K.', role:'Gérant, Complexe touristique — Côte d\'Ivoire', color:'#1976d2' },
-  { stars:5, text:'"Le module dépôt avec le crédit client est une révolution. On sait exactement qui nous doit quoi, et les encaissements par Moov Money sont tracés automatiquement."', initials:'F', name:'Fatou D.', role:'Responsable dépôt — Burkina Faso', color:'#00897b' },
-  { stars:5, text:'"J\'ai 3 activités dans mon complexe. Ollentra m\'a donné une vue globale que je n\'avais jamais eue. Mon comptable est ravi."', initials:'M', name:'Michel O.', role:'Directeur, Resort & Loisirs — Congo', color:'#7b1fa2' },
-];
+/* ─── Payment SVGs (order matches T.paymentItems) ──────── */
+const paySvgs = [<EspecesSVG key="esp"/>, <OrangeSVG key="ora"/>, <MoovSVG key="moo"/>, <MTNSVG key="mtn"/>, <WaveSVG key="wav"/>, <CarteSVG key="car"/>];
 
 /* ─── Operator SVG Logos ────────────────────────────── */
 const OrangeSVG = () => (
@@ -206,14 +280,6 @@ const CarteSVG = () => (
   </svg>
 );
 
-const paymentItems = [
-  { svg: <EspecesSVG />, name: 'Espèces', sub: 'Paiement direct' },
-  { svg: <OrangeSVG />, name: 'Orange Money', sub: 'Avec référence transaction' },
-  { svg: <MoovSVG />, name: 'Moov Africa', sub: 'Avec référence transaction' },
-  { svg: <MTNSVG />, name: 'MTN Money', sub: 'Avec référence transaction' },
-  { svg: <WaveSVG />, name: 'Wave', sub: 'Avec référence transaction' },
-  { svg: <CarteSVG />, name: 'Carte bancaire', sub: '7 derniers chiffres tracés' },
-];
 
 /* ─── App Mockup Screens ─────────────────────────────── */
 function CaisseScreen() {
@@ -624,13 +690,10 @@ export default function LandingPage() {
 
   const APP_URL = 'https://ollentra.onrender.com';
   const screens = [<CaisseScreen key="c"/>, <RestaurantScreen key="r"/>, <PressingScreen key="p"/>];
-  const sidebarItems = [
-    { i:'🏊', l:'Piscine' }, { i:'🍽️', l:'Restaurant', a: activeScreen===1 },
-    { i:'🏨', l:'Hôtel' }, { i:'🎉', l:'Événements' }, { i:'🚗', l:'Lavage Auto' },
-    { i:'👔', l:'Pressing', a: activeScreen===2 }, { i:'🍺', l:'Maquis / Bar' },
-    { i:'🛒', l:'Supérette' }, { i:'📦', l:'Dépôt' },
-    { i:'🧾', l:'Caisse', a: activeScreen===0 }, { i:'📊', l:'Mes Rapports' },
-  ];
+  const sidebarItems = t.sidebarItems.map((item, idx) => ({
+    ...item,
+    a: (idx === 9 && activeScreen === 0) || (idx === 1 && activeScreen === 1) || (idx === 5 && activeScreen === 2),
+  }));
 
   return (
     <div className="lp-root">
@@ -678,7 +741,7 @@ export default function LandingPage() {
           <div className="hero-screen">
             <div className="screen-bar"><span className="dot-r"/><span className="dot-y"/><span className="dot-g"/></div>
             <div className="screen-modules">
-              {[{i:'🏊',n:'Piscine',v:'Tickets & abonnements'},{i:'🍽️',n:'Restaurant',v:'Tables & commandes'},{i:'🏨',n:'Hôtel',v:'Réservations'},{i:'🚗',n:'Lavage Auto',v:'Prestations & tickets'},{i:'👔',n:'Pressing',v:'Commandes & retrait'},{i:'🎉',n:'Événements',v:'Devis & planning'},{i:'🍺',n:'Maquis / Bar',v:'Additions & encaissement'},{i:'🛒',n:'Supérette',v:'Stock & ventes'},{i:'📦',n:'Dépôt',v:'Crédit & fournisseurs'}].map(m=>(
+              {t.heroModules.map(m=>(
                 <div className="screen-mod" key={m.n}>
                   <div className="sm-icon">{m.i}</div>
                   <div className="sm-name">{m.n}</div>
@@ -710,7 +773,7 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.modulesSub}</p>
         </div>
         <div className="modules-grid">
-          {modules.map(m=>(
+          {t.modules.map(m=>(
             <div className="module-card reveal" key={m.title} style={{'--cc':m.color} as React.CSSProperties}>
               <div className="module-icon" style={{background:m.color+'20'}}>{m.icon}</div>
               <h3>{m.title}</h3>
@@ -752,7 +815,7 @@ export default function LandingPage() {
             {/* Main */}
             <div className="mk-main">
               <div className="mk-topbar">
-                <div className="mk-page-title">{['Caisse','Restaurant','Pressing / Repassage'][activeScreen]}</div>
+                <div className="mk-page-title">{t.screenTitles[activeScreen]}</div>
                 <div className="mk-user">
                   <div className="mk-user-name">Pale Ahmed · Administrateur Général</div>
                   <div className="mk-user-role">admin</div>
@@ -772,9 +835,9 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.featuresSub}</p>
         </div>
         <div className="features-grid">
-          {features.map(f=>(
+          {t.features.map(f=>(
             <div className={`feature-card reveal${f.custom?' custom-card':''}`} key={f.title}>
-              {f.custom && <span className="custom-badge">Sur mesure</span>}
+              {f.custom && <span className="custom-badge">{t.customBadge}</span>}
               <div className="feature-icon">{f.icon}</div>
               <h3>{f.title}</h3>
               <p>{f.desc}</p>
@@ -791,9 +854,9 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.paySub}</p>
         </div>
         <div className="payment-grid">
-          {paymentItems.map(p=>(
+          {t.paymentItems.map((p,i)=>(
             <div className="payment-card reveal" key={p.name}>
-              <div className="pay-logo">{p.svg}</div>
+              <div className="pay-logo">{paySvgs[i]}</div>
               <div className="pay-name">{p.name}</div>
               <div className="pay-sub">{p.sub}</div>
             </div>
@@ -809,7 +872,7 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.workflowSub}</p>
         </div>
         <div className="workflow-steps">
-          {steps.map(s=>(
+          {t.steps.map(s=>(
             <div className="step reveal" key={s.num}>
               <div className="step-num">{s.num}</div>
               <h3>{s.title}</h3>
@@ -827,7 +890,7 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.testiSub}</p>
         </div>
         <div className="testimonials-grid">
-          {testimonials.map(tt=>(
+          {t.testimonials.map(tt=>(
             <div className="testimonial-card reveal" key={tt.name}>
               <div className="stars">{'★'.repeat(tt.stars)}</div>
               <p className="testi-text">{tt.text}</p>
@@ -903,7 +966,7 @@ export default function LandingPage() {
                 <div className="form-group">
                   <label className="form-label">{t.fModules}</label>
                   <div className="form-modules">
-                    {moduleChoices.map(mod=>(
+                    {t.moduleChoices.map(mod=>(
                       <label className="module-check" key={mod}>
                         <input type="checkbox" checked={form.modules.includes(mod)} onChange={()=>toggleModule(mod)}/>
                         <span>{mod}</span>
@@ -917,10 +980,10 @@ export default function LandingPage() {
                 </div>
                 {formStatus==='error' && <div className="form-error">{t.fError}</div>}
                 <button className="form-submit" type="submit" disabled={formStatus==='loading'}>
-                  {formStatus==='loading' ? '⏳ Envoi en cours...' : t.fSubmit}
+                  {formStatus==='loading' ? t.fLoading : t.fSubmit}
                 </button>
                 <p style={{textAlign:'center',fontSize:12,color:'#94a3b8',marginTop:10}}>
-                  Déjà client ? <a href={APP_URL} target="_blank" rel="noopener noreferrer" style={{color:'#1565c0',fontWeight:600}}>{t.connexion} →</a>
+                  {t.alreadyClient} <a href={APP_URL} target="_blank" rel="noopener noreferrer" style={{color:'#1565c0',fontWeight:600}}>{t.connexion} →</a>
                 </p>
               </form>
             )}
