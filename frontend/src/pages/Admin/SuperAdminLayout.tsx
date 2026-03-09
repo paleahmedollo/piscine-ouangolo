@@ -18,7 +18,8 @@ import {
   Menu as MenuIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
-  ChevronLeft as ChevronLeftIcon
+  ChevronLeft as ChevronLeftIcon,
+  LeaderboardOutlined as LeadsIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import OllentraLogo from '../../components/OllentraLogo';
@@ -33,6 +34,8 @@ const menuItems = [
   { divider: true },
   { label: 'Abonnements', icon: <SubscriptionIcon />, path: '/admin/subscriptions', color: '#2e7d32' },
   { label: 'Facturation', icon: <BillingIcon />, path: '/admin/billing', color: '#1b5e20' },
+  { divider: true },
+  { label: 'Demandes Essai & Visiteurs', icon: <LeadsIcon />, path: '/admin/leads', color: '#c62828' },
   { divider: true },
   { label: 'Assistance (Billets)', icon: <TicketIcon />, path: '/admin/tickets', color: '#e65100' },
   { label: 'Rapports', icon: <ReportsIcon />, path: '/admin/reports', color: '#4a148c' },

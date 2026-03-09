@@ -1,4 +1,5 @@
 const TrialRequest = require('../models/TrialRequest');
+const LandingVisitor = require('../models/LandingVisitor');
 
 /**
  * POST /api/landing/contact
@@ -43,6 +44,32 @@ exports.submitContact = async (req, res) => {
 };
 
 /**
+ * POST /api/landing/visit  — Enregistre une visite (public, sans auth)
+ */
+exports.trackVisit = async (req, res) => {
+  try {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+      || req.headers['cf-connecting-ip']
+      || req.socket?.remoteAddress
+      || null;
+
+    await LandingVisitor.create({
+      ip,
+      user_agent: req.headers['user-agent'] || null,
+      referrer: req.body.referrer || req.headers['referer'] || null,
+      lang: req.body.lang || 'fr',
+      country: req.body.country || null,
+      city: req.body.city || null,
+    });
+
+    return res.status(201).json({ success: true });
+  } catch (err) {
+    // Ne pas bloquer si erreur (non critique)
+    return res.status(200).json({ success: true });
+  }
+};
+
+/**
  * GET /api/landing/requests  (admin only — liste toutes les demandes)
  */
 exports.listRequests = async (req, res) => {
@@ -53,6 +80,23 @@ exports.listRequests = async (req, res) => {
     return res.json({ success: true, data: requests });
   } catch (err) {
     console.error('Landing list error:', err);
+    return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+/**
+ * GET /api/landing/visitors  (admin only — liste des visiteurs)
+ */
+exports.listVisitors = async (req, res) => {
+  try {
+    const visitors = await LandingVisitor.findAll({
+      order: [['visited_at', 'DESC']],
+      limit: 500,
+    });
+    const total = await LandingVisitor.count();
+    return res.json({ success: true, data: visitors, total });
+  } catch (err) {
+    console.error('Landing visitors error:', err);
     return res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };

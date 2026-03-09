@@ -75,6 +75,26 @@ app.use((req, res, next) => {
   } catch (e) { console.log('Migration items_json:', e.message); }
 })();
 
+// ─── Migration: table landing_visitors ────────────────────────────────────────
+(async () => {
+  try {
+    const { sequelize: seq } = require('./config/database');
+    await seq.query(`
+      CREATE TABLE IF NOT EXISTS landing_visitors (
+        id SERIAL PRIMARY KEY,
+        ip VARCHAR(60),
+        country VARCHAR(80),
+        city VARCHAR(100),
+        user_agent TEXT,
+        referrer VARCHAR(500),
+        lang VARCHAR(10) DEFAULT 'fr',
+        visited_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log('✅ Migration landing_visitors OK');
+  } catch (e) { console.log('Migration landing_visitors:', e.message); }
+})();
+
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.set('Pragma', 'no-cache');

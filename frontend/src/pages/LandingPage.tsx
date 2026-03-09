@@ -607,6 +607,12 @@ footer.lp-footer{background:#0a1628;color:rgba(255,255,255,.5);padding:56px 6% 3
 @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.7}}
 .reveal{opacity:0;transform:translateY(36px);transition:opacity .7s,transform .7s}
 .reveal.visible{opacity:1;transform:translateY(0)}
+/* FLOATING BUTTONS */
+.floating-btns{position:fixed;bottom:24px;right:24px;z-index:9000;display:flex;flex-direction:column;gap:12px;align-items:flex-end}
+.float-btn{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s,box-shadow .2s;text-decoration:none}
+.float-btn:hover{transform:scale(1.12);box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.float-wa{background:#25D366}
+.float-tg{background:#2AABEE}
 /* RESPONSIVE */
 @media(max-width:900px){.mk-sidebar{width:130px}.mk-nav-item{font-size:10px;padding:6px 8px}.mk-stats4{grid-template-columns:repeat(2,1fr)}.mk-mod-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.nav-links{display:none}.screen-modules{grid-template-columns:repeat(2,1fr)}.hero-btns{flex-direction:column;align-items:center}.app-body{height:auto}.mk-sidebar{display:none}}
@@ -666,11 +672,32 @@ export default function LandingPage() {
     }));
   };
 
+  const BACKEND = import.meta.env.VITE_BACKEND_URL || 'https://ouangolo-backend.onrender.com';
+
+  // Tracking visiteur au chargement de la page
+  useEffect(() => {
+    try {
+      fetch(`${BACKEND}/api/landing/visit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referrer: document.referrer || null,
+          lang,
+        }),
+      }).catch(() => {});
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const closeModal = () => {
+    setShowTrial(false);
+    setFormStatus('idle');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormStatus('loading');
     try {
-      const BACKEND = import.meta.env.VITE_BACKEND_URL || 'https://ouangolo-backend.onrender.com';
       const res = await fetch(`${BACKEND}/api/landing/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -680,6 +707,8 @@ export default function LandingPage() {
       if (data.success) {
         setFormStatus('success');
         setForm({ full_name:'', phone:'', email:'', business_name:'', city:'', modules:[], message:'' });
+        // Fermer le modal automatiquement après 3 secondes
+        setTimeout(() => closeModal(), 3000);
       } else {
         setFormStatus('error');
       }
@@ -688,6 +717,8 @@ export default function LandingPage() {
     }
   };
 
+  const WA_LINK = 'https://wa.me/2250506332240';
+  const TG_LINK = 'https://t.me/+2250506332240';
   const APP_URL = 'https://ollentra.onrender.com';
   const screens = [<CaisseScreen key="c"/>, <RestaurantScreen key="r"/>, <PressingScreen key="p"/>];
   const sidebarItems = t.sidebarItems.map((item, idx) => ({
@@ -923,10 +954,20 @@ export default function LandingPage() {
       </footer>
 
       {/* ── TRIAL MODAL ── */}
+      {/* ── BOUTONS FLOTTANTS WhatsApp + Telegram ── */}
+      <div className="floating-btns">
+        <a className="float-btn float-tg" href={TG_LINK} target="_blank" rel="noopener noreferrer" title="Telegram">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.19 13.67 4.297 12.8c-.658-.204-.671-.658.136-.975l11.57-4.461c.548-.196 1.027.131.891.857z"/></svg>
+        </a>
+        <a className="float-btn float-wa" href={WA_LINK} target="_blank" rel="noopener noreferrer" title="WhatsApp">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+        </a>
+      </div>
+
       {showTrial && (
-        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowTrial(false)}}>
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)closeModal()}}>
           <div className="modal-box">
-            <button className="modal-close" onClick={()=>setShowTrial(false)}>✕</button>
+            <button className="modal-close" onClick={closeModal}>✕</button>
             <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
               <OllentraLogo size={32}/>
               <div>
