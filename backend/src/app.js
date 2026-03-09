@@ -104,6 +104,24 @@ app.use((req, res, next) => {
   } catch (e) { console.log('Migration landing_visitors.source:', e.message); }
 })();
 
+// ─── Migration: colonnes manquantes sur purchases ─────────────────────────────
+(async () => {
+  try {
+    const { sequelize: seq } = require('./config/database');
+    const cols = [
+      `ALTER TABLE purchases ADD COLUMN IF NOT EXISTS numero_commande VARCHAR(50)`,
+      `ALTER TABLE purchases ADD COLUMN IF NOT EXISTS date_reception DATE`,
+      `ALTER TABLE purchases ADD COLUMN IF NOT EXISTS date_echeance DATE`,
+      `ALTER TABLE purchases ADD COLUMN IF NOT EXISTS reference_facture VARCHAR(100)`,
+      `ALTER TABLE purchases ADD COLUMN IF NOT EXISTS montant_paye DECIMAL(12,0) DEFAULT 0`,
+      `ALTER TABLE purchases ADD COLUMN IF NOT EXISTS reste_a_payer DECIMAL(12,0) DEFAULT 0`,
+      `ALTER TABLE purchases ADD COLUMN IF NOT EXISTS statut VARCHAR(20) DEFAULT 'en_attente'`,
+    ];
+    for (const sql of cols) await seq.query(sql);
+    console.log('✅ Migration purchases colonnes manquantes OK');
+  } catch (e) { console.log('Migration purchases:', e.message); }
+})();
+
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.set('Pragma', 'no-cache');
