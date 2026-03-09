@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { submitContact, listRequests, updateStatus } = require('../controllers/landing.controller');
-const { authenticateToken } = require('../middleware/auth.middleware');
+const { authenticateToken } = require('../middlewares/auth.middleware');
 
 // Public — soumission du formulaire d'essai
 router.post('/contact', submitContact);
