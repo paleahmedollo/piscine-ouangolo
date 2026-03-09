@@ -199,9 +199,6 @@ const T = {
   }
 };
 
-/* ─── Payment SVGs (order matches T.paymentItems) ──────── */
-const paySvgs = [<EspecesSVG key="esp"/>, <OrangeSVG key="ora"/>, <MoovSVG key="moo"/>, <MTNSVG key="mtn"/>, <WaveSVG key="wav"/>, <CarteSVG key="car"/>];
-
 /* ─── Operator SVG Logos ────────────────────────────── */
 const OrangeSVG = () => (
   <svg viewBox="0 0 120 80" style={{width:'100%',height:'100%',display:'block'}}>
@@ -279,6 +276,9 @@ const CarteSVG = () => (
     <text x="60" y="72" textAnchor="middle" fill="rgba(255,255,255,.7)" fontSize="9" fontFamily="Arial,sans-serif">Carte bancaire</text>
   </svg>
 );
+
+/* ─── Payment SVGs (order matches T.paymentItems) ──────── */
+const paySvgs = [<EspecesSVG key="esp"/>, <OrangeSVG key="ora"/>, <MoovSVG key="moo"/>, <MTNSVG key="mtn"/>, <WaveSVG key="wav"/>, <CarteSVG key="car"/>];
 
 
 /* ─── App Mockup Screens ─────────────────────────────── */
