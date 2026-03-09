@@ -189,7 +189,7 @@ const createUser = async (req, res) => {
       role,
       company_id: company_id || null,
       is_active: true
-    });
+    }, { hooks: false }); // hooks: false pour éviter le double-hash (beforeCreate)
 
     await logAction(req, 'CREATE_USER', 'users', 'User', user.id, { username, role, company_id });
     res.json({ success: true, data: user, message: `Utilisateur "${username}" créé avec succès` });
