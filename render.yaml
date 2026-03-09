@@ -11,9 +11,7 @@ services:
     env: node
     region: frankfurt
     plan: free
-    buildCommand: |
-      cd frontend && npm install && npm run build
-      cd ../backend && npm install
+    buildCommand: cd frontend && npm install && npm run build && cd .. && cd backend && npm install
     startCommand: cd backend && node src/app.js
     envVars:
       - key: NODE_ENV
