@@ -30,7 +30,7 @@ const CashShortage = sequelize.define('CashShortage', {
   status: {
     type: DataTypes.STRING(20),
     defaultValue: 'en_attente'
-    // en_attente, deduit, annule
+    // en_attente, deduit, regle, annule
   },
   deducted_from_payroll_id: {
     type: DataTypes.INTEGER,
@@ -39,6 +39,11 @@ const CashShortage = sequelize.define('CashShortage', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  company_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'companies', key: 'id' }
   }
 }, {
   tableName: 'cash_shortages',

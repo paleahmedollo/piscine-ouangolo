@@ -24,11 +24,15 @@ const createTable = async (req, res) => {
     const { numero, capacite, notes } = req.body;
     if (!numero) return res.status(400).json({ success: false, message: 'Numéro requis' });
 
+    // Vérifier unicité par entreprise (multi-tenant)
+    const dup = await RestaurantTable.findOne({ where: { numero, ...cf } });
+    if (dup) return res.status(409).json({ success: false, message: 'Une table avec ce numéro existe déjà pour votre établissement' });
+
     const table = await RestaurantTable.create({ ...cf, numero, capacite: capacite || 4, notes });
     res.status(201).json({ success: true, data: table, message: 'Table créée' });
   } catch (err) {
     if (err.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ success: false, message: 'Ce numéro de table existe déjà' });
+      return res.status(409).json({ success: false, message: 'Ce numéro de table existe déjà pour votre établissement' });
     }
     console.error('createTable:', err);
     res.status(500).json({ success: false, message: 'Erreur création table' });
@@ -42,6 +46,13 @@ const updateTable = async (req, res) => {
     const table = await RestaurantTable.findOne({ where: { id: req.params.id, ...cf } });
     if (!table) return res.status(404).json({ success: false, message: 'Table introuvable' });
     const { numero, capacite, statut, notes } = req.body;
+
+    // Vérifier unicité du numéro si changement (multi-tenant)
+    if (numero && numero !== table.numero) {
+      const dup = await RestaurantTable.findOne({ where: { numero, ...cf } });
+      if (dup) return res.status(409).json({ success: false, message: 'Une table avec ce numéro existe déjà pour votre établissement' });
+    }
+
     await table.update({ numero, capacite, statut, notes });
     res.json({ success: true, data: table });
   } catch (err) {

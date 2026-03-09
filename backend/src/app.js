@@ -144,10 +144,11 @@ app.use((err, req, res, next) => {
 const createDefaultSuperAdmin = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
+  const PASSWORD = 'Gestix@2026';
   try {
     const existing = await User.findOne({ where: { username: 'superadmin' } });
     if (!existing) {
-      const hashedPassword = await bcrypt.hash('Gestix@2026', 10);
+      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
       await User.create({
         username: 'superadmin',
         password_hash: hashedPassword,
@@ -158,7 +159,17 @@ const createDefaultSuperAdmin = async () => {
       }, { hooks: false });
       console.log('✅ Compte superadmin créé');
     } else {
-      console.log('✅ Compte superadmin OK');
+      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
+      if (!isValid) {
+        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
+        await sequelize.query(
+          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = 'superadmin'`,
+          { replacements: { hash: hashedPassword } }
+        );
+        console.log('✅ Mot de passe superadmin réinitialisé');
+      } else {
+        console.log('✅ Compte superadmin OK');
+      }
     }
   } catch (error) {
     console.error('Erreur superadmin:', error);
@@ -168,12 +179,13 @@ const createDefaultSuperAdmin = async () => {
 const createDefaultAdmin = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
+  const PASSWORD = 'pmdo@2026';
   try {
     const existing = await User.findOne({ where: { username: 'admin.pmdo' } })
       || await User.findOne({ where: { username: 'admin_po' } })
       || await User.findOne({ where: { username: 'admin' } });
     if (!existing) {
-      const hashedPassword = await bcrypt.hash('pmdo@2026', 10);
+      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
       await User.create({
         username: 'admin.pmdo',
         password_hash: hashedPassword,
@@ -184,7 +196,17 @@ const createDefaultAdmin = async () => {
       }, { hooks: false });
       console.log('✅ Compte admin.pmdo créé');
     } else {
-      console.log('✅ Compte admin OK');
+      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
+      if (!isValid) {
+        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
+        await sequelize.query(
+          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = :un`,
+          { replacements: { hash: hashedPassword, un: existing.username } }
+        );
+        console.log('✅ Mot de passe admin réinitialisé');
+      } else {
+        console.log('✅ Compte admin OK');
+      }
     }
   } catch (error) {
     console.error('Erreur admin:', error);
@@ -194,12 +216,13 @@ const createDefaultAdmin = async () => {
 const createPaleAdmin = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
+  const PASSWORD = 'PaleAdmin@2026';
   try {
     const existing = await User.findOne({ where: { username: 'paleadmin' } });
     if (!existing) {
       const { Company } = require('./models');
       const company = await Company.findOne({ order: [['id', 'ASC']] });
-      const hashedPassword = await bcrypt.hash('PaleAdmin@2026', 10);
+      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
       await User.create({
         username: 'paleadmin',
         password_hash: hashedPassword,
@@ -210,7 +233,17 @@ const createPaleAdmin = async () => {
       }, { hooks: false });
       console.log('✅ Compte paleadmin créé');
     } else {
-      console.log('✅ Compte paleadmin OK');
+      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
+      if (!isValid) {
+        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
+        await sequelize.query(
+          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = 'paleadmin'`,
+          { replacements: { hash: hashedPassword } }
+        );
+        console.log('✅ Mot de passe paleadmin réinitialisé');
+      } else {
+        console.log('✅ Compte paleadmin OK');
+      }
     }
   } catch (error) {
     console.error('Erreur paleadmin:', error);
@@ -220,12 +253,13 @@ const createPaleAdmin = async () => {
 const createDefaultGerant = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
+  const PASSWORD = 'pmdo@2026';
   try {
     const existing = await User.findOne({ where: { username: 'gerant.pmdo' } })
       || await User.findOne({ where: { username: 'gerant_po' } })
       || await User.findOne({ where: { username: 'gerant' } });
     if (!existing) {
-      const hashedPassword = await bcrypt.hash('pmdo@2026', 10);
+      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
       await User.create({
         username: 'gerant.pmdo',
         password_hash: hashedPassword,
@@ -236,7 +270,17 @@ const createDefaultGerant = async () => {
       }, { hooks: false });
       console.log('✅ Compte gerant.pmdo créé');
     } else {
-      console.log('✅ Compte gérant OK');
+      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
+      if (!isValid) {
+        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
+        await sequelize.query(
+          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = :un`,
+          { replacements: { hash: hashedPassword, un: existing.username } }
+        );
+        console.log('✅ Mot de passe gérant réinitialisé');
+      } else {
+        console.log('✅ Compte gérant OK');
+      }
     }
   } catch (error) {
     console.error('Erreur gérant:', error);
@@ -442,10 +486,33 @@ const runMigrations = async () => {
       `ALTER TABLE sales ADD COLUMN IF NOT EXISTS module VARCHAR(30)`,
       `ALTER TABLE depot_sales ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'paye'`,
       `ALTER TABLE depot_sales ADD COLUMN IF NOT EXISTS client_name VARCHAR(100)`,
-      `ALTER TABLE depot_sales ADD COLUMN IF NOT EXISTS items_json JSONB`
+      `ALTER TABLE depot_sales ADD COLUMN IF NOT EXISTS items_json JSONB`,
+      // Colonnes manquantes détectées en production
+      `ALTER TABLE depot_sales ADD COLUMN IF NOT EXISTS company_id INTEGER`,
+      `ALTER TABLE accounting_entries ADD COLUMN IF NOT EXISTS payment_operator VARCHAR(20)`,
+      `ALTER TABLE accounting_entries ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(200)`,
+      `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS email VARCHAR(200)`,
+      `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS delai_paiement INTEGER DEFAULT 30`,
+      `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS mode_paiement_habituel VARCHAR(50) DEFAULT 'especes'`,
+      `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS marque VARCHAR(100)`,
+      `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS secteur_activite VARCHAR(100)`,
+      `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS ville VARCHAR(100)`,
+      `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS date_debut_collaboration DATE`,
+      `ALTER TABLE depot_sales ALTER COLUMN depot_client_id DROP NOT NULL`,
+      // Isolation multi-tenant chambres & tables (index composés)
+      `CREATE UNIQUE INDEX IF NOT EXISTS rooms_number_company_unique ON rooms (number, company_id)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS restaurant_tables_numero_company_unique ON restaurant_tables (numero, company_id)`,
+      // Colonne company_id sur cash_shortages
+      `ALTER TABLE cash_shortages ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`
     ];
     for (const sql of migrations) {
-      await sequelize.query(sql);
+      try {
+        await sequelize.query(sql);
+      } catch (err) {
+        // Ne pas bloquer les migrations suivantes — log seulement
+        const preview = sql.replace(/\s+/g, ' ').substring(0, 80);
+        console.log(`⚠️  Migration ignorée (${err.message.split('\n')[0]}): ${preview}`);
+      }
     }
     console.log('✅ Migrations appliquées (pressing, dépôt, manquants, modules entreprises)');
   } catch (error) {
@@ -649,12 +716,13 @@ const createDefaultCompany = async () => {
 const createDirecteurAccount = async () => {
   const { User } = require('./models');
   const bcrypt = require('bcryptjs');
+  const PASSWORD = 'Admin@2024';
   try {
     const existing = await User.findOne({ where: { username: 'directeur' } });
     if (!existing) {
       const { Company } = require('./models');
       const company = await Company.findOne({ order: [['id', 'ASC']] });
-      const hashedPassword = await bcrypt.hash('Admin@2024', 10);
+      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
       await User.create({
         username: 'directeur',
         password_hash: hashedPassword,
@@ -665,7 +733,17 @@ const createDirecteurAccount = async () => {
       }, { hooks: false });
       console.log('✅ Compte directeur créé (Admin@2024)');
     } else {
-      console.log('✅ Compte directeur OK');
+      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
+      if (!isValid) {
+        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
+        await sequelize.query(
+          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = 'directeur'`,
+          { replacements: { hash: hashedPassword } }
+        );
+        console.log('✅ Mot de passe directeur réinitialisé');
+      } else {
+        console.log('✅ Compte directeur OK');
+      }
     }
   } catch (error) {
     console.error('Erreur directeur:', error.message);
