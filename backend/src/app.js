@@ -498,7 +498,12 @@ const runMigrations = async () => {
       `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS secteur_activite VARCHAR(100)`,
       `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS ville VARCHAR(100)`,
       `ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS date_debut_collaboration DATE`,
-      `ALTER TABLE depot_sales ALTER COLUMN depot_client_id DROP NOT NULL`
+      `ALTER TABLE depot_sales ALTER COLUMN depot_client_id DROP NOT NULL`,
+      // Isolation multi-tenant chambres & tables (index composés)
+      `CREATE UNIQUE INDEX IF NOT EXISTS rooms_number_company_unique ON rooms (number, company_id)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS restaurant_tables_numero_company_unique ON restaurant_tables (numero, company_id)`,
+      // Colonne company_id sur cash_shortages
+      `ALTER TABLE cash_shortages ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`
     ];
     for (const sql of migrations) {
       try {

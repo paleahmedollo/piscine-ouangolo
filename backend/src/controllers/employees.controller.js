@@ -1,4 +1,4 @@
-const { Employee, Payroll, User, Expense } = require('../models');
+const { Employee, Payroll, User, Expense, CashShortage } = require('../models');
 const { Op } = require('sequelize');
 const { getCompanyFilter } = require('../middlewares/auth.middleware');
 const { createAccountingEntry } = require('../utils/accounting');
@@ -363,10 +363,26 @@ const createPayroll = async (req, res) => {
       include: [{ model: Employee, as: 'employee' }]
     });
 
+    // Récupérer les manquants en attente de cet employé (via son user_id)
+    let pending_shortages = [];
+    try {
+      // L'employé peut être lié à un user_id via la colonne user_id de l'Employee, ou on cherche par company
+      const cf = getCompanyFilter(req);
+      pending_shortages = await CashShortage.findAll({
+        where: {
+          user_id: employee_id,
+          status: 'en_attente',
+          ...(cf.company_id ? { company_id: cf.company_id } : {})
+        },
+        order: [['date', 'ASC']]
+      });
+    } catch (e) { /* non-bloquant */ }
+
     res.status(201).json({
       success: true,
       message: 'Paie creee avec succes',
-      data: fullPayroll
+      data: fullPayroll,
+      pending_shortages
     });
   } catch (error) {
     console.error('Create payroll error:', error);
@@ -431,12 +447,24 @@ const payPayroll = async (req, res) => {
       company_id: req.user.company_id
     });
 
+    // Construire la description avec les manquants déduits si applicable
+    let accountingDescription = `Salaire ${payroll.employee.full_name} - ${monthNames[payroll.period_month - 1]} ${payroll.period_year}`;
+    try {
+      const deductedShortages = await CashShortage.findAll({
+        where: { deducted_from_payroll_id: payroll.id, status: 'deduit' }
+      });
+      if (deductedShortages.length > 0) {
+        const totalDeducted = deductedShortages.reduce((sum, s) => sum + parseFloat(s.shortage_amount), 0);
+        accountingDescription += ` (dont ${totalDeducted.toLocaleString('fr-FR')} FCFA manquants déduits)`;
+      }
+    } catch (e) { /* non-bloquant */ }
+
     await createAccountingEntry({
       company_id: req.user.company_id,
       amount: payroll.net_salary,
       entry_type: 'salaire',
       payment_type: payroll.payment_method,
-      description: `Salaire ${payroll.period_month}/${payroll.period_year}`,
+      description: accountingDescription,
       source_module: 'employees',
       source_id: payroll.id,
       source_type: 'payroll'
@@ -561,8 +589,6 @@ const getPayrollStats = async (req, res) => {
 // MANQUANTS CAISSE
 // =====================================================
 
-const { CashShortage } = require('../models');
-
 /**
  * GET /api/employees/:id/shortages
  * Manquants caisse d'un employé
@@ -630,6 +656,72 @@ const deductShortage = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/employees/:id/settle-shortage
+ * L'employé règle physiquement un manquant (remet l'argent).
+ * Crée une écriture comptable "reglement_ecart" et met le statut à "regle".
+ */
+const settleShortage = async (req, res) => {
+  try {
+    const { shortage_id, amount, payment_method, notes } = req.body;
+
+    if (!shortage_id) {
+      return res.status(400).json({ success: false, message: 'shortage_id requis' });
+    }
+
+    const shortage = await CashShortage.findByPk(shortage_id);
+    if (!shortage) return res.status(404).json({ success: false, message: 'Manquant non trouvé' });
+
+    if (shortage.status === 'regle') {
+      return res.status(400).json({ success: false, message: 'Ce manquant a déjà été réglé' });
+    }
+    if (shortage.status === 'annule') {
+      return res.status(400).json({ success: false, message: 'Ce manquant est annulé' });
+    }
+
+    const settledAmount = parseFloat(amount) || parseFloat(shortage.shortage_amount);
+
+    // Créer l'écriture comptable de règlement d'écart
+    await createAccountingEntry({
+      company_id: req.user.company_id,
+      amount: settledAmount,
+      entry_type: 'reglement_ecart',
+      payment_type: payment_method || 'especes',
+      description: `Règlement manquant caisse du ${shortage.date} - montant ${settledAmount.toLocaleString('fr-FR')} FCFA`,
+      source_module: 'employees',
+      source_id: shortage.id,
+      source_type: 'cash_shortage'
+    });
+
+    // Mettre à jour le statut du manquant
+    await shortage.update({ status: 'regle', notes: notes || shortage.notes });
+
+    // Si ce manquant avait été déduit d'une paie encore en attente, reverser la déduction
+    if (shortage.status === 'deduit' && shortage.deducted_from_payroll_id) {
+      const linkedPayroll = await Payroll.findByPk(shortage.deducted_from_payroll_id);
+      if (linkedPayroll && linkedPayroll.status === 'en_attente') {
+        const shortageAmount = parseFloat(shortage.shortage_amount);
+        const currentDeductions = parseFloat(linkedPayroll.deductions) || 0;
+        const newDeductions = Math.max(0, currentDeductions - shortageAmount);
+        const newNetSalary = parseFloat(linkedPayroll.base_salary) + parseFloat(linkedPayroll.bonus || 0) - newDeductions;
+        await linkedPayroll.update({
+          deductions: newDeductions,
+          net_salary: Math.max(0, newNetSalary)
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Manquant de ${settledAmount.toLocaleString('fr-FR')} FCFA réglé avec succès`,
+      data: shortage
+    });
+  } catch (error) {
+    console.error('Settle shortage error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors du règlement du manquant' });
+  }
+};
+
 module.exports = {
   getEmployees,
   getPositions,
@@ -643,5 +735,6 @@ module.exports = {
   cancelPayroll,
   getPayrollStats,
   getEmployeeShortages,
-  deductShortage
+  deductShortage,
+  settleShortage
 };

@@ -691,13 +691,13 @@ const updateRoom = async (req, res) => {
 
     const { number, price_per_night, capacity, type, amenities } = req.body;
 
-    // Vérifier si le nouveau numéro existe déjà
+    // Vérifier si le nouveau numéro existe déjà DANS cette entreprise
     if (number && number !== room.number) {
-      const existingRoom = await Room.findOne({ where: { number } });
+      const existingRoom = await Room.findOne({ where: { number, company_id: room.company_id } });
       if (existingRoom) {
         return res.status(409).json({
           success: false,
-          message: 'Une chambre avec ce numéro existe déjà'
+          message: 'Une chambre avec ce numéro existe déjà dans votre établissement'
         });
       }
     }
@@ -761,12 +761,12 @@ const createRoom = async (req, res) => {
       });
     }
 
-    // Vérifier si le numéro existe déjà
-    const existingRoom = await Room.findOne({ where: { number } });
+    // Vérifier si le numéro existe déjà DANS cette entreprise uniquement
+    const existingRoom = await Room.findOne({ where: { number, company_id: req.user.company_id } });
     if (existingRoom) {
       return res.status(409).json({
         success: false,
-        message: 'Une chambre avec ce numéro existe déjà'
+        message: 'Une chambre avec ce numéro existe déjà dans votre établissement'
       });
     }
 

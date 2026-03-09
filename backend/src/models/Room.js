@@ -9,8 +9,8 @@ const Room = sequelize.define('Room', {
   },
   number: {
     type: DataTypes.STRING(10),
-    allowNull: false,
-    unique: true
+    allowNull: false
+    // unique géré par index composé (number, company_id) — pas unique globalement
   },
   type: {
     type: DataTypes.STRING(50),

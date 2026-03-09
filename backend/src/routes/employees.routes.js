@@ -51,4 +51,7 @@ router.get('/:id/shortages', hasRole('admin', 'directeur', 'gerant'), employeesC
 // POST /api/employees/:id/deduct-shortage - Déduire un manquant du salaire
 router.post('/:id/deduct-shortage', hasRole('admin'), employeesController.deductShortage);
 
+// POST /api/employees/:id/settle-shortage - Régler physiquement un manquant (règlement d'écart)
+router.post('/:id/settle-shortage', hasRole('admin', 'directeur', 'gerant'), employeesController.settleShortage);
+
 module.exports = router;
