@@ -540,12 +540,12 @@ section.lp-section{padding:90px 6%}
 .payment-bg .lp-h2{color:#fff}
 .payment-bg .subtitle{color:rgba(255,255,255,.6)}
 .payment-bg .section-tag{background:rgba(255,255,255,.1);color:#93c5fd}
-.payment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px}
-.payment-card{border-radius:16px;padding:20px 16px;text-align:center;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);backdrop-filter:blur(10px);transition:transform .3s,background .3s}
+.payment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px}
+.payment-card{border-radius:14px;padding:14px 10px;text-align:center;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);backdrop-filter:blur(10px);transition:transform .3s,background .3s}
 .payment-card:hover{transform:translateY(-4px);background:rgba(255,255,255,.1)}
-.pay-logo{width:100%;height:70px;border-radius:10px;overflow:hidden;margin-bottom:12px}
-.pay-name{font-weight:700;font-size:14px;color:#fff}
-.pay-sub{color:rgba(255,255,255,.5);font-size:11px;margin-top:4px}
+.pay-logo{width:100%;height:52px;border-radius:8px;overflow:hidden;margin-bottom:8px}
+.pay-name{font-weight:700;font-size:12px;color:#fff}
+.pay-sub{display:none}
 /* WORKFLOW */
 .workflow-bg{background:#f1f5f9}
 .workflow-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:28px}
@@ -889,7 +889,6 @@ export default function LandingPage() {
             <div className="payment-card reveal" key={p.name}>
               <div className="pay-logo">{paySvgs[i]}</div>
               <div className="pay-name">{p.name}</div>
-              <div className="pay-sub">{p.sub}</div>
             </div>
           ))}
         </div>
