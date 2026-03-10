@@ -531,7 +531,10 @@ const runMigrations = async () => {
         shortage_amount DECIMAL(12,0) DEFAULT 0, status VARCHAR(20) DEFAULT 'en_attente',
         deducted_from_payroll_id INTEGER, notes TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`,
-      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS modules JSONB DEFAULT '[]'`,
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS modules JSONB DEFAULT NULL`,
+      // Rétablir NULL (= accès complet par rôle) pour les companies dont modules a été
+      // mis à '[]' par la migration précédente (DEFAULT '[]' affectait les lignes existantes)
+      `UPDATE companies SET modules = NULL WHERE modules = '[]'::jsonb`,
       // Encaissement multi-modules + type commande restaurant
       `ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS order_type VARCHAR(20) DEFAULT 'table'`,
       `ALTER TABLE sales ADD COLUMN IF NOT EXISTS module VARCHAR(30)`,
