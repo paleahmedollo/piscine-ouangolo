@@ -252,7 +252,7 @@ const WaveSVG = () => (
   </svg>
 );
 
-const EspecesSVG = () => (
+const EspecesSVG = ({ label = 'Espèces' }: { label?: string }) => (
   <svg viewBox="0 0 120 80" style={{width:'100%',height:'100%',display:'block'}}>
     <rect width="120" height="80" rx="10" fill="#2e7d32"/>
     <rect x="10" y="20" width="100" height="40" rx="6" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="1.5"/>
@@ -261,11 +261,11 @@ const EspecesSVG = () => (
     <text x="60" y="44" textAnchor="middle" fill="rgba(255,255,255,.9)" fontSize="11" fontWeight="bold" fontFamily="Arial,sans-serif">FCFA</text>
     <circle cx="22" cy="40" r="5" fill="rgba(255,255,255,.2)"/>
     <circle cx="98" cy="40" r="5" fill="rgba(255,255,255,.2)"/>
-    <text x="60" y="70" textAnchor="middle" fill="rgba(255,255,255,.7)" fontSize="9" fontFamily="Arial,sans-serif">Espèces</text>
+    <text x="60" y="70" textAnchor="middle" fill="rgba(255,255,255,.7)" fontSize="9" fontFamily="Arial,sans-serif">{label}</text>
   </svg>
 );
 
-const CarteSVG = () => (
+const CarteSVG = ({ label = 'Carte bancaire' }: { label?: string }) => (
   <svg viewBox="0 0 120 80" style={{width:'100%',height:'100%',display:'block'}}>
     <rect width="120" height="80" rx="10" fill="#37474f"/>
     <rect x="8" y="16" width="104" height="48" rx="8" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1.5"/>
@@ -273,12 +273,12 @@ const CarteSVG = () => (
     <rect x="18" y="48" width="18" height="12" rx="2" fill="#FFCB00" opacity=".8"/>
     <rect x="40" y="52" width="30" height="3" rx="1" fill="rgba(255,255,255,.4)"/>
     <rect x="40" y="57" width="20" height="2" rx="1" fill="rgba(255,255,255,.25)"/>
-    <text x="60" y="72" textAnchor="middle" fill="rgba(255,255,255,.7)" fontSize="9" fontFamily="Arial,sans-serif">Carte bancaire</text>
+    <text x="60" y="72" textAnchor="middle" fill="rgba(255,255,255,.7)" fontSize="9" fontFamily="Arial,sans-serif">{label}</text>
   </svg>
 );
 
 /* ─── Payment SVGs (order matches T.paymentItems) ──────── */
-const paySvgs = [<EspecesSVG key="esp"/>, <OrangeSVG key="ora"/>, <MoovSVG key="moo"/>, <MTNSVG key="mtn"/>, <WaveSVG key="wav"/>, <CarteSVG key="car"/>];
+// Note: paySvgs is now computed inside the component to support i18n labels
 
 
 /* ─── App Mockup Screens ─────────────────────────────── */
@@ -663,6 +663,21 @@ export default function LandingPage() {
     };
   }, []);
 
+  // Re-observe .reveal elements when language changes (stable keys prevent remounts,
+  // but this is a safety net for any element that may have lost its visible class)
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal:not(.visible)').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [lang]);
+
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
   const toggleModule = (mod: string) => {
@@ -721,6 +736,14 @@ export default function LandingPage() {
   const WA_LINK = 'https://wa.me/2250506332240';
   const TG_LINK = 'https://t.me/+2250506332240';
   const APP_URL = 'https://ollentra.onrender.com';
+  const paySvgs = [
+    <EspecesSVG key="esp" label={t.paymentItems[0].name}/>,
+    <OrangeSVG key="ora"/>,
+    <MoovSVG key="moo"/>,
+    <MTNSVG key="mtn"/>,
+    <WaveSVG key="wav"/>,
+    <CarteSVG key="car" label={t.paymentItems[5].name}/>,
+  ];
   const screens = [<CaisseScreen key="c"/>, <RestaurantScreen key="r"/>, <PressingScreen key="p"/>];
   const sidebarItems = t.sidebarItems.map((item, idx) => ({
     ...item,
@@ -773,8 +796,8 @@ export default function LandingPage() {
           <div className="hero-screen">
             <div className="screen-bar"><span className="dot-r"/><span className="dot-y"/><span className="dot-g"/></div>
             <div className="screen-modules">
-              {t.heroModules.map(m=>(
-                <div className="screen-mod" key={m.n}>
+              {t.heroModules.map((m,idx)=>(
+                <div className="screen-mod" key={idx}>
                   <div className="sm-icon">{m.i}</div>
                   <div className="sm-name">{m.n}</div>
                   <div className="sm-val">{m.v}</div>
@@ -788,8 +811,8 @@ export default function LandingPage() {
       {/* ── STATS ── */}
       <div className="stats-bar">
         <div className="stats-grid">
-          {[{n:t.statModules,l:t.statModulesL},{n:t.statPay,l:t.statPayL},{n:t.statAfrica,u:'',l:t.statAfricaL},{n:t.statRapport,l:t.statRapportL}].map(s=>(
-            <div className="stat-item reveal" key={s.l}>
+          {[{n:t.statModules,l:t.statModulesL},{n:t.statPay,l:t.statPayL},{n:t.statAfrica,u:'',l:t.statAfricaL},{n:t.statRapport,l:t.statRapportL}].map((s,idx)=>(
+            <div className="stat-item reveal" key={idx}>
               <div className="num">{s.n}</div>
               <p>{s.l}</p>
             </div>
@@ -805,8 +828,8 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.modulesSub}</p>
         </div>
         <div className="modules-grid">
-          {t.modules.map(m=>(
-            <div className="module-card reveal" key={m.title} style={{'--cc':m.color} as React.CSSProperties}>
+          {t.modules.map((m,idx)=>(
+            <div className="module-card reveal" key={idx} style={{'--cc':m.color} as React.CSSProperties}>
               <div className="module-icon" style={{background:m.color+'20'}}>{m.icon}</div>
               <h3>{m.title}</h3>
               <p>{m.desc}</p>
@@ -827,7 +850,7 @@ export default function LandingPage() {
         </div>
         <div className="scr-tabs">
           {t.scrTab.map((tab,i)=>(
-            <button key={tab} className={`scr-tab${activeScreen===i?' active':''}`} onClick={()=>setActiveScreen(i)}>{tab}</button>
+            <button key={i} className={`scr-tab${activeScreen===i?' active':''}`} onClick={()=>setActiveScreen(i)}>{tab}</button>
           ))}
         </div>
         <div className="app-frame reveal">
@@ -838,8 +861,8 @@ export default function LandingPage() {
                 <OllentraLogo size={22}/>
                 <span className="mk-sidebar-logo-text">OLLENTRA</span>
               </div>
-              {sidebarItems.map(item=>(
-                <div key={item.l} className={`mk-nav-item${item.a?' active':''}`}>
+              {sidebarItems.map((item,idx)=>(
+                <div key={idx} className={`mk-nav-item${item.a?' active':''}`}>
                   <span className="mk-nav-icon">{item.i}</span>{item.l}
                 </div>
               ))}
@@ -867,8 +890,8 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.featuresSub}</p>
         </div>
         <div className="features-grid">
-          {t.features.map(f=>(
-            <div className={`feature-card reveal${f.custom?' custom-card':''}`} key={f.title}>
+          {t.features.map((f,idx)=>(
+            <div className={`feature-card reveal${f.custom?' custom-card':''}`} key={idx}>
               {f.custom && <span className="custom-badge">{t.customBadge}</span>}
               <div className="feature-icon">{f.icon}</div>
               <h3>{f.title}</h3>
@@ -887,7 +910,7 @@ export default function LandingPage() {
         </div>
         <div className="payment-grid">
           {t.paymentItems.map((p,i)=>(
-            <div className="payment-card reveal" key={p.name}>
+            <div className="payment-card reveal" key={i}>
               <div className="pay-logo">{paySvgs[i]}</div>
               <div className="pay-name">{p.name}</div>
             </div>
@@ -921,8 +944,8 @@ export default function LandingPage() {
           <p className="subtitle mx-auto">{t.testiSub}</p>
         </div>
         <div className="testimonials-grid">
-          {t.testimonials.map(tt=>(
-            <div className="testimonial-card reveal" key={tt.name}>
+          {t.testimonials.map((tt,idx)=>(
+            <div className="testimonial-card reveal" key={idx}>
               <div className="stars">{'★'.repeat(tt.stars)}</div>
               <p className="testi-text">{tt.text}</p>
               <div className="author">
