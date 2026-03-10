@@ -225,9 +225,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const canAccessModule = (module: string): boolean => {
     if (!state.user) return false;
-    // Le super_admin a accès à tous les modules
+    // Le super_admin a accès à tous les modules (inter-entreprises)
     if (state.user.role === 'super_admin') return true;
-    // Vérifier les modules autorisés par l'entreprise
+    // L'admin est le super-admin de son entreprise : il accède à tous ses modules
+    // sans être bloqué par le filtre company.modules (géré par les rôles uniquement)
+    if (state.user.role === 'admin') {
+      const allowedRoles = moduleAccess[module] || [];
+      return allowedRoles.includes('admin');
+    }
+    // Pour les autres rôles : vérifier les modules autorisés par l'entreprise
     // null = tous les modules (rétrocompatibilité)
     // [] = aucun module (entreprise sans modules configurés)
     // [...] = modules sélectifs
