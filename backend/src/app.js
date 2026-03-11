@@ -208,9 +208,15 @@ const createDefaultSuperAdmin = async () => {
         is_active: true,
         company_id: null
       }, { hooks: false });
-      console.log('✅ Compte superadmin créé');
+      console.log('✅ Compte superadmin créé avec mot de passe par défaut');
     } else {
-      console.log('✅ Compte superadmin déjà existant');
+      // Garantir que le compte est toujours actif (sans toucher au mot de passe)
+      if (!existing.is_active) {
+        await sequelize.query(`UPDATE users SET is_active = true WHERE username = 'superadmin'`);
+        console.log('✅ Compte superadmin réactivé');
+      } else {
+        console.log('✅ Compte superadmin OK');
+      }
     }
   } catch (error) {
     console.error('Erreur superadmin:', error);
@@ -235,9 +241,14 @@ const createDefaultAdmin = async () => {
         is_active: true,
         company_id: 1
       }, { hooks: false });
-      console.log('✅ Compte admin.pmdo créé');
+      console.log('✅ Compte admin.pmdo créé avec mot de passe par défaut');
     } else {
-      console.log('✅ Compte admin OK');
+      if (!existing.is_active) {
+        await sequelize.query(`UPDATE users SET is_active = true WHERE username = 'admin.pmdo'`);
+        console.log('✅ Compte admin.pmdo réactivé');
+      } else {
+        console.log('✅ Compte admin.pmdo OK');
+      }
     }
   } catch (error) {
     console.error('Erreur admin:', error);
@@ -262,9 +273,14 @@ const createPaleAdmin = async () => {
         is_active: true,
         company_id: company ? company.id : null
       }, { hooks: false });
-      console.log('✅ Compte paleadmin créé');
+      console.log('✅ Compte paleadmin créé avec mot de passe par défaut');
     } else {
-      console.log('✅ Compte paleadmin OK');
+      if (!existing.is_active) {
+        await sequelize.query(`UPDATE users SET is_active = true WHERE username = 'paleadmin'`);
+        console.log('✅ Compte paleadmin réactivé');
+      } else {
+        console.log('✅ Compte paleadmin OK');
+      }
     }
   } catch (error) {
     console.error('Erreur paleadmin:', error);
@@ -289,9 +305,14 @@ const createDefaultGerant = async () => {
         is_active: true,
         company_id: 1
       }, { hooks: false });
-      console.log('✅ Compte gerant.pmdo créé');
+      console.log('✅ Compte gerant.pmdo créé avec mot de passe par défaut');
     } else {
-      console.log('✅ Compte gérant OK');
+      if (!existing.is_active) {
+        await sequelize.query(`UPDATE users SET is_active = true WHERE username = 'gerant.pmdo'`);
+        console.log('✅ Compte gerant.pmdo réactivé');
+      } else {
+        console.log('✅ Compte gerant.pmdo OK');
+      }
     }
   } catch (error) {
     console.error('Erreur gérant:', error);
@@ -747,9 +768,14 @@ const createDirecteurAccount = async () => {
         is_active: true,
         company_id: company ? company.id : null
       }, { hooks: false });
-      console.log('✅ Compte directeur créé (Admin@2024)');
+      console.log('✅ Compte directeur créé avec mot de passe par défaut');
     } else {
-      console.log('✅ Compte directeur OK');
+      if (!existing.is_active) {
+        await sequelize.query(`UPDATE users SET is_active = true WHERE username = 'directeur'`);
+        console.log('✅ Compte directeur réactivé');
+      } else {
+        console.log('✅ Compte directeur OK');
+      }
     }
   } catch (error) {
     console.error('Erreur directeur:', error.message);
