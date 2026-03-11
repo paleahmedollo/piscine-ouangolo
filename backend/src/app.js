@@ -796,6 +796,12 @@ const startServer = async () => {
     await createDirecteurAccount();
     await seedDefaultData();
 
+    // Staging uniquement : données démo pré-remplies
+    if (process.env.NODE_ENV === 'staging') {
+      const seedDemoData = require('./scripts/seed-demo');
+      await seedDemoData(sequelize);
+    }
+
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📍 API URL: http://localhost:${PORT}/api`);

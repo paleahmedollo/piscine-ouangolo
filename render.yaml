@@ -5,12 +5,20 @@ databases:
     region: frankfurt
     plan: free
 
+  - name: ollentra-demo-db
+    databaseName: ollentra_demo
+    user: ollentra_demo
+    region: frankfurt
+    plan: free
+
 services:
+  # ── Production (branche main) ─────────────────────────────────────────────
   - type: web
     name: ollentra
     env: node
     region: frankfurt
     plan: free
+    branch: main
     buildCommand: cd frontend && npm install && npm run build && cp dist/index.html dist/404.html && cd .. && cd backend && npm install
     startCommand: cd backend && node src/app.js
     envVars:
@@ -25,4 +33,27 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: ollentra-db
+          property: connectionString
+
+  # ── Staging / Démo clients (branche uat) ─────────────────────────────────
+  - type: web
+    name: ollentra-staging
+    env: node
+    region: frankfurt
+    plan: free
+    branch: uat
+    buildCommand: cd frontend && npm install && npm run build && cp dist/index.html dist/404.html && cd .. && cd backend && npm install
+    startCommand: cd backend && node src/app.js
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        value: ouangolo_staging_secret_key_demo_2024
+      - key: JWT_EXPIRES_IN
+        value: 48h
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ollentra-demo-db
           property: connectionString
