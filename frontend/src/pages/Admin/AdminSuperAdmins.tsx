@@ -69,23 +69,35 @@ const AdminSuperAdmins: React.FC = () => {
   const [newPwd, setNewPwd] = useState('');
   const [savingPwd, setSavingPwd] = useState(false);
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  const getHeaders = useCallback(() => ({
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  }), [token]);
 
   const fetchAdmins = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/superadmin/super-admins`, { headers });
+      const res = await fetch(`/api/superadmin/super-admins`, { headers: getHeaders() });
+      if (!res.ok) {
+        // Erreur HTTP (401, 403, 500...) → on tente de lire le message
+        try {
+          const data = await res.json();
+          setError(data.message || `Erreur serveur (${res.status})`);
+        } catch {
+          setError(`Erreur serveur (${res.status})`);
+        }
+        return;
+      }
       const data = await res.json();
       if (data.success) setAdmins(data.data);
       else setError(data.message || 'Erreur de chargement');
     } catch {
-      setError('Impossible de contacter le serveur');
+      setError('Serveur injoignable — vérifiez votre connexion ou réessayez dans quelques secondes.');
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, getHeaders]);
 
   useEffect(() => { fetchAdmins(); }, [fetchAdmins]);
 
@@ -139,7 +151,7 @@ const AdminSuperAdmins: React.FC = () => {
         : `/api/superadmin/super-admins`;
       const method = editTarget ? 'PUT' : 'POST';
 
-      const res = await fetch(url, { method, headers, body: JSON.stringify(payload) });
+      const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
         setDialogOpen(false);
@@ -159,7 +171,7 @@ const AdminSuperAdmins: React.FC = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/superadmin/super-admins/${deleteTarget.id}`, { method: 'DELETE', headers });
+      const res = await fetch(`/api/superadmin/super-admins/${deleteTarget.id}`, { method: 'DELETE', headers: getHeaders() });
       const data = await res.json();
       if (data.success) { setDeleteTarget(null); fetchAdmins(); }
       else setError(data.message || 'Erreur suppression');
@@ -176,7 +188,7 @@ const AdminSuperAdmins: React.FC = () => {
     setSavingPwd(true);
     try {
       const res = await fetch(`/api/superadmin/super-admins/${pwdTarget.id}`, {
-        method: 'PUT', headers, body: JSON.stringify({ password: newPwd })
+        method: 'PUT', headers: getHeaders(), body: JSON.stringify({ password: newPwd })
       });
       const data = await res.json();
       if (data.success) { setPwdTarget(null); setNewPwd(''); }
@@ -209,7 +221,12 @@ const AdminSuperAdmins: React.FC = () => {
         </Button>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}
+          action={<Button size="small" color="inherit" onClick={fetchAdmins}>Réessayer</Button>}>
+          {error}
+        </Alert>
+      )}
 
       {/* Info box */}
       <Alert severity="info" sx={{ mb: 3 }} icon={<ShieldIcon />}>
