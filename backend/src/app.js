@@ -210,13 +210,7 @@ const createDefaultSuperAdmin = async () => {
       }, { hooks: false });
       console.log('✅ Compte superadmin créé');
     } else {
-      // Reset ponctuel du mot de passe (à retirer après 1 déploiement)
-      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
-      await sequelize.query(
-        `UPDATE users SET password_hash = :hash, is_active = true WHERE username = 'superadmin'`,
-        { replacements: { hash: hashedPassword } }
-      );
-      console.log('✅ Compte superadmin mot de passe réinitialisé →', PASSWORD);
+      console.log('✅ Compte superadmin déjà existant');
     }
   } catch (error) {
     console.error('Erreur superadmin:', error);
