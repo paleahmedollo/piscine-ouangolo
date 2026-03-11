@@ -45,8 +45,6 @@ interface FormState {
   allAccess: boolean; // null = tout
 }
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'https://ouangolo-backend.onrender.com';
-
 const AdminSuperAdmins: React.FC = () => {
   const { user: me, token } = useAuth();
   const [admins, setAdmins] = useState<SuperAdminUser[]>([]);
@@ -77,7 +75,7 @@ const AdminSuperAdmins: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND}/api/superadmin/super-admins`, { headers });
+      const res = await fetch(`/api/superadmin/super-admins`, { headers });
       const data = await res.json();
       if (data.success) setAdmins(data.data);
       else setError(data.message || 'Erreur de chargement');
@@ -137,8 +135,8 @@ const AdminSuperAdmins: React.FC = () => {
       }
 
       const url = editTarget
-        ? `${BACKEND}/api/superadmin/super-admins/${editTarget.id}`
-        : `${BACKEND}/api/superadmin/super-admins`;
+        ? `/api/superadmin/super-admins/${editTarget.id}`
+        : `/api/superadmin/super-admins`;
       const method = editTarget ? 'PUT' : 'POST';
 
       const res = await fetch(url, { method, headers, body: JSON.stringify(payload) });
@@ -161,7 +159,7 @@ const AdminSuperAdmins: React.FC = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${BACKEND}/api/superadmin/super-admins/${deleteTarget.id}`, { method: 'DELETE', headers });
+      const res = await fetch(`/api/superadmin/super-admins/${deleteTarget.id}`, { method: 'DELETE', headers });
       const data = await res.json();
       if (data.success) { setDeleteTarget(null); fetchAdmins(); }
       else setError(data.message || 'Erreur suppression');
@@ -177,7 +175,7 @@ const AdminSuperAdmins: React.FC = () => {
     if (!pwdTarget || newPwd.length < 6) return;
     setSavingPwd(true);
     try {
-      const res = await fetch(`${BACKEND}/api/superadmin/super-admins/${pwdTarget.id}`, {
+      const res = await fetch(`/api/superadmin/super-admins/${pwdTarget.id}`, {
         method: 'PUT', headers, body: JSON.stringify({ password: newPwd })
       });
       const data = await res.json();
