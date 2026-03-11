@@ -3,7 +3,9 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText,
   Toolbar, AppBar, Typography, IconButton, Avatar, Menu, MenuItem,
-  Divider, Tooltip, Chip, useTheme, useMediaQuery
+  Divider, Tooltip, Chip, useTheme, useMediaQuery,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
+  Alert, CircularProgress
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -21,6 +23,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   LeaderboardOutlined as LeadsIcon,
   AdminPanelSettings as SuperAdminsIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import OllentraLogo from '../../components/OllentraLogo';
@@ -50,12 +53,50 @@ const menuItems = [
 const SuperAdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [drawerOpen, setDrawerOpen] = useState(!isMobile);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // ── Changer mot de passe ──
+  const [pwdOpen, setPwdOpen]       = useState(false);
+  const [pwdNew, setPwdNew]         = useState('');
+  const [pwdConfirm, setPwdConfirm] = useState('');
+  const [pwdError, setPwdError]     = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState(false);
+  const [pwdSaving, setPwdSaving]   = useState(false);
+
+  const openPwdDialog = () => {
+    setPwdNew(''); setPwdConfirm(''); setPwdError(''); setPwdSuccess(false);
+    setAnchorEl(null);
+    setPwdOpen(true);
+  };
+
+  const handlePwdSave = async () => {
+    if (pwdNew.length < 6)            { setPwdError('Le mot de passe doit faire au moins 6 caractères.'); return; }
+    if (pwdNew !== pwdConfirm)        { setPwdError('Les deux mots de passe ne correspondent pas.'); return; }
+    setPwdSaving(true); setPwdError('');
+    try {
+      const res = await fetch(`/api/superadmin/super-admins/${user?.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: pwdNew }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPwdSuccess(true);
+        setTimeout(() => setPwdOpen(false), 1500);
+      } else {
+        setPwdError(data.message || 'Erreur lors du changement.');
+      }
+    } catch {
+      setPwdError('Erreur réseau.');
+    } finally {
+      setPwdSaving(false);
+    }
+  };
 
   // Filtre : null = tout visible, [...] = seulement les sections listées
   const canSeeSection = (section?: string) => {
@@ -230,6 +271,11 @@ const SuperAdminLayout: React.FC = () => {
                 <Typography variant="body2">{user?.full_name}</Typography>
               </MenuItem>
               <Divider />
+              <MenuItem onClick={openPwdDialog} sx={{ color: '#1a237e' }}>
+                <LockIcon sx={{ mr: 1, fontSize: 18 }} />
+                Changer mon mot de passe
+              </MenuItem>
+              <Divider />
               <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                 <LogoutIcon sx={{ mr: 1, fontSize: 18 }} />
                 Déconnexion
@@ -243,6 +289,58 @@ const SuperAdminLayout: React.FC = () => {
           <Outlet />
         </Box>
       </Box>
+
+      {/* ── Dialog Changer mot de passe ─────────────────────────────────────── */}
+      <Dialog open={pwdOpen} onClose={() => !pwdSaving && setPwdOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#1a237e', color: '#fff', py: 2 }}>
+          <LockIcon /> Changer mon mot de passe
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {pwdSuccess ? (
+            <Alert severity="success" sx={{ mt: 1 }}>
+              ✅ Mot de passe mis à jour avec succès !
+            </Alert>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {pwdError && <Alert severity="error" onClose={() => setPwdError('')}>{pwdError}</Alert>}
+              <TextField
+                label="Nouveau mot de passe"
+                type="password"
+                fullWidth
+                size="small"
+                value={pwdNew}
+                onChange={e => setPwdNew(e.target.value)}
+                helperText="Minimum 6 caractères"
+                autoFocus
+              />
+              <TextField
+                label="Confirmer le mot de passe"
+                type="password"
+                fullWidth
+                size="small"
+                value={pwdConfirm}
+                onChange={e => setPwdConfirm(e.target.value)}
+                error={pwdConfirm.length > 0 && pwdNew !== pwdConfirm}
+                helperText={pwdConfirm.length > 0 && pwdNew !== pwdConfirm ? 'Les mots de passe ne correspondent pas' : ''}
+                onKeyDown={e => e.key === 'Enter' && handlePwdSave()}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        {!pwdSuccess && (
+          <DialogActions sx={{ p: 2, gap: 1 }}>
+            <Button onClick={() => setPwdOpen(false)} disabled={pwdSaving}>Annuler</Button>
+            <Button
+              variant="contained"
+              onClick={handlePwdSave}
+              disabled={pwdSaving || pwdNew.length < 6 || pwdNew !== pwdConfirm}
+              sx={{ bgcolor: '#1a237e', '&:hover': { bgcolor: '#283593' } }}
+            >
+              {pwdSaving ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Valider'}
+            </Button>
+          </DialogActions>
+        )}
+      </Dialog>
     </Box>
   );
 };
