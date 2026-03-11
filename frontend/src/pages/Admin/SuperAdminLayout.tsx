@@ -20,28 +20,31 @@ import {
   Person as PersonIcon,
   ChevronLeft as ChevronLeftIcon,
   LeaderboardOutlined as LeadsIcon,
+  AdminPanelSettings as SuperAdminsIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import OllentraLogo from '../../components/OllentraLogo';
 
 const DRAWER_WIDTH = 260;
 
-// ─── Menu Items ────────────────────────────────────────
+// ─── Menu Items (section = clé pour filtre sa_permissions) ─────────────────
 const menuItems = [
-  { label: 'Tableau de bord', icon: <DashboardIcon />, path: '/admin/dashboard', color: '#1a237e' },
-  { label: 'Entreprises', icon: <BusinessIcon />, path: '/admin/companies', color: '#0d47a1' },
-  { label: 'Utilisateurs', icon: <PeopleIcon />, path: '/admin/users', color: '#1565c0' },
+  { label: 'Tableau de bord',            icon: <DashboardIcon />,    path: '/admin/dashboard',     color: '#1a237e', section: 'dashboard' },
+  { label: 'Entreprises',                icon: <BusinessIcon />,     path: '/admin/companies',     color: '#0d47a1', section: 'companies' },
+  { label: 'Utilisateurs',               icon: <PeopleIcon />,       path: '/admin/users',         color: '#1565c0', section: 'users' },
   { divider: true },
-  { label: 'Abonnements', icon: <SubscriptionIcon />, path: '/admin/subscriptions', color: '#2e7d32' },
-  { label: 'Facturation', icon: <BillingIcon />, path: '/admin/billing', color: '#1b5e20' },
+  { label: 'Abonnements',                icon: <SubscriptionIcon />, path: '/admin/subscriptions', color: '#2e7d32', section: 'subscriptions' },
+  { label: 'Facturation',                icon: <BillingIcon />,      path: '/admin/billing',       color: '#1b5e20', section: 'billing' },
   { divider: true },
-  { label: 'Demandes Essai & Visiteurs', icon: <LeadsIcon />, path: '/admin/leads', color: '#c62828' },
+  { label: 'Demandes Essai & Visiteurs', icon: <LeadsIcon />,        path: '/admin/leads',         color: '#c62828', section: 'leads' },
   { divider: true },
-  { label: 'Assistance (Billets)', icon: <TicketIcon />, path: '/admin/tickets', color: '#e65100' },
-  { label: 'Rapports', icon: <ReportsIcon />, path: '/admin/reports', color: '#4a148c' },
+  { label: 'Assistance (Billets)',        icon: <TicketIcon />,       path: '/admin/tickets',       color: '#e65100', section: 'tickets' },
+  { label: 'Rapports',                   icon: <ReportsIcon />,      path: '/admin/reports',       color: '#4a148c', section: 'reports' },
   { divider: true },
-  { label: 'Paramètres', icon: <SettingsIcon />, path: '/admin/settings', color: '#37474f' },
-  { label: 'Système de journaux', icon: <LogsIcon />, path: '/admin/logs', color: '#263238' },
+  { label: 'Paramètres',                 icon: <SettingsIcon />,     path: '/admin/settings',      color: '#37474f', section: 'settings' },
+  { label: 'Système de journaux',        icon: <LogsIcon />,         path: '/admin/logs',          color: '#263238', section: 'logs' },
+  { divider: true },
+  { label: 'Utilisateurs Super Admin',   icon: <SuperAdminsIcon />,  path: '/admin/super-admins',  color: '#4a148c', section: 'super-admins' },
 ];
 
 const SuperAdminLayout: React.FC = () => {
@@ -53,6 +56,16 @@ const SuperAdminLayout: React.FC = () => {
 
   const [drawerOpen, setDrawerOpen] = useState(!isMobile);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Filtre : null = tout visible, [...] = seulement les sections listées
+  const canSeeSection = (section?: string) => {
+    if (!section) return true; // dividers et items sans section toujours visibles
+    if (!user?.sa_permissions) return true; // accès total
+    return user.sa_permissions.includes(section);
+  };
+  const visibleItems = menuItems.filter(item =>
+    'divider' in item ? true : canSeeSection((item as { section?: string }).section)
+  );
 
   const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
@@ -103,7 +116,7 @@ const SuperAdminLayout: React.FC = () => {
 
       {/* Navigation Menu */}
       <List sx={{ flex: 1, px: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.2)', borderRadius: 2 } }}>
-        {menuItems.map((item, idx) => {
+        {visibleItems.map((item, idx) => {
           if ('divider' in item && item.divider) {
             return <Divider key={idx} sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 0.5 }} />;
           }
@@ -197,7 +210,7 @@ const SuperAdminLayout: React.FC = () => {
             {/* Breadcrumb dynamique */}
             <Box sx={{ flex: 1 }}>
               <Typography variant="body1" fontWeight={600} sx={{ color: '#1a237e' }}>
-                {menuItems.find(m => !('divider' in m) && location.pathname.startsWith(m.path || ''))?.label || 'Super Administration'}
+                {menuItems.find(m => !('divider' in m) && location.pathname.startsWith((m as {path?:string}).path || ''))?.label || 'Super Administration'}
               </Typography>
             </Box>
 

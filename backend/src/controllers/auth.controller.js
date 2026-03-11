@@ -114,7 +114,8 @@ const login = async (req, res) => {
           full_name: user.full_name,
           role: user.role,
           company_id: user.company_id || null,
-          company: company ? company.toJSON() : null
+          company: company ? company.toJSON() : null,
+          sa_permissions: user.sa_permissions || null
         }
       }
     });

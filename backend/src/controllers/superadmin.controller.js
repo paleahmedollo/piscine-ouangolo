@@ -775,6 +775,109 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════
+// GESTION DES UTILISATEURS SUPER ADMIN
+// ═══════════════════════════════════════════════════════
+
+// GET /super-admins — liste tous les comptes super_admin
+const getSuperAdminUsers = async (req, res) => {
+  try {
+    const admins = await User.findAll({
+      where: { role: 'super_admin' },
+      attributes: ['id', 'username', 'full_name', 'is_active', 'sa_permissions', 'created_at'],
+      order: [['created_at', 'ASC']]
+    });
+    res.json({ success: true, data: admins });
+  } catch (error) {
+    console.error('getSuperAdminUsers error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+// POST /super-admins — créer un compte super_admin
+const createSuperAdminUser = async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const { username, full_name, password, sa_permissions } = req.body;
+  if (!username || !full_name || !password) {
+    return res.status(400).json({ success: false, message: 'username, full_name et password requis' });
+  }
+  try {
+    const existing = await User.findOne({ where: { username } });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Ce nom d\'utilisateur existe déjà' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({
+      username,
+      full_name,
+      password_hash: hashedPassword,
+      role: 'super_admin',
+      is_active: true,
+      company_id: null,
+      sa_permissions: sa_permissions && sa_permissions.length > 0 ? sa_permissions : null
+    }, { hooks: false });
+    await logAction(req, 'CREATE_SUPERADMIN', 'super_admins', 'user', user.id, { username, full_name });
+    res.status(201).json({ success: true, message: 'Compte super admin créé', data: { id: user.id, username: user.username, full_name: user.full_name, is_active: user.is_active, sa_permissions: user.sa_permissions, created_at: user.created_at } });
+  } catch (error) {
+    console.error('createSuperAdminUser error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+// PUT /super-admins/:id — modifier un compte super_admin
+const updateSuperAdminUser = async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const { id } = req.params;
+  const { full_name, is_active, sa_permissions, password } = req.body;
+  try {
+    const user = await User.findOne({ where: { id, role: 'super_admin' } });
+    if (!user) return res.status(404).json({ success: false, message: 'Compte non trouvé' });
+
+    if (full_name !== undefined) user.full_name = full_name;
+    if (is_active !== undefined) user.is_active = is_active;
+    // null = accès total, [] vide → null, tableau → tableau
+    if (sa_permissions !== undefined) {
+      user.sa_permissions = sa_permissions && sa_permissions.length > 0 ? sa_permissions : null;
+    }
+    if (password && password.length >= 6) {
+      // bypass hook pour éviter double hashage
+      await User.sequelize.query(
+        `UPDATE users SET password_hash = :hash WHERE id = :id`,
+        { replacements: { hash: await bcrypt.hash(password, 10), id: user.id } }
+      );
+    }
+    await user.save({ hooks: false });
+    await logAction(req, 'UPDATE_SUPERADMIN', 'super_admins', 'user', user.id, { full_name, is_active, sa_permissions });
+    res.json({ success: true, message: 'Compte mis à jour', data: { id: user.id, username: user.username, full_name: user.full_name, is_active: user.is_active, sa_permissions: user.sa_permissions } });
+  } catch (error) {
+    console.error('updateSuperAdminUser error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+// DELETE /super-admins/:id — supprimer (interdit sur le compte principal)
+const deleteSuperAdminUser = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Protéger le compte de l'appelant
+    if (parseInt(id) === req.user.id) {
+      return res.status(403).json({ success: false, message: 'Vous ne pouvez pas supprimer votre propre compte' });
+    }
+    const user = await User.findOne({ where: { id, role: 'super_admin' } });
+    if (!user) return res.status(404).json({ success: false, message: 'Compte non trouvé' });
+    // Protéger le superadmin originel (username fixe)
+    if (user.username === 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Le compte superadmin principal ne peut pas être supprimé' });
+    }
+    await user.destroy();
+    await logAction(req, 'DELETE_SUPERADMIN', 'super_admins', 'user', parseInt(id), { username: user.username });
+    res.json({ success: true, message: 'Compte supprimé' });
+  } catch (error) {
+    console.error('deleteSuperAdminUser error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
 module.exports = {
   // Dashboard
   getDashboardStats,
@@ -791,5 +894,7 @@ module.exports = {
   // Settings
   getSettings, updateSettings,
   // Logs
-  getSystemLogs, getAuditLogs
+  getSystemLogs, getAuditLogs,
+  // Super Admin Users
+  getSuperAdminUsers, createSuperAdminUser, updateSuperAdminUser, deleteSuperAdminUser
 };

@@ -36,6 +36,12 @@ const User = sequelize.define('User', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: { model: 'companies', key: 'id' }
+  },
+  // Sections du panel superadmin accessibles : null = tout, [...] = sélectif
+  sa_permissions: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: null
   }
 }, {
   tableName: 'users',

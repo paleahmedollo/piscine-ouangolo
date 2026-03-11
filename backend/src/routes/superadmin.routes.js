@@ -17,7 +17,9 @@ const {
   // Settings
   getSettings, updateSettings,
   // Logs
-  getSystemLogs, getAuditLogs
+  getSystemLogs, getAuditLogs,
+  // Super Admin Users
+  getSuperAdminUsers, createSuperAdminUser, updateSuperAdminUser, deleteSuperAdminUser
 } = require('../controllers/superadmin.controller');
 
 // Toutes les routes superadmin nécessitent auth + rôle super_admin
@@ -61,5 +63,11 @@ router.put('/settings', updateSettings);
 // ─── 9. Journaux système ───────────────────────────────
 router.get('/logs', getSystemLogs);
 router.get('/audit', getAuditLogs);
+
+// ─── 10. Utilisateurs Super Admin ──────────────────────
+router.get('/super-admins', getSuperAdminUsers);
+router.post('/super-admins', createSuperAdminUser);
+router.put('/super-admins/:id', updateSuperAdminUser);
+router.delete('/super-admins/:id', deleteSuperAdminUser);
 
 module.exports = router;

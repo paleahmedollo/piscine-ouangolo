@@ -495,6 +495,8 @@ const runMigrations = async () => {
       // Rétablir NULL (= accès complet par rôle) pour les companies dont modules a été
       // mis à '[]' par la migration précédente (DEFAULT '[]' affectait les lignes existantes)
       `UPDATE companies SET modules = NULL WHERE modules = '[]'::jsonb`,
+      // Permissions sections panel superadmin (null = tout, [...] = sections sélectives)
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS sa_permissions JSONB DEFAULT NULL`,
       // Encaissement multi-modules + type commande restaurant
       `ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS order_type VARCHAR(20) DEFAULT 'table'`,
       `ALTER TABLE sales ADD COLUMN IF NOT EXISTS module VARCHAR(30)`,

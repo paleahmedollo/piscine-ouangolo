@@ -42,6 +42,7 @@ export interface User {
   company_id?: number | null;
   company?: Company | null;
   created_at: string;
+  sa_permissions?: string[] | null;
 }
 
 export interface AuthState {

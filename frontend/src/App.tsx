@@ -36,6 +36,7 @@ import AdminReports from './pages/Admin/AdminReports';
 import AdminSettings from './pages/Admin/AdminSettings';
 import AdminLogs from './pages/Admin/AdminLogs';
 import SuperAdminLeads from './pages/Admin/SuperAdminLeads';
+import AdminSuperAdmins from './pages/Admin/AdminSuperAdmins';
 
 // Create theme
 const theme = createTheme({
@@ -149,6 +150,7 @@ const AppRoutes: React.FC = () => {
         <Route path="leads" element={<SuperAdminLeads />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="logs" element={<AdminLogs />} />
+        <Route path="super-admins" element={<AdminSuperAdmins />} />
       </Route>
 
       {/* Legacy /companies route → redirect vers admin layout */}
