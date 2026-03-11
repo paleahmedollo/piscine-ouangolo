@@ -210,17 +210,7 @@ const createDefaultSuperAdmin = async () => {
       }, { hooks: false });
       console.log('✅ Compte superadmin créé');
     } else {
-      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
-      if (!isValid) {
-        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
-        await sequelize.query(
-          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = 'superadmin'`,
-          { replacements: { hash: hashedPassword } }
-        );
-        console.log('✅ Mot de passe superadmin réinitialisé');
-      } else {
-        console.log('✅ Compte superadmin OK');
-      }
+      console.log('✅ Compte superadmin OK');
     }
   } catch (error) {
     console.error('Erreur superadmin:', error);
@@ -247,17 +237,7 @@ const createDefaultAdmin = async () => {
       }, { hooks: false });
       console.log('✅ Compte admin.pmdo créé');
     } else {
-      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
-      if (!isValid) {
-        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
-        await sequelize.query(
-          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = :un`,
-          { replacements: { hash: hashedPassword, un: existing.username } }
-        );
-        console.log('✅ Mot de passe admin réinitialisé');
-      } else {
-        console.log('✅ Compte admin OK');
-      }
+      console.log('✅ Compte admin OK');
     }
   } catch (error) {
     console.error('Erreur admin:', error);
@@ -284,17 +264,7 @@ const createPaleAdmin = async () => {
       }, { hooks: false });
       console.log('✅ Compte paleadmin créé');
     } else {
-      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
-      if (!isValid) {
-        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
-        await sequelize.query(
-          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = 'paleadmin'`,
-          { replacements: { hash: hashedPassword } }
-        );
-        console.log('✅ Mot de passe paleadmin réinitialisé');
-      } else {
-        console.log('✅ Compte paleadmin OK');
-      }
+      console.log('✅ Compte paleadmin OK');
     }
   } catch (error) {
     console.error('Erreur paleadmin:', error);
@@ -321,17 +291,7 @@ const createDefaultGerant = async () => {
       }, { hooks: false });
       console.log('✅ Compte gerant.pmdo créé');
     } else {
-      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
-      if (!isValid) {
-        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
-        await sequelize.query(
-          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = :un`,
-          { replacements: { hash: hashedPassword, un: existing.username } }
-        );
-        console.log('✅ Mot de passe gérant réinitialisé');
-      } else {
-        console.log('✅ Compte gérant OK');
-      }
+      console.log('✅ Compte gérant OK');
     }
   } catch (error) {
     console.error('Erreur gérant:', error);
@@ -787,17 +747,7 @@ const createDirecteurAccount = async () => {
       }, { hooks: false });
       console.log('✅ Compte directeur créé (Admin@2024)');
     } else {
-      const isValid = await bcrypt.compare(PASSWORD, existing.password_hash);
-      if (!isValid) {
-        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
-        await sequelize.query(
-          `UPDATE users SET password_hash = :hash, is_active = true WHERE username = 'directeur'`,
-          { replacements: { hash: hashedPassword } }
-        );
-        console.log('✅ Mot de passe directeur réinitialisé');
-      } else {
-        console.log('✅ Compte directeur OK');
-      }
+      console.log('✅ Compte directeur OK');
     }
   } catch (error) {
     console.error('Erreur directeur:', error.message);
