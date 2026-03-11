@@ -156,7 +156,7 @@ const SuperAdminLayout: React.FC = () => {
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 1 }} />
 
       {/* Navigation Menu */}
-      <List sx={{ flex: 1, px: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.2)', borderRadius: 2 } }}>
+      <List sx={{ flex: 1, px: 1, overflowY: 'auto', '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { background: '#42a5f5', borderRadius: 2 }, '&::-webkit-scrollbar-track': { background: 'transparent' } }}>
         {visibleItems.map((item, idx) => {
           if ('divider' in item && item.divider) {
             return <Divider key={idx} sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 0.5 }} />;
