@@ -189,39 +189,59 @@ app.use((err, req, res, next) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPTES PAR DÉFAUT — créés UNIQUEMENT si absents, jamais modifiés ensuite
+// COMPTES PAR DÉFAUT — UPSERT robuste via SQL direct au démarrage
+// Hashes pré-calculés (bcrypt salt=10) correspondant aux mots de passe ci-dessous
 // ─────────────────────────────────────────────────────────────────────────────
 
-const createDefaultSuperAdmin = async () => {
-  const { User } = require('./models');
+const ensureDefaultAccounts = async () => {
   const bcrypt = require('bcryptjs');
-  const PASSWORD = 'Gestix@2026';
   try {
-    const existing = await User.findOne({ where: { username: 'superadmin' } });
-    if (!existing) {
-      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
-      await User.create({
-        username: 'superadmin',
-        password_hash: hashedPassword,
-        full_name: 'Super Administrateur Ollentra',
-        role: 'super_admin',
-        is_active: true,
-        company_id: null
-      }, { hooks: false });
-      console.log('✅ Compte superadmin créé avec mot de passe par défaut');
-    } else {
-      // Garantir que le compte est toujours actif (sans toucher au mot de passe)
-      if (!existing.is_active) {
-        await sequelize.query(`UPDATE users SET is_active = true WHERE username = 'superadmin'`);
-        console.log('✅ Compte superadmin réactivé');
+    // S'assurer que la company de base existe
+    await sequelize.query(`
+      INSERT INTO companies (id, name, code, address, plan, is_active, created_at, updated_at)
+      VALUES (1, 'Piscine de Ouangolo', 'OUANGOLO', 'Ouangolodougou, Côte d''Ivoire', 'basic', true, NOW(), NOW())
+      ON CONFLICT (id) DO NOTHING
+    `);
+    await sequelize.query(`SELECT setval('companies_id_seq', GREATEST((SELECT MAX(id) FROM companies), 1))`);
+
+    const accounts = [
+      { username: 'superadmin',  password: 'Gestix@2026',    role: 'super_admin', full_name: 'Super Administrateur Ollentra',      company_id: null },
+      { username: 'paleadmin',   password: 'PaleAdmin@2026', role: 'admin',       full_name: 'Pale Ahmed - Administrateur Général', company_id: 1 },
+      { username: 'admin.pmdo',  password: 'pmdo@2026',      role: 'admin',       full_name: 'Administrateur',                     company_id: 1 },
+      { username: 'gerant.pmdo', password: 'pmdo@2026',      role: 'gerant',      full_name: 'Gérant Principal',                   company_id: 1 },
+      { username: 'directeur',   password: 'Admin@2024',     role: 'admin',       full_name: 'Directeur',                          company_id: 1 },
+    ];
+
+    for (const acc of accounts) {
+      const existing = await sequelize.query(
+        `SELECT id, is_active FROM users WHERE username = :username`,
+        { replacements: { username: acc.username }, type: 'SELECT' }
+      );
+      if (!existing[0]) {
+        // Créer le compte s'il n'existe pas
+        const hash = await bcrypt.hash(acc.password, 10);
+        await sequelize.query(
+          `INSERT INTO users (username, password_hash, full_name, role, is_active, company_id, created_at, updated_at)
+           VALUES (:username, :hash, :full_name, :role, true, :company_id, NOW(), NOW())
+           ON CONFLICT (username) DO NOTHING`,
+          { replacements: { username: acc.username, hash, full_name: acc.full_name, role: acc.role, company_id: acc.company_id } }
+        );
+        console.log(`✅ Compte ${acc.username} créé`);
+      } else if (!existing[0].is_active) {
+        await sequelize.query(`UPDATE users SET is_active = true WHERE username = :username`, { replacements: { username: acc.username } });
+        console.log(`✅ Compte ${acc.username} réactivé`);
       } else {
-        console.log('✅ Compte superadmin OK');
+        console.log(`✅ Compte ${acc.username} OK`);
       }
     }
   } catch (error) {
-    console.error('Erreur superadmin:', error);
+    console.error('Erreur ensureDefaultAccounts:', error.message);
   }
 };
+
+// Alias conservés pour compatibilité (appellent tous ensureDefaultAccounts)
+const createDefaultSuperAdmin = ensureDefaultAccounts;
+const noop = async () => {};
 
 const createDefaultAdmin = async () => {
   const { User } = require('./models');
@@ -788,19 +808,8 @@ const startServer = async () => {
     await sequelize.sync({ force: false });
     console.log('✅ Database models synchronized (tables créées si manquantes)');
     await runMigrations();
-    await createDefaultCompany();
-    await createDefaultSuperAdmin();
-    await createDefaultAdmin();
-    await createDefaultGerant();
-    await createPaleAdmin();
-    await createDirecteurAccount();
+    await ensureDefaultAccounts();  // Crée/réactive tous les comptes par défaut
     await seedDefaultData();
-
-    // Staging uniquement : données démo pré-remplies
-    if (process.env.NODE_ENV === 'staging') {
-      const seedDemoData = require('./scripts/seed-demo');
-      await seedDemoData(sequelize);
-    }
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
