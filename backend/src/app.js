@@ -571,7 +571,11 @@ const runMigrations = async () => {
       `CREATE UNIQUE INDEX IF NOT EXISTS rooms_number_company_unique ON rooms (number, company_id)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS restaurant_tables_numero_company_unique ON restaurant_tables (numero, company_id)`,
       // Colonne company_id sur cash_shortages
-      `ALTER TABLE cash_shortages ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`
+      `ALTER TABLE cash_shortages ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      // Compte de démonstration / test (superadmin — onglet Comptes Test)
+      `ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT false`,
+      // Garantir accès total pour superadmin (sa_permissions = NULL)
+      `UPDATE users SET sa_permissions = NULL WHERE username = 'superadmin' AND role = 'super_admin' AND sa_permissions IS NOT NULL`
     ];
     for (const sql of migrations) {
       try {
