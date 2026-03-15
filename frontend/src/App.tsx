@@ -37,6 +37,7 @@ import AdminSettings from './pages/Admin/AdminSettings';
 import AdminLogs from './pages/Admin/AdminLogs';
 import SuperAdminLeads from './pages/Admin/SuperAdminLeads';
 import AdminSuperAdmins from './pages/Admin/AdminSuperAdmins';
+import AdminTestCompanies from './pages/Admin/AdminTestCompanies';
 
 // Create theme
 const theme = createTheme({
@@ -142,6 +143,7 @@ const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="companies" element={<Companies />} />
+        <Route path="test-companies" element={<AdminTestCompanies />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="subscriptions" element={<AdminSubscriptions />} />
         <Route path="billing" element={<AdminBilling />} />

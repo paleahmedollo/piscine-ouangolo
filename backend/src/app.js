@@ -234,6 +234,17 @@ const ensureDefaultAccounts = async () => {
         console.log(`✅ Compte ${acc.username} OK`);
       }
     }
+
+    // Le compte superadmin doit toujours avoir accès total (sa_permissions = NULL)
+    // Cela corrige un éventuel verrouillage accidentel via l'interface
+    try {
+      await sequelize.query(
+        `UPDATE users SET sa_permissions = NULL WHERE username = 'superadmin' AND role = 'super_admin' AND sa_permissions IS NOT NULL`,
+      );
+      console.log('✅ Accès total garanti pour superadmin (sa_permissions = NULL)');
+    } catch (e) {
+      // Si la colonne n'existe pas encore, on l'ignore silencieusement
+    }
   } catch (error) {
     console.error('Erreur ensureDefaultAccounts:', error.message);
   }

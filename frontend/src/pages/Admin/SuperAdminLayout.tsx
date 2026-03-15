@@ -24,6 +24,7 @@ import {
   LeaderboardOutlined as LeadsIcon,
   AdminPanelSettings as SuperAdminsIcon,
   Lock as LockIcon,
+  Science as TestIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import OllentraLogo from '../../components/OllentraLogo';
@@ -33,8 +34,9 @@ const DRAWER_WIDTH = 260;
 // ─── Menu Items (section = clé pour filtre sa_permissions) ─────────────────
 const menuItems = [
   { label: 'Tableau de bord',            icon: <DashboardIcon />,    path: '/admin/dashboard',     color: '#1a237e', section: 'dashboard' },
-  { label: 'Entreprises',                icon: <BusinessIcon />,     path: '/admin/companies',     color: '#0d47a1', section: 'companies' },
-  { label: 'Utilisateurs',               icon: <PeopleIcon />,       path: '/admin/users',         color: '#1565c0', section: 'users' },
+  { label: 'Entreprises',                icon: <BusinessIcon />,     path: '/admin/companies',      color: '#0d47a1', section: 'companies' },
+  { label: 'Comptes Test',               icon: <TestIcon />,         path: '/admin/test-companies', color: '#e65100', section: 'companies' },
+  { label: 'Utilisateurs',               icon: <PeopleIcon />,       path: '/admin/users',          color: '#1565c0', section: 'users' },
   { divider: true },
   { label: 'Abonnements',                icon: <SubscriptionIcon />, path: '/admin/subscriptions', color: '#2e7d32', section: 'subscriptions' },
   { label: 'Facturation',                icon: <BillingIcon />,      path: '/admin/billing',       color: '#1b5e20', section: 'billing' },

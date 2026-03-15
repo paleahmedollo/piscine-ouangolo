@@ -98,6 +98,12 @@ const Company = sequelize.define('Company', {
     type: DataTypes.JSONB,
     allowNull: true,
     defaultValue: null
+  },
+  // Compte de démonstration / test (visible uniquement dans l'onglet Comptes Test du superadmin)
+  is_test: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
   }
 }, {
   tableName: 'companies',

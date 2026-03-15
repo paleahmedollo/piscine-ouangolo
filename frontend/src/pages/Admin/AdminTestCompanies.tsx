@@ -8,16 +8,17 @@ import {
   ListItemText, ListItemIcon, Collapse, Checkbox, FormGroup
 } from '@mui/material';
 import {
-  Add as AddIcon, Edit as EditIcon, Business as BusinessIcon,
+  Edit as EditIcon,
   People as PeopleIcon, Refresh as RefreshIcon,
   CheckCircle as ActiveIcon, Cancel as InactiveIcon,
   UploadFile as UploadIcon, Download as DownloadIcon,
   CheckCircleOutline as SuccessRowIcon, ErrorOutline as ErrorRowIcon,
   WarningAmber as SkipRowIcon, ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon, Tag as IdIcon,
-  Extension as ModuleIcon
+  Extension as ModuleIcon, Science as TestIcon,
+  MoveDown as MoveIcon,
 } from '@mui/icons-material';
-import { companiesApi } from '../services/api';
+import { companiesApi } from '../../services/api';
 
 /* ─── Types ─────────────────────────────────────────── */
 interface Company {
@@ -29,12 +30,13 @@ interface Company {
   email?: string;
   plan: string;
   is_active: boolean;
+  is_test: boolean;
   created_at: string;
   users_count?: number;
   modules?: string[] | null;
-  manager_name?: string;   // fondateur
-  locality?: string;       // ville
-  country?: string;        // pays
+  manager_name?: string;
+  locality?: string;
+  country?: string;
 }
 
 const ALL_MODULES = [
@@ -64,23 +66,10 @@ interface BulkResult {
   message: string;
 }
 
-interface CreateCompanyForm {
-  name: string; code: string; address: string; phone: string; email: string;
-  plan: string; admin_username: string; admin_password: string; admin_full_name: string;
-  founder_name: string; city: string; country: string;
-}
-
-const defaultForm: CreateCompanyForm = {
-  name: '', code: '', address: '', phone: '', email: '',
-  plan: 'standard', admin_username: '', admin_password: '', admin_full_name: '',
-  founder_name: '', city: '', country: "Côte d'Ivoire"
-};
-
 const planLabel = (p: string) => ({ basic: 'Basique', standard: 'Standard', premium: 'Premium' }[p] || p);
 const planColor = (p: string): 'default' | 'primary' | 'success' =>
   p === 'premium' ? 'success' : p === 'standard' ? 'primary' : 'default';
 
-/* ─── Télécharger le modèle Excel ────────────────────── */
 const downloadTemplate = () => {
   const header = 'full_name\tusername\tpassword\trole\n';
   const rows = [
@@ -96,44 +85,39 @@ const downloadTemplate = () => {
 };
 
 /* ─── Composant principal ────────────────────────────── */
-const Companies: React.FC = () => {
+const AdminTestCompanies: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [success, setSuccess]     = useState('');
 
-  /* Dialog Création */
-  const [openAdd, setOpenAdd]           = useState(false);
-  const [formData, setFormData]         = useState<CreateCompanyForm>(defaultForm);
-  const [saving, setSaving]             = useState(false);
-  const [formError, setFormError]       = useState('');
-  const [newCompanyId, setNewCompanyId] = useState<number | null>(null);
-  const [newCompanyName, setNewCompanyName] = useState('');
-  const [askIsTest, setAskIsTest] = useState(false); // afficher la question "compte test ?"
-  const [markingTest, setMarkingTest] = useState(false);
-  const [createModules, setCreateModules] = useState<string[]>([]); // aucun coché par défaut — le superadmin choisit
-
   /* Dialog Modification */
-  const [openEdit, setOpenEdit]         = useState(false);
-  const [editCompany, setEditCompany]   = useState<Company | null>(null);
-  const [editForm, setEditForm]         = useState<Partial<Company>>({});
-  const [editModules, setEditModules]   = useState<string[]>(ALL_MODULE_KEYS);
+  const [openEdit, setOpenEdit]       = useState(false);
+  const [editCompany, setEditCompany] = useState<Company | null>(null);
+  const [editForm, setEditForm]       = useState<Partial<Company>>({});
+  const [editModules, setEditModules] = useState<string[]>(ALL_MODULE_KEYS);
+  const [saving, setSaving]           = useState(false);
+  const [formError, setFormError]     = useState('');
 
   /* Dialog Bulk Upload */
-  const [openBulk, setOpenBulk]             = useState(false);
-  const [bulkCompanyId, setBulkCompanyId]   = useState<number | ''>('');
-  const [bulkFile, setBulkFile]             = useState<File | null>(null);
-  const [bulkLoading, setBulkLoading]       = useState(false);
-  const [bulkResult, setBulkResult]         = useState<BulkResult | null>(null);
-  const [bulkError, setBulkError]           = useState('');
-  const [showDetails, setShowDetails]       = useState(false);
+  const [openBulk, setOpenBulk]           = useState(false);
+  const [bulkCompanyId, setBulkCompanyId] = useState<number | ''>('');
+  const [bulkFile, setBulkFile]           = useState<File | null>(null);
+  const [bulkLoading, setBulkLoading]     = useState(false);
+  const [bulkResult, setBulkResult]       = useState<BulkResult | null>(null);
+  const [bulkError, setBulkError]         = useState('');
+  const [showDetails, setShowDetails]     = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* ── Chargement — uniquement les entreprises production (is_test=false) ── */
+  /* Dialog confirmation déplacement en production */
+  const [moveTarget, setMoveTarget] = useState<Company | null>(null);
+  const [moving, setMoving]         = useState(false);
+
+  /* ── Chargement — uniquement les comptes test ── */
   const loadCompanies = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const res  = await companiesApi.getCompanies({ is_test: 'false' });
+      const res  = await companiesApi.getCompanies({ is_test: 'true' });
       const list: Company[] = res.data.data || [];
       const enriched = await Promise.all(list.map(async (c) => {
         try {
@@ -142,67 +126,13 @@ const Companies: React.FC = () => {
         } catch { return { ...c, users_count: 0 }; }
       }));
       setCompanies(enriched);
-    } catch { setError('Erreur lors du chargement des entreprises'); }
+    } catch { setError('Erreur lors du chargement des comptes test'); }
     finally  { setLoading(false); }
   }, []);
 
   useEffect(() => { loadCompanies(); }, [loadCompanies]);
 
-  /* ── Création entreprise ── */
-  const handleCreate = async () => {
-    setFormError('');
-    if (!formData.name || !formData.code || !formData.admin_username || !formData.admin_password || !formData.admin_full_name) {
-      setFormError('Tous les champs obligatoires (*) doivent être remplis'); return;
-    }
-    setSaving(true);
-    try {
-      const res     = await companiesApi.createCompany({ ...formData, modules: createModules });
-      const created = res.data.data?.company;
-      setNewCompanyId(created?.id ?? null);
-      setNewCompanyName(formData.name);
-      setAskIsTest(true); // afficher la question "compte test ?"
-      setFormData(defaultForm);
-      loadCompanies();
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setFormError(e.response?.data?.message || 'Erreur lors de la création');
-    } finally { setSaving(false); }
-  };
-
-  const closeAddDialog = () => {
-    setOpenAdd(false); setFormData(defaultForm); setFormError(''); setNewCompanyId(null);
-    setNewCompanyName(''); setAskIsTest(false); setMarkingTest(false);
-    setCreateModules([]);
-  };
-
-  const handleMarkAsTest = async (isTest: boolean) => {
-    if (!newCompanyId) return;
-    setMarkingTest(true);
-    try {
-      await companiesApi.updateCompany(newCompanyId, { is_test: isTest });
-      if (isTest) {
-        setSuccess(`✅ "${newCompanyName}" créée et placée dans les Comptes Test.`);
-      } else {
-        setSuccess(`✅ Entreprise "${newCompanyName}" créée — ID : #${newCompanyId}`);
-      }
-      loadCompanies();
-    } catch {
-      setFormError('Erreur lors du marquage du compte');
-    } finally {
-      setMarkingTest(false);
-      setAskIsTest(false);
-    }
-  };
-
-  const toggleCreateModule = (key: string) => {
-    setCreateModules(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-  };
-
-  const toggleEditModule = (key: string) => {
-    setEditModules(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-  };
-
-  /* ── Modification entreprise ── */
+  /* ── Modification ── */
   const handleEdit = async () => {
     if (!editCompany) return;
     setSaving(true);
@@ -213,7 +143,7 @@ const Companies: React.FC = () => {
         city: editForm.locality,
         modules: editModules
       });
-      setSuccess('Entreprise mise à jour'); setOpenEdit(false); setEditCompany(null); loadCompanies();
+      setSuccess('Compte test mis à jour'); setOpenEdit(false); setEditCompany(null); loadCompanies();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       setFormError(e.response?.data?.message || 'Erreur');
@@ -223,7 +153,7 @@ const Companies: React.FC = () => {
   const handleToggleActive = async (company: Company) => {
     try {
       await companiesApi.updateCompany(company.id, { is_active: !company.is_active });
-      setSuccess(`Entreprise ${company.is_active ? 'désactivée' : 'activée'}`); loadCompanies();
+      setSuccess(`Compte ${company.is_active ? 'désactivé' : 'activé'}`); loadCompanies();
     } catch { setError('Erreur lors de la modification'); }
   };
 
@@ -239,13 +169,25 @@ const Companies: React.FC = () => {
       locality: company.locality || '',
       country: company.country || "Côte d'Ivoire"
     });
-    // Si modules null → tous activés (rétrocompat), si tableau → charger
     setEditModules(
       company.modules === null || company.modules === undefined
         ? ALL_MODULE_KEYS
         : company.modules
     );
     setFormError(''); setOpenEdit(true);
+  };
+
+  /* ── Déplacer en production ── */
+  const handleMoveToProduction = async () => {
+    if (!moveTarget) return;
+    setMoving(true);
+    try {
+      await companiesApi.updateCompany(moveTarget.id, { is_test: false });
+      setSuccess(`"${moveTarget.name}" déplacée en Production.`);
+      setMoveTarget(null);
+      loadCompanies();
+    } catch { setError('Erreur lors du déplacement'); }
+    finally { setMoving(false); }
   };
 
   /* ── Bulk Upload ── */
@@ -275,10 +217,12 @@ const Companies: React.FC = () => {
       {/* ── En-tête ── */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <BusinessIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+          <TestIcon sx={{ fontSize: 32, color: 'warning.main' }} />
           <div>
-            <Typography variant="h5" fontWeight="bold">Gestion des Entreprises</Typography>
-            <Typography variant="body2" color="text.secondary">Super administrateur — accès multi-entreprises</Typography>
+            <Typography variant="h5" fontWeight="bold">Comptes Test / Démonstration</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Entreprises de démonstration — distinctes des comptes production
+            </Typography>
           </div>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -288,12 +232,15 @@ const Companies: React.FC = () => {
           <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => openBulkDialog()}>
             Import utilisateurs
           </Button>
-          <Button variant="contained" startIcon={<AddIcon />}
-            onClick={() => { setFormData(defaultForm); setFormError(''); setNewCompanyId(null); setOpenAdd(true); }}>
-            Nouvelle entreprise
-          </Button>
         </Box>
       </Box>
+
+      {/* Bandeau info */}
+      <Alert severity="warning" sx={{ mb: 2 }} icon={<TestIcon />}>
+        Ces comptes sont utilisés pour des démonstrations. Pour créer un nouveau compte test, allez dans
+        <strong> Entreprises → Créer → répondre "Oui" à la question compte test</strong>.
+        Vous pouvez déplacer un compte en production via le bouton <MoveIcon sx={{ fontSize: 14, verticalAlign: 'middle' }} />.
+      </Alert>
 
       {error   && <Alert severity="error"   sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
@@ -301,9 +248,9 @@ const Companies: React.FC = () => {
       {/* ── Résumé ── */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[
-          { label: 'Entreprises total',   value: companies.length,                                           color: 'primary.main' },
-          { label: 'Entreprises actives', value: companies.filter(c => c.is_active).length,                color: 'success.main' },
-          { label: 'Utilisateurs total',  value: companies.reduce((s, c) => s + (c.users_count ?? 0), 0), color: 'info.main'    },
+          { label: 'Comptes test total',  value: companies.length,                                            color: 'warning.main' },
+          { label: 'Comptes actifs',      value: companies.filter(c => c.is_active).length,                 color: 'success.main' },
+          { label: 'Utilisateurs total',  value: companies.reduce((s, c) => s + (c.users_count ?? 0), 0),  color: 'info.main'    },
         ].map(({ label, value, color }) => (
           <Grid item xs={12} sm={4} key={label}>
             <Card>
@@ -320,7 +267,7 @@ const Companies: React.FC = () => {
       <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
-            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+            <TableRow sx={{ backgroundColor: '#fff8e1' }}>
               <TableCell><strong>ID</strong></TableCell>
               <TableCell><strong>Entreprise</strong></TableCell>
               <TableCell><strong>Code</strong></TableCell>
@@ -337,16 +284,19 @@ const Companies: React.FC = () => {
               <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
             ) : companies.length === 0 ? (
               <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}>
-                <Typography color="text.secondary">Aucune entreprise</Typography>
+                <Typography color="text.secondary">Aucun compte test</Typography>
               </TableCell></TableRow>
             ) : companies.map((company) => (
-              <TableRow key={company.id} hover>
+              <TableRow key={company.id} hover sx={{ bgcolor: 'rgba(255,243,224,0.3)' }}>
                 <TableCell>
                   <Chip icon={<IdIcon />} label={`#${company.id}`} size="small" variant="outlined"
-                    sx={{ fontWeight: 'bold', fontFamily: 'monospace' }} />
+                    color="warning" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }} />
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="bold">{company.name}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <TestIcon sx={{ fontSize: 14, color: 'warning.main' }} />
+                    <Typography variant="body2" fontWeight="bold">{company.name}</Typography>
+                  </Box>
                   {company.manager_name && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>👤 {company.manager_name}</Typography>}
                   {(company.locality || company.country) && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
@@ -355,10 +305,9 @@ const Companies: React.FC = () => {
                   )}
                   {company.phone && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>📞 {company.phone}</Typography>}
                 </TableCell>
-                <TableCell><Chip label={company.code} size="small" variant="outlined" /></TableCell>
+                <TableCell><Chip label={company.code} size="small" variant="outlined" color="warning" /></TableCell>
                 <TableCell><Chip label={planLabel(company.plan)} size="small" color={planColor(company.plan)} /></TableCell>
                 <TableCell>
-                  {/* Affichage des modules actifs */}
                   {(() => {
                     const mods = company.modules === null || company.modules === undefined
                       ? ALL_MODULE_KEYS
@@ -382,8 +331,7 @@ const Companies: React.FC = () => {
                             ))}
                           </Box>
                         }
-                        arrow
-                        placement="right"
+                        arrow placement="right"
                       >
                         <Chip
                           icon={<ModuleIcon sx={{ fontSize: '14px !important' }} />}
@@ -418,8 +366,15 @@ const Companies: React.FC = () => {
                       <UploadIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Déplacer en Production">
+                    <IconButton size="small" color="success" onClick={() => setMoveTarget(company)}>
+                      <MoveIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Modifier">
-                    <IconButton size="small" onClick={() => openEditDialog(company)}><EditIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" onClick={() => openEditDialog(company)}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
                   </Tooltip>
                   <Tooltip title={company.is_active ? 'Désactiver' : 'Activer'}>
                     <IconButton size="small" color={company.is_active ? 'error' : 'success'}
@@ -435,189 +390,12 @@ const Companies: React.FC = () => {
       </TableContainer>
 
       {/* ══════════════════════════════════════════════
-          Dialog — Création entreprise
-      ══════════════════════════════════════════════ */}
-      <Dialog open={openAdd} onClose={closeAddDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Créer une nouvelle entreprise</DialogTitle>
-        <DialogContent>
-          {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
-
-          {/* Après création : question "compte test ?" */}
-          {newCompanyId && askIsTest && (
-            <Alert severity="info" icon={<IdIcon />} sx={{ mb: 2 }}>
-              <Typography fontWeight="bold" sx={{ mb: 0.5 }}>
-                Entreprise créée — ID : #{newCompanyId}
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 1.5 }}>
-                S'agit-il d'un <strong>compte de démonstration / test</strong> ?
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  size="small" variant="contained" color="warning"
-                  disabled={markingTest}
-                  onClick={() => handleMarkAsTest(true)}
-                  startIcon={markingTest ? <CircularProgress size={14} /> : undefined}
-                >
-                  Oui, compte test
-                </Button>
-                <Button
-                  size="small" variant="outlined"
-                  disabled={markingTest}
-                  onClick={() => handleMarkAsTest(false)}
-                >
-                  Non, production
-                </Button>
-              </Box>
-            </Alert>
-          )}
-
-          {/* ID affiché après avoir répondu */}
-          {newCompanyId && !askIsTest && (
-            <Alert severity="success" icon={<IdIcon />}
-              sx={{ mb: 2, fontWeight: 'bold', fontSize: '1rem' }}>
-              Entreprise créée — <strong>ID : #{newCompanyId}</strong>
-              <br />
-              <Typography variant="caption">
-                Notez cet identifiant pour l'import d'utilisateurs.
-              </Typography>
-            </Alert>
-          )}
-
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, color: 'text.secondary' }}>
-            Informations de l'entreprise
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={8}>
-              <TextField fullWidth label="Nom de l'entreprise *" size="small"
-                value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-            </Grid>
-            <Grid item xs={4}>
-              <TextField fullWidth label="Code ID *" size="small"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/\s/g, '') })}
-                inputProps={{ maxLength: 20 }}
-                helperText={formData.code ? `→ users: serveuse.${formData.code}` : 'Ex: pmdo'} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField fullWidth label="Nom du fondateur" size="small"
-                value={formData.founder_name}
-                onChange={(e) => setFormData({ ...formData, founder_name: e.target.value })}
-                helperText="Nom du fondateur ou directeur général" />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Ville" size="small"
-                value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Pays" size="small"
-                value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField fullWidth label="Adresse complète" size="small"
-                value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Téléphone" size="small"
-                value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Email" type="email" size="small"
-                value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Plan</InputLabel>
-                <Select value={formData.plan} label="Plan"
-                  onChange={(e) => setFormData({ ...formData, plan: e.target.value })}>
-                  <MenuItem value="basic">Basique</MenuItem>
-                  <MenuItem value="standard">Standard</MenuItem>
-                  <MenuItem value="premium">Premium</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-
-          <Divider sx={{ my: 2 }} />
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Modules à activer ({createModules.length}/{ALL_MODULES.length})
-              {createModules.length === 0 && (
-                <Typography component="span" variant="caption" color="warning.main" sx={{ ml: 1 }}>
-                  — Aucun module sélectionné
-                </Typography>
-              )}
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button size="small" onClick={() => setCreateModules(ALL_MODULE_KEYS)}>Tout cocher</Button>
-              <Button size="small" onClick={() => setCreateModules([])}>Tout décocher</Button>
-            </Box>
-          </Box>
-          <FormGroup row sx={{ mb: 1 }}>
-            {ALL_MODULES.map(m => (
-              <FormControlLabel
-                key={m.key}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={createModules.includes(m.key)}
-                    onChange={() => toggleCreateModule(m.key)}
-                  />
-                }
-                label={<Typography variant="body2">{m.label}</Typography>}
-                sx={{ width: '50%', m: 0 }}
-              />
-            ))}
-          </FormGroup>
-
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-            Compte administrateur initial
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField fullWidth label="Nom complet de l'admin *" size="small"
-                value={formData.admin_full_name}
-                onChange={(e) => setFormData({ ...formData, admin_full_name: e.target.value })} />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Nom d'utilisateur *" size="small"
-                value={formData.admin_username}
-                onChange={(e) => setFormData({ ...formData, admin_username: e.target.value })} />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Mot de passe *" type="password" size="small"
-                value={formData.admin_password}
-                onChange={(e) => setFormData({ ...formData, admin_password: e.target.value })}
-                inputProps={{ minLength: 6 }} />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeAddDialog} disabled={markingTest}>
-            {newCompanyId ? 'Fermer' : 'Annuler'}
-          </Button>
-          {!newCompanyId && (
-            <Button variant="contained" onClick={handleCreate} disabled={saving}
-              startIcon={saving ? <CircularProgress size={16} /> : <AddIcon />}>
-              Créer l'entreprise
-            </Button>
-          )}
-          {newCompanyId && !askIsTest && (
-            <Button variant="outlined" color="primary"
-              onClick={() => { closeAddDialog(); openBulkDialog(newCompanyId); }}>
-              Importer des utilisateurs →
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
-
-      {/* ══════════════════════════════════════════════
           Dialog — Modification entreprise
       ══════════════════════════════════════════════ */}
       <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          Modifier l'entreprise
-          {editCompany && <Chip label={`ID #${editCompany.id}`} size="small" sx={{ ml: 1, fontFamily: 'monospace' }} />}
+        <DialogTitle sx={{ bgcolor: '#fff8e1' }}>
+          Modifier le compte test
+          {editCompany && <Chip label={`ID #${editCompany.id}`} size="small" color="warning" sx={{ ml: 1, fontFamily: 'monospace' }} />}
         </DialogTitle>
         <DialogContent>
           {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
@@ -681,7 +459,9 @@ const Companies: React.FC = () => {
                       <Checkbox
                         size="small"
                         checked={editModules.includes(m.key)}
-                        onChange={() => toggleEditModule(m.key)}
+                        onChange={() => setEditModules(prev =>
+                          prev.includes(m.key) ? prev.filter(k => k !== m.key) : [...prev, m.key]
+                        )}
                       />
                     }
                     label={<Typography variant="body2">{m.label}</Typography>}
@@ -694,13 +474,13 @@ const Companies: React.FC = () => {
               <FormControlLabel
                 control={<Switch checked={editForm.is_active !== false}
                   onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })} />}
-                label="Entreprise active" />
+                label="Compte actif" />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenEdit(false)}>Annuler</Button>
-          <Button variant="contained" onClick={handleEdit} disabled={saving}
+          <Button variant="contained" color="warning" onClick={handleEdit} disabled={saving}
             startIcon={saving ? <CircularProgress size={16} /> : <EditIcon />}>
             Enregistrer
           </Button>
@@ -708,28 +488,52 @@ const Companies: React.FC = () => {
       </Dialog>
 
       {/* ══════════════════════════════════════════════
-          Dialog — Import utilisateurs (Mass Upload)
+          Dialog — Confirmer déplacement en Production
+      ══════════════════════════════════════════════ */}
+      <Dialog open={Boolean(moveTarget)} onClose={() => !moving && setMoveTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <MoveIcon color="success" /> Déplacer en Production
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Voulez-vous déplacer <strong>{moveTarget?.name}</strong> de l'onglet
+            Comptes Test vers <strong>Entreprises (production)</strong> ?
+          </Typography>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Les utilisateurs et données de ce compte restent inchangés.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMoveTarget(null)} disabled={moving}>Annuler</Button>
+          <Button variant="contained" color="success" onClick={handleMoveToProduction}
+            disabled={moving} startIcon={moving ? <CircularProgress size={16} /> : <MoveIcon />}>
+            Oui, déplacer en production
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Import utilisateurs
       ══════════════════════════════════════════════ */}
       <Dialog open={openBulk} onClose={() => setOpenBulk(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <UploadIcon color="primary" />
-          Import en masse d'utilisateurs
+          Import en masse d'utilisateurs (Compte test)
         </DialogTitle>
         <DialogContent>
           {bulkError && <Alert severity="error" sx={{ mb: 2 }}>{bulkError}</Alert>}
 
-          {/* Étape 1 — Entreprise */}
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-            1. Sélectionner l'entreprise cible
+            1. Sélectionner le compte test cible
           </Typography>
           <FormControl fullWidth size="small" sx={{ mb: 3 }}>
-            <InputLabel>Entreprise *</InputLabel>
-            <Select value={bulkCompanyId} label="Entreprise *"
+            <InputLabel>Compte test *</InputLabel>
+            <Select value={bulkCompanyId} label="Compte test *"
               onChange={(e) => setBulkCompanyId(e.target.value as number)}>
               {companies.filter(c => c.is_active).map(c => (
                 <MenuItem key={c.id} value={c.id}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                    <Chip label={`#${c.id}`} size="small"
+                    <Chip label={`#${c.id}`} size="small" color="warning"
                       sx={{ fontFamily: 'monospace', fontWeight: 'bold', minWidth: 50 }} />
                     <span style={{ flex: 1 }}>{c.name}</span>
                     <Chip label={c.code} size="small" variant="outlined" />
@@ -739,7 +543,6 @@ const Companies: React.FC = () => {
             </Select>
           </FormControl>
 
-          {/* Étape 2 — Modèle */}
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
             2. Télécharger le modèle et le remplir
           </Typography>
@@ -751,17 +554,12 @@ const Companies: React.FC = () => {
             }}>
               full_name &nbsp;|&nbsp; username &nbsp;|&nbsp; password &nbsp;|&nbsp; role
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Rôles valides : admin · gerant · directeur · responsable · maire ·
-              maitre_nageur · serveuse · serveur · receptionniste · gestionnaire_events
-            </Typography>
           </Alert>
           <Button variant="outlined" size="small" startIcon={<DownloadIcon />}
             onClick={downloadTemplate} sx={{ mb: 3 }}>
             Télécharger le modèle .xls
           </Button>
 
-          {/* Étape 3 — Fichier */}
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
             3. Charger le fichier complété
           </Typography>
@@ -769,13 +567,12 @@ const Companies: React.FC = () => {
             onClick={() => fileInputRef.current?.click()}
             sx={{
               border: '2px dashed', borderRadius: 2, p: 3, textAlign: 'center', cursor: 'pointer',
-              borderColor: bulkFile ? 'success.main' : 'primary.light',
-              background: bulkFile ? 'rgba(76,175,80,0.04)' : 'rgba(25,118,210,0.02)',
-              transition: 'all 0.2s',
-              '&:hover': { borderColor: 'primary.main', background: 'rgba(25,118,210,0.05)' }
+              borderColor: bulkFile ? 'success.main' : 'warning.light',
+              background: bulkFile ? 'rgba(76,175,80,0.04)' : 'rgba(255,152,0,0.02)',
+              '&:hover': { borderColor: 'warning.main', background: 'rgba(255,152,0,0.05)' }
             }}
           >
-            <UploadIcon sx={{ fontSize: 40, color: bulkFile ? 'success.main' : 'primary.light', mb: 1 }} />
+            <UploadIcon sx={{ fontSize: 40, color: bulkFile ? 'success.main' : 'warning.light', mb: 1 }} />
             {bulkFile ? (
               <>
                 <Typography variant="body1" fontWeight="bold" color="success.main">✅ {bulkFile.name}</Typography>
@@ -784,14 +581,9 @@ const Companies: React.FC = () => {
                 </Typography>
               </>
             ) : (
-              <>
-                <Typography variant="body1" color="text.secondary">
-                  Cliquer pour sélectionner un fichier Excel ou CSV
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Formats acceptés : .xlsx, .xls, .csv — Max 5 Mo
-                </Typography>
-              </>
+              <Typography variant="body1" color="text.secondary">
+                Cliquer pour sélectionner un fichier Excel ou CSV
+              </Typography>
             )}
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
               onChange={(e) => {
@@ -800,7 +592,6 @@ const Companies: React.FC = () => {
               }} />
           </Box>
 
-          {/* Résultats import */}
           {bulkResult && (
             <Box sx={{ mt: 3 }}>
               <Divider sx={{ mb: 2 }} />
@@ -852,10 +643,9 @@ const Companies: React.FC = () => {
             </Box>
           )}
         </DialogContent>
-
         <DialogActions>
           <Button onClick={() => setOpenBulk(false)}>Fermer</Button>
-          <Button variant="contained" onClick={handleBulkUpload}
+          <Button variant="contained" color="warning" onClick={handleBulkUpload}
             disabled={!bulkCompanyId || !bulkFile || bulkLoading}
             startIcon={bulkLoading ? <CircularProgress size={16} /> : <UploadIcon />}>
             Lancer l'import
@@ -867,4 +657,4 @@ const Companies: React.FC = () => {
   );
 };
 
-export default Companies;
+export default AdminTestCompanies;

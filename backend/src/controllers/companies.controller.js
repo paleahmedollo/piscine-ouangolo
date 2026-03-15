@@ -8,7 +8,14 @@ const bcrypt = require('bcryptjs');
  */
 const getCompanies = async (req, res) => {
   try {
+    // Filtrage par is_test : ?is_test=true → comptes test, ?is_test=false → production
+    const where = {};
+    if (req.query.is_test !== undefined) {
+      where.is_test = req.query.is_test === 'true';
+    }
+
     const companies = await Company.findAll({
+      where,
       order: [['name', 'ASC']],
       include: [
         {
@@ -44,7 +51,7 @@ const createCompany = async (req, res) => {
     const {
       name, code, address, phone, email, plan,
       founder_name, city, country,
-      admin_username, admin_password, admin_full_name, modules
+      admin_username, admin_password, admin_full_name, modules, is_test
     } = req.body;
 
     if (!name || !code) {
@@ -72,7 +79,8 @@ const createCompany = async (req, res) => {
       manager_name: founder_name || null,   // fondateur → manager_name en DB
       locality: city || null,               // ville → locality en DB
       country: country || "Côte d'Ivoire",
-      is_active: true
+      is_active: true,
+      is_test: is_test === true || is_test === 'true' ? true : false
     }, { transaction: t });
 
     // Créer l'utilisateur admin de l'entreprise
@@ -151,7 +159,7 @@ const updateCompany = async (req, res) => {
     }
 
     const { name, address, phone, email, logo_url, plan, is_active, modules,
-            founder_name, city, country } = req.body;
+            founder_name, city, country, is_test } = req.body;
 
     await company.update({
       ...(name && { name }),
@@ -164,7 +172,8 @@ const updateCompany = async (req, res) => {
       ...(modules !== undefined && { modules }),
       ...(founder_name !== undefined && { manager_name: founder_name }),
       ...(city !== undefined && { locality: city }),
-      ...(country !== undefined && { country })
+      ...(country !== undefined && { country }),
+      ...(is_test !== undefined && { is_test: is_test === true || is_test === 'true' })
     });
 
     res.json({ success: true, message: 'Entreprise mise à jour', data: company.toJSON() });
