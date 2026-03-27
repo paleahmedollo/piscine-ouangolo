@@ -1009,8 +1009,7 @@ const Companies: React.FC = () => {
             L'entreprise aura accès à l'ensemble des fonctionnalités.
           </Alert>
           <TextField fullWidth label="Mot de passe de confirmation" type="password" size="small"
-            value={resetModPwd} onChange={(e) => setResetModPwd(e.target.value)}
-            placeholder="Bonjour@2026#" />
+            value={resetModPwd} onChange={(e) => setResetModPwd(e.target.value)} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenResetMod(false)}>Annuler</Button>
@@ -1039,8 +1038,7 @@ const Companies: React.FC = () => {
             Les utilisateurs et la configuration sont conservés.
           </Alert>
           <TextField fullWidth label="Mot de passe de confirmation" type="password" size="small"
-            value={resetDataPwd} onChange={(e) => setResetDataPwd(e.target.value)}
-            placeholder="Bonjour@2026#" />
+            value={resetDataPwd} onChange={(e) => setResetDataPwd(e.target.value)} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenResetData(false)}>Annuler</Button>
@@ -1069,8 +1067,7 @@ const Companies: React.FC = () => {
             supprimés définitivement de la base de données. Il n'y a aucun retour en arrière possible.
           </Alert>
           <TextField fullWidth label="Mot de passe de confirmation" type="password" size="small"
-            value={permDelPwd} onChange={(e) => setPermDelPwd(e.target.value)}
-            placeholder="Bonjour@2026#" />
+            value={permDelPwd} onChange={(e) => setPermDelPwd(e.target.value)} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenPermDel(false)}>Annuler</Button>
