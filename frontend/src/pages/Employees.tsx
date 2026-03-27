@@ -177,20 +177,11 @@ const Employees: React.FC = () => {
   const [acctEntries, setAcctEntries] = useState<AccountingEntry[]>([]);
   const [acctFilter,  setAcctFilter]  = useState<string>('all');
   const [acctLoading, setAcctLoading] = useState(false);
-
-  // ── Trésorerie ───────────────────────────────────────────────
-  interface Treasury {
-    recettes_jour: number;
-    depenses_jour: number;
-    benefice_jour: number;
-    recettes_mois: number;
-    depenses_mois: number;
-    solde_global: number;
-    ventes_superette_jour: number;
-    achats_superette_jour: number;
-    benefice_superette_jour: number;
-  }
-  const [treasury, setTreasury] = useState<Treasury | null>(null);
+  const [treasury, setTreasury] = useState<{
+    global: { total_entrees: number; total_sorties: number; solde: number; detail: { ventes: number; achats: number; charges: number; salaires: number } };
+    this_month: { period: { month: number; year: number }; ventes: number; achats: number; charges: number; salaires: number; benefice: number };
+    recent_entries: AccountingEntry[];
+  } | null>(null);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -330,14 +321,8 @@ const Employees: React.FC = () => {
   };
 
   useEffect(() => {
-    if (tabValue === 3 || tabValue === 4) {
-      loadAccounting(acctMonth, acctYear);
-    }
-    if (tabValue === 3) {
-      loadTreasury();
-      const interval = setInterval(loadTreasury, 60000);
-      return () => clearInterval(interval);
-    }
+    if (tabValue === 3 || tabValue === 4) loadAccounting(acctMonth, acctYear);
+    if (tabValue === 5) loadTreasury();
   }, [tabValue, acctMonth, acctYear]);
 
   // Employee handlers
@@ -791,6 +776,7 @@ ${payroll.notes ? `<div class="section">
           <Tab label="Manquants Caisse" icon={<WarningIcon color="error" fontSize="small" />} iconPosition="end" />
           <Tab label="Dashboard Compta" icon={<ComptaIcon fontSize="small" />} iconPosition="start" />
           <Tab label="Rapport Mensuel"  icon={<ReportIcon fontSize="small" />} iconPosition="start" />
+          <Tab label="Trésorerie"       icon={<AttachMoney fontSize="small" />} iconPosition="start" />
         </Tabs>
 
         <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -956,85 +942,6 @@ ${payroll.notes ? `<div class="section">
                     ))}
                   </TextField>
                 </Box>
-              </Box>
-
-              {/* Trésorerie & Performance */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <TrendingUpIcon fontSize="small" color="primary" /> Trésorerie & Performance (Aujourd'hui)
-                </Typography>
-                {treasuryLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>
-                ) : treasury ? (
-                  <Grid container spacing={1.5}>
-                    <Grid item xs={6} sm={4} md>
-                      <Card sx={{ borderLeft: `4px solid ${treasury.solde_global >= 0 ? '#4caf50' : '#f44336'}` }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                          <Typography variant="caption" color="text.secondary">Solde global</Typography>
-                          <Typography variant="h6" fontWeight={700} color={treasury.solde_global >= 0 ? 'success.main' : 'error.main'}>
-                            {formatCurrency(treasury.solde_global)}
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={6} sm={4} md>
-                      <Card sx={{ borderLeft: '4px solid #4caf50' }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                          <Typography variant="caption" color="text.secondary">Recettes du jour</Typography>
-                          <Typography variant="h6" fontWeight={700} color="success.main">{formatCurrency(treasury.recettes_jour)}</Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={6} sm={4} md>
-                      <Card sx={{ borderLeft: '4px solid #f44336' }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                          <Typography variant="caption" color="text.secondary">Dépenses du jour</Typography>
-                          <Typography variant="h6" fontWeight={700} color="error.main">{formatCurrency(treasury.depenses_jour)}</Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={6} sm={4} md>
-                      <Card sx={{ borderLeft: `4px solid ${treasury.benefice_jour >= 0 ? '#2196f3' : '#f44336'}` }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                          <Typography variant="caption" color="text.secondary">Bénéfice du jour</Typography>
-                          <Typography variant="h6" fontWeight={700} color={treasury.benefice_jour >= 0 ? 'primary.main' : 'error.main'}>
-                            {formatCurrency(treasury.benefice_jour)}
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={6} sm={4} md>
-                      <Card sx={{ borderLeft: '4px solid #ff9800' }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                          <Typography variant="caption" color="text.secondary">Recettes du mois</Typography>
-                          <Typography variant="h6" fontWeight={700} color="#f57c00">{formatCurrency(treasury.recettes_mois)}</Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={6} sm={4} md>
-                      <Card sx={{ borderLeft: '4px solid #9c27b0' }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                          <Typography variant="caption" color="text.secondary">Ventes Supérette (jour)</Typography>
-                          <Typography variant="h6" fontWeight={700} color="#7b1fa2">{formatCurrency(treasury.ventes_superette_jour)}</Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                    {treasury.benefice_superette_jour !== undefined && (
-                      <Grid item xs={6} sm={4} md>
-                        <Card sx={{ borderLeft: `4px solid ${treasury.benefice_superette_jour >= 0 ? '#009688' : '#f44336'}` }}>
-                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                            <Typography variant="caption" color="text.secondary">Bénéfice Supérette (jour)</Typography>
-                            <Typography variant="h6" fontWeight={700} color={treasury.benefice_superette_jour >= 0 ? '#00695c' : 'error.main'}>
-                              {formatCurrency(treasury.benefice_superette_jour)}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    )}
-                  </Grid>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">Données de trésorerie indisponibles</Typography>
-                )}
               </Box>
 
               {acctLoading ? (
@@ -1331,6 +1238,138 @@ ${payroll.notes ? `<div class="section">
                   </TableBody>
                 </Table>
               </TableContainer>
+            </>
+          )}
+
+          {/* ── Tab 5 : Trésorerie Globale ──────────────────────── */}
+          {tabValue === 5 && (
+            <>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+                <AttachMoney color="primary" />
+                <Typography variant="h6" fontWeight={700}>Trésorerie Globale</Typography>
+                <Button size="small" variant="outlined" startIcon={<ReportIcon />} onClick={loadTreasury} sx={{ ml: 'auto' }}>
+                  Actualiser
+                </Button>
+              </Box>
+
+              {treasuryLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+              ) : treasury ? (
+                <>
+                  {/* Solde global principal */}
+                  <Card sx={{
+                    borderLeft: `6px solid ${treasury.global.solde >= 0 ? '#4caf50' : '#f44336'}`,
+                    bgcolor: treasury.global.solde >= 0 ? '#f1f8e9' : '#ffebee',
+                    mb: 3, p: 1
+                  }}>
+                    <CardContent>
+                      <Typography variant="caption" color="text.secondary">SOLDE GLOBAL CUMULÉ (depuis l'origine)</Typography>
+                      <Typography variant="h3" fontWeight={800} color={treasury.global.solde >= 0 ? 'success.main' : 'error.main'} sx={{ my: 1 }}>
+                        {formatCurrency(treasury.global.solde)}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <Chip color="success" label={`✅ Entrées : ${formatCurrency(treasury.global.total_entrees)}`} />
+                        <Chip color="error"   label={`❌ Sorties : ${formatCurrency(treasury.global.total_sorties)}`} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+
+                  {/* Détail des entrées/sorties */}
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={6} sm={3}>
+                      <Card sx={{ borderLeft: '4px solid #4caf50' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Ventes totales</Typography>
+                          <Typography variant="h6" fontWeight={700} color="success.main">{formatCurrency(treasury.global.detail.ventes)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Card sx={{ borderLeft: '4px solid #f44336' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Achats totaux</Typography>
+                          <Typography variant="h6" fontWeight={700} color="error.main">{formatCurrency(treasury.global.detail.achats)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Card sx={{ borderLeft: '4px solid #ff9800' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Charges totales</Typography>
+                          <Typography variant="h6" fontWeight={700} color="warning.main">{formatCurrency(treasury.global.detail.charges)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Card sx={{ borderLeft: '4px solid #9c27b0' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Salaires totaux</Typography>
+                          <Typography variant="h6" fontWeight={700} color="secondary.main">{formatCurrency(treasury.global.detail.salaires)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
+
+                  {/* Ce mois-ci */}
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
+                    Ce mois ({treasury.this_month.period.month}/{treasury.this_month.period.year}) :
+                  </Typography>
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    {[
+                      { label: 'Ventes', val: treasury.this_month.ventes, color: '#4caf50' },
+                      { label: 'Achats', val: treasury.this_month.achats, color: '#f44336' },
+                      { label: 'Charges', val: treasury.this_month.charges, color: '#ff9800' },
+                      { label: 'Salaires', val: treasury.this_month.salaires, color: '#9c27b0' },
+                      { label: 'Bénéfice net', val: treasury.this_month.benefice, color: treasury.this_month.benefice >= 0 ? '#4caf50' : '#f44336' },
+                    ].map(item => (
+                      <Grid item xs={6} sm key={item.label}>
+                        <Card variant="outlined">
+                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                            <Typography variant="h6" fontWeight={700} sx={{ color: item.color }}>{formatCurrency(item.val)}</Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+
+                  {/* Dernières écritures */}
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Dernières écritures :</Typography>
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead sx={{ bgcolor: 'grey.100' }}>
+                        <TableRow>
+                          <TableCell><strong>Date</strong></TableCell>
+                          <TableCell><strong>Type</strong></TableCell>
+                          <TableCell><strong>Description</strong></TableCell>
+                          <TableCell align="right"><strong>Montant</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {treasury.recent_entries.map((e: AccountingEntry) => (
+                          <TableRow key={e.id} hover>
+                            <TableCell>{new Date(e.entry_date).toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell>
+                              <Chip size="small"
+                                label={e.entry_type === 'vente' ? 'Vente' : e.entry_type === 'achat' ? 'Achat' : e.entry_type === 'charge' ? 'Charge' : 'Salaire'}
+                                color={e.entry_type === 'vente' ? 'success' : e.entry_type === 'salaire' ? 'secondary' : 'error'} />
+                            </TableCell>
+                            <TableCell>{e.description || '—'}</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: e.entry_type === 'vente' ? 'success.main' : 'error.main' }}>
+                              {e.entry_type === 'vente' ? '+' : '-'}{formatCurrency(e.amount)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {treasury.recent_entries.length === 0 && (
+                          <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>Aucune écriture</TableCell></TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </>
+              ) : (
+                <Alert severity="info">Aucune donnée de trésorerie disponible.</Alert>
+              )}
             </>
           )}
         </CardContent>

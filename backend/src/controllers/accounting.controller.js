@@ -143,89 +143,79 @@ const getAnnualReport = async (req, res) => {
   }
 };
 
-// ─── Trésorerie globale & bénéfices ──────────────────────────────────────────
+// ─── Trésorerie globale ───────────────────────────────────────────────────────
 const getTreasury = async (req, res) => {
   try {
     const company_id = req.user.company_id;
+
+    // Cumul de toutes les écritures (depuis l'origine)
+    const allTime = await AccountingEntry.findAll({
+      where: { company_id },
+      attributes: [
+        'entry_type',
+        [sequelize.fn('SUM', sequelize.col('amount')), 'total']
+      ],
+      group: ['entry_type'],
+      raw: true
+    });
+
+    const totals = { vente: 0, achat: 0, charge: 0, salaire: 0 };
+    allTime.forEach(r => { totals[r.entry_type] = parseFloat(r.total) || 0; });
+
+    const totalEntrees  = totals.vente;
+    const totalSorties  = totals.achat + totals.charge + totals.salaire;
+    const solde         = totalEntrees - totalSorties;
+
+    // Données du mois en cours pour comparaison
     const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const startDate = `${y}-${String(m).padStart(2,'0')}-01`;
+    const endDate   = new Date(y, m, 0).toISOString().split('T')[0];
 
-    const sumByType = (rows, types) => {
-      const arr = Array.isArray(rows) ? rows : [];
-      return arr
-        .filter(r => types.includes(r.entry_type))
-        .reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
-    };
+    const monthRows = await AccountingEntry.findAll({
+      where: { company_id, entry_date: { [Op.between]: [startDate, endDate] } },
+      attributes: [
+        'entry_type',
+        [sequelize.fn('SUM', sequelize.col('amount')), 'total']
+      ],
+      group: ['entry_type'],
+      raw: true
+    });
+    const monthTotals = { vente: 0, achat: 0, charge: 0, salaire: 0 };
+    monthRows.forEach(r => { monthTotals[r.entry_type] = parseFloat(r.total) || 0; });
 
-    // Recettes et dépenses du jour (type: vente vs achat+charge+salaire)
-    const dayRows = await sequelize.query(
-      `SELECT entry_type, COALESCE(SUM(amount), 0) as total
-       FROM accounting_entries
-       WHERE company_id = :company_id AND DATE(entry_date) = CURDATE()
-       GROUP BY entry_type`,
-      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
-    );
-
-    // Recettes et dépenses du mois
-    const monthRows = await sequelize.query(
-      `SELECT entry_type, COALESCE(SUM(amount), 0) as total
-       FROM accounting_entries
-       WHERE company_id = :company_id AND MONTH(entry_date) = :month AND YEAR(entry_date) = :year
-       GROUP BY entry_type`,
-      { replacements: { company_id, month, year }, type: sequelize.QueryTypes.SELECT }
-    );
-
-    // Solde global (depuis toujours)
-    const globalRows = await sequelize.query(
-      `SELECT entry_type, COALESCE(SUM(amount), 0) as total
-       FROM accounting_entries
-       WHERE company_id = :company_id
-       GROUP BY entry_type`,
-      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
-    );
-
-    // Ventes supérette du jour
-    const superetteDayRows = await sequelize.query(
-      `SELECT COALESCE(SUM(total), 0) as total
-       FROM sales
-       WHERE company_id = :company_id AND module = 'superette' AND status = 'ferme' AND DATE(created_at) = CURDATE()`,
-      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
-    );
-
-    const recettes_jour = sumByType(dayRows, ['vente']);
-    const depenses_jour = sumByType(dayRows, ['achat', 'charge', 'salaire']);
-    const recettes_mois = sumByType(monthRows, ['vente']);
-    const depenses_mois = sumByType(monthRows, ['achat', 'charge', 'salaire']);
-    const recettes_global = sumByType(globalRows, ['vente']);
-    const depenses_global = sumByType(globalRows, ['achat', 'charge', 'salaire']);
-    const solde_global = recettes_global - depenses_global;
-    const benefice_jour = recettes_jour - depenses_jour;
-
-    const ventes_superette_jour = parseFloat(superetteDayRows[0]?.total || '0') || 0;
-
-    // Achats superette du jour (entrées comptables type 'achat' source_module superette)
-    const superetteAchatRows = await sequelize.query(
-      `SELECT COALESCE(SUM(amount), 0) as total
-       FROM accounting_entries
-       WHERE company_id = :company_id AND entry_type = 'achat' AND source_module = 'superette' AND DATE(entry_date) = CURDATE()`,
-      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
-    );
-    const achats_superette_jour = parseFloat(superetteAchatRows[0]?.total || '0') || 0;
-    const benefice_superette_jour = ventes_superette_jour - achats_superette_jour;
+    // Dernières écritures pour historique
+    const recentEntries = await AccountingEntry.findAll({
+      where: { company_id },
+      order: [['entry_date', 'DESC'], ['id', 'DESC']],
+      limit: 10,
+      raw: true
+    });
 
     res.json({
       success: true,
       data: {
-        recettes_jour,
-        depenses_jour,
-        benefice_jour,
-        recettes_mois,
-        depenses_mois,
-        solde_global,
-        ventes_superette_jour,
-        achats_superette_jour,
-        benefice_superette_jour
+        global: {
+          total_entrees:  totalEntrees,
+          total_sorties:  totalSorties,
+          solde,
+          detail: {
+            ventes:   totals.vente,
+            achats:   totals.achat,
+            charges:  totals.charge,
+            salaires: totals.salaire
+          }
+        },
+        this_month: {
+          period: { month: m, year: y, start: startDate, end: endDate },
+          ventes:   monthTotals.vente,
+          achats:   monthTotals.achat,
+          charges:  monthTotals.charge,
+          salaires: monthTotals.salaire,
+          benefice: monthTotals.vente - (monthTotals.achat + monthTotals.charge + monthTotals.salaire)
+        },
+        recent_entries: recentEntries
       }
     });
   } catch (err) {

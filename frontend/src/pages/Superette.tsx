@@ -4,8 +4,7 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
   Select, FormControl, InputLabel, Alert, IconButton, Tooltip, Badge,
-  Divider, Stack, CircularProgress, LinearProgress, InputAdornment, Autocomplete,
-  Popover
+  Divider, Stack, CircularProgress, LinearProgress, InputAdornment, Autocomplete
 } from '@mui/material';
 import {
   Add as AddIcon, StoreMallDirectory as SuperetteIcon, Refresh as RefreshIcon,
@@ -143,7 +142,6 @@ const Superette: React.FC = () => {
     tab_id: ''
   });
   const [adjustForm, setAdjustForm] = useState({ new_quantity: '', reason: 'Ajustement inventaire' });
-  const [alertAnchorEl, setAlertAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const showAlert = (type: 'success' | 'error', msg: string) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
 
@@ -326,19 +324,23 @@ const Superette: React.FC = () => {
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
 
-  // Grouper par catégorie
-  const groupedByCategory = (prods: Product[]) => {
-    const groups: Record<string, Product[]> = {};
+  // Grouper par catégorie pour la caisse (produits en stock uniquement)
+  const caisseProducts = filteredProducts.filter(p => p.current_stock > 0);
+  const buildGroupedByCategory = (prods: Product[]) => {
+    const byCat = new Map<string, Product[]>();
     prods.forEach(p => {
-      const cat = p.category || 'Autres';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(p);
+      if (!byCat.has(p.category)) byCat.set(p.category, []);
+      byCat.get(p.category)!.push(p);
     });
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+    const result: Array<{ type: 'category'; category: string } | { type: 'product'; product: Product }> = [];
+    byCat.forEach((catProds, cat) => {
+      result.push({ type: 'category', category: cat });
+      catProds.forEach(p => result.push({ type: 'product', product: p }));
+    });
+    return result;
   };
-  const groupedForSales = groupedByCategory(filteredProducts.filter(p => p.current_stock > 0));
-  const groupedForStock = groupedByCategory([...products].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })));
-  const groupedForProducts = groupedByCategory(filteredProducts);
+  const groupedCaisseProducts = buildGroupedByCategory(caisseProducts);
+  const lowStockCount = (stats?.low_stock_alerts || 0);
 
   return (
     <Layout>
@@ -353,59 +355,20 @@ const Superette: React.FC = () => {
             <Typography variant="body2" color="text.secondary">Gestion caisse, stock, produits et approvisionnements</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Tooltip title="Alertes stock">
-              <IconButton
-                color={products.filter(p => p.current_stock <= 0).length > 0 ? 'error' : products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).length > 0 ? 'warning' : 'default'}
-                onClick={e => setAlertAnchorEl(e.currentTarget)}
-              >
-                <Badge badgeContent={products.filter(p => p.current_stock <= 0 || (p.current_stock > 0 && p.current_stock <= p.min_stock)).length} color="error">
-                  <NotificationsIcon />
+            {lowStockCount > 0 && (
+              <Tooltip title={`${lowStockCount} produit(s) en rupture ou stock bas`}>
+                <Badge badgeContent={lowStockCount} color="error">
+                  <IconButton color="warning" onClick={() => setActiveTab(1)}>
+                    <NotificationsIcon />
+                  </IconButton>
                 </Badge>
-              </IconButton>
-            </Tooltip>
+              </Tooltip>
+            )}
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll} disabled={loading}>
               {loading ? <CircularProgress size={16} /> : 'Actualiser'}
             </Button>
           </Box>
         </Box>
-
-        {/* Popover alertes stock */}
-        <Popover
-          open={Boolean(alertAnchorEl)}
-          anchorEl={alertAnchorEl}
-          onClose={() => setAlertAnchorEl(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <Box sx={{ p: 2, minWidth: 280, maxWidth: 360, maxHeight: 400, overflow: 'auto' }}>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Alertes Stock</Typography>
-            {products.filter(p => p.current_stock <= 0).length > 0 && (
-              <>
-                <Typography variant="caption" color="error.main" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>Rupture de stock</Typography>
-                {products.filter(p => p.current_stock <= 0).map(p => (
-                  <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, px: 0.5, bgcolor: '#ffebee', borderRadius: 0.5, mb: 0.3 }}>
-                    <Typography variant="body2">{p.name}</Typography>
-                    <Chip label="0" size="small" color="error" sx={{ fontSize: '0.65rem', height: 18 }} />
-                  </Box>
-                ))}
-              </>
-            )}
-            {products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).length > 0 && (
-              <>
-                <Typography variant="caption" color="warning.main" fontWeight={700} sx={{ display: 'block', mb: 0.5, mt: 1 }}>Stock bas</Typography>
-                {products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).map(p => (
-                  <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, px: 0.5, bgcolor: '#fff8e1', borderRadius: 0.5, mb: 0.3 }}>
-                    <Typography variant="body2">{p.name}</Typography>
-                    <Chip label={`${p.current_stock} ${p.unit}`} size="small" color="warning" sx={{ fontSize: '0.65rem', height: 18 }} />
-                  </Box>
-                ))}
-              </>
-            )}
-            {products.filter(p => p.current_stock <= 0 || (p.current_stock > 0 && p.current_stock <= p.min_stock)).length === 0 && (
-              <Typography variant="body2" color="text.secondary">Aucune alerte stock</Typography>
-            )}
-          </Box>
-        </Popover>
 
         {/* Stats */}
         {stats && (
@@ -451,34 +414,40 @@ const Superette: React.FC = () => {
                 </Select>
               </Stack>
               <Grid container spacing={1}>
-                {groupedForSales.map(([cat, prods]) => (
-                  <React.Fragment key={cat}>
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle2" fontWeight={700} sx={{ bgcolor: 'grey.200', px: 1.5, py: 0.5, borderRadius: 1, mt: 0.5 }}>
-                        {cat}
-                      </Typography>
-                    </Grid>
-                    {prods.map(p => (
-                      <Grid item xs={6} sm={4} md={3} key={p.id}>
-                        <Card variant="outlined"
-                          sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main', bgcolor: '#e3f2fd' } }}
-                          onClick={() => addToCart(p)}>
-                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, textAlign: 'center' }}>
-                            <SuperetteIcon color="primary" />
-                            <Typography variant="body2" fontWeight={600} noWrap title={p.name}>{p.name}</Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap>{p.category}</Typography>
-                            <Typography fontWeight={700} color="primary">{fmt(p.sell_price)}</Typography>
-                            <Chip label={`${p.current_stock} ${p.unit}`} size="small"
-                              color={p.current_stock <= p.min_stock ? 'warning' : 'success'}
-                              sx={{ mt: 0.5, fontSize: '0.65rem' }} />
-                          </CardContent>
-                        </Card>
+                {groupedCaisseProducts.map((item, idx) => {
+                  if (item.type === 'category') {
+                    return (
+                      <Grid item xs={12} key={`cat-${item.category}-${idx}`}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 0.5 }}>
+                          <Chip label={item.category} size="small" color="primary" variant="filled"
+                            sx={{ fontWeight: 700, fontSize: '0.75rem' }} />
+                          <Box sx={{ flex: 1, height: '1px', bgcolor: 'primary.main', opacity: 0.2 }} />
+                        </Box>
                       </Grid>
-                    ))}
-                  </React.Fragment>
-                ))}
-                {groupedForSales.length === 0 && (
-                  <Grid item xs={12}><Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>Aucun produit disponible</Paper></Grid>
+                    );
+                  }
+                  const p = item.product;
+                  return (
+                    <Grid item xs={6} sm={4} md={3} key={p.id}>
+                      <Card variant="outlined"
+                        sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main', bgcolor: '#e3f2fd' } }}
+                        onClick={() => addToCart(p)}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, textAlign: 'center' }}>
+                          <SuperetteIcon color="primary" />
+                          <Typography variant="body2" fontWeight={600} noWrap title={p.name}>{p.name}</Typography>
+                          <Typography fontWeight={700} color="primary">{fmt(p.sell_price)}</Typography>
+                          <Chip label={`${p.current_stock} ${p.unit}`} size="small"
+                            color={p.current_stock <= p.min_stock ? 'warning' : 'success'}
+                            sx={{ mt: 0.5, fontSize: '0.65rem' }} />
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+                {caisseProducts.length === 0 && (
+                  <Grid item xs={12}><Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                    {filteredProducts.length > 0 ? 'Tous les produits filtrés sont en rupture de stock' : 'Aucun produit en stock'}
+                  </Paper></Grid>
                 )}
               </Grid>
             </Grid>
@@ -549,36 +518,29 @@ const Superette: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {groupedForStock.map(([cat, prods]) => (
-                    <React.Fragment key={cat}>
-                      <TableRow>
-                        <TableCell colSpan={7} sx={{ bgcolor: 'grey.200', fontWeight: 700, py: 0.5, px: 1.5 }}>{cat}</TableCell>
+                  {[...products].sort((a, b) => a.category.localeCompare(b.category, 'fr') || a.name.localeCompare(b.name, 'fr')).map(p => {
+                    const pct = p.min_stock > 0 ? Math.min(100, (p.current_stock / p.min_stock) * 100) : 100;
+                    const color: 'error' | 'warning' | 'success' = p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'success';
+                    return (
+                      <TableRow key={p.id} hover sx={{ bgcolor: p.current_stock <= 0 ? '#ffebee' : p.current_stock <= p.min_stock ? '#fff8e1' : 'inherit' }}>
+                        <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
+                        <TableCell><Chip label={p.category} size="small" /></TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: p.current_stock <= 0 ? 'error.main' : 'inherit' }}>{p.current_stock} {p.unit}</TableCell>
+                        <TableCell align="right" sx={{ color: 'text.secondary' }}>{p.min_stock}</TableCell>
+                        <TableCell sx={{ minWidth: 100 }}>
+                          <LinearProgress variant="determinate" value={pct} color={color} sx={{ height: 8, borderRadius: 4 }} />
+                        </TableCell>
+                        <TableCell align="right">{fmt(p.current_stock * p.sell_price)}</TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Ajuster le stock">
+                            <IconButton size="small" color="primary" onClick={() => { setAdjustDialog(p); setAdjustForm({ new_quantity: String(p.current_stock), reason: 'Ajustement inventaire' }); }}>
+                              <AdjustIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
                       </TableRow>
-                      {prods.map(p => {
-                        const pct = p.min_stock > 0 ? Math.min(100, (p.current_stock / p.min_stock) * 100) : 100;
-                        const color: 'error' | 'warning' | 'success' = p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'success';
-                        return (
-                          <TableRow key={p.id} hover sx={{ bgcolor: p.current_stock <= 0 ? '#ffebee' : p.current_stock <= p.min_stock ? '#fff8e1' : 'inherit' }}>
-                            <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
-                            <TableCell><Chip label={p.category} size="small" /></TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 700, color: p.current_stock <= 0 ? 'error.main' : 'inherit' }}>{p.current_stock} {p.unit}</TableCell>
-                            <TableCell align="right" sx={{ color: 'text.secondary' }}>{p.min_stock}</TableCell>
-                            <TableCell sx={{ minWidth: 100 }}>
-                              <LinearProgress variant="determinate" value={pct} color={color} sx={{ height: 8, borderRadius: 4 }} />
-                            </TableCell>
-                            <TableCell align="right">{fmt(p.current_stock * p.sell_price)}</TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="Ajuster le stock">
-                                <IconButton size="small" color="primary" onClick={() => { setAdjustDialog(p); setAdjustForm({ new_quantity: String(p.current_stock), reason: 'Ajustement inventaire' }); }}>
-                                  <AdjustIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
+                    );
+                  })}
                   {products.length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>Aucun produit</TableCell></TableRow>}
                 </TableBody>
               </Table>
@@ -611,41 +573,34 @@ const Superette: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {groupedForProducts.map(([cat, prods]) => (
-                    <React.Fragment key={cat}>
-                      <TableRow>
-                        <TableCell colSpan={7} sx={{ bgcolor: 'grey.200', fontWeight: 700, py: 0.5, px: 1.5 }}>{cat}</TableCell>
+                  {filteredProducts.map(p => {
+                    const marge = p.buy_price > 0 ? Math.round(((p.sell_price - p.buy_price) / p.buy_price) * 100) : null;
+                    return (
+                      <TableRow key={p.id} hover>
+                        <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
+                        <TableCell><Chip label={p.category} size="small" /></TableCell>
+                        <TableCell align="right">{fmt(p.buy_price)}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: 'primary.main' }}>{fmt(p.sell_price)}</TableCell>
+                        <TableCell>{p.unit}</TableCell>
+                        <TableCell align="right">
+                          {marge !== null && <Chip label={`${marge}%`} size="small" color={marge >= 20 ? 'success' : marge >= 0 ? 'warning' : 'error'} />}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Tooltip title="Modifier">
+                              <IconButton size="small" color="primary"
+                                onClick={() => { setEditProduct(p); setProductForm({ name: p.name, category: p.category, sell_price: String(p.sell_price), buy_price: String(p.buy_price), unit: p.unit, min_stock: String(p.min_stock), description: p.description || '' }); setProductDialog(true); }}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Désactiver">
+                              <IconButton size="small" color="error" onClick={() => handleDeleteProduct(p.id)}><DeleteIcon fontSize="small" /></IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
                       </TableRow>
-                      {prods.map(p => {
-                        const marge = p.buy_price > 0 ? Math.round(((p.sell_price - p.buy_price) / p.buy_price) * 100) : null;
-                        return (
-                          <TableRow key={p.id} hover>
-                            <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
-                            <TableCell><Chip label={p.category} size="small" /></TableCell>
-                            <TableCell align="right">{fmt(p.buy_price)}</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 700, color: 'primary.main' }}>{fmt(p.sell_price)}</TableCell>
-                            <TableCell>{p.unit}</TableCell>
-                            <TableCell align="right">
-                              {marge !== null && <Chip label={`${marge}%`} size="small" color={marge >= 20 ? 'success' : marge >= 0 ? 'warning' : 'error'} />}
-                            </TableCell>
-                            <TableCell align="center">
-                              <Stack direction="row" spacing={0.5} justifyContent="center">
-                                <Tooltip title="Modifier">
-                                  <IconButton size="small" color="primary"
-                                    onClick={() => { setEditProduct(p); setProductForm({ name: p.name, category: p.category, sell_price: String(p.sell_price), buy_price: String(p.buy_price), unit: p.unit, min_stock: String(p.min_stock), description: p.description || '' }); setProductDialog(true); }}>
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Désactiver">
-                                  <IconButton size="small" color="error" onClick={() => handleDeleteProduct(p.id)}><DeleteIcon fontSize="small" /></IconButton>
-                                </Tooltip>
-                              </Stack>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
+                    );
+                  })}
                   {filteredProducts.length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>Aucun produit</TableCell></TableRow>}
                 </TableBody>
               </Table>
@@ -678,7 +633,7 @@ const Superette: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {products.map(p => (
+                  {[...products].sort((a, b) => a.category.localeCompare(b.category, 'fr') || a.name.localeCompare(b.name, 'fr')).map(p => (
                     <TableRow key={p.id} hover sx={{ bgcolor: p.current_stock <= p.min_stock ? '#fff8e1' : 'inherit' }}>
                       <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
                       <TableCell><Chip label={p.category} size="small" /></TableCell>
@@ -730,6 +685,7 @@ const Superette: React.FC = () => {
                       <TableCell>
                         {s.mode_paiement_habituel === 'especes' ? '💵 Espèces' :
                          s.mode_paiement_habituel === 'mobile_money' ? '📱 Mobile' :
+                         s.mode_paiement_habituel === 'virement' ? '🏦 Virement' :
                          s.mode_paiement_habituel === 'credit' ? '📋 Crédit' : s.mode_paiement_habituel || '—'}
                       </TableCell>
                       <TableCell>{s.date_debut_collaboration ? new Date(s.date_debut_collaboration).toLocaleDateString('fr-FR') : '—'}</TableCell>
