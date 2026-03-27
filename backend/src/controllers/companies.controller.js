@@ -1,4 +1,11 @@
-const { Company, User, sequelize } = require('../models');
+const { Company, User, sequelize,
+  Ticket, Subscription, RestaurantOrder, RestaurantOrderItem,
+  Reservation, Receipt, CarWash, PressingOrder,
+  Purchase, PurchaseItem, Sale, StockMovement,
+  CustomerTab, TabItem, DepotClient, DepotSale, DepotSaleItem,
+  Expense, Payroll, CashRegister, CashShortage,
+  AccountingEntry, Event, Quote, Incident
+} = require('../models');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 
@@ -206,6 +213,92 @@ const deleteCompany = async (req, res) => {
 };
 
 /**
+ * DELETE /api/companies/:id/permanent
+ * Suppression définitive d'une entreprise et de tous ses utilisateurs
+ */
+const permanentDeleteCompany = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const company = await Company.findByPk(req.params.id);
+
+    if (!company) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
+    }
+
+    const companyName = company.name;
+    // Supprimer tous les utilisateurs de l'entreprise d'abord
+    await User.destroy({ where: { company_id: req.params.id }, transaction: t });
+    // Supprimer l'entreprise
+    await company.destroy({ transaction: t });
+    await t.commit();
+
+    res.json({ success: true, message: `Entreprise "${companyName}" et tous ses utilisateurs supprimés définitivement` });
+  } catch (error) {
+    await t.rollback();
+    console.error('Permanent delete company error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la suppression définitive' });
+  }
+};
+
+/**
+ * POST /api/companies/:id/reset-data
+ * Remet à zéro toutes les données transactionnelles d'une entreprise
+ * (tickets, ventes, commandes, réservations, etc.) — les utilisateurs et la config sont conservés
+ */
+const resetCompanyData = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const companyId = parseInt(req.params.id);
+    const company = await Company.findByPk(companyId);
+    if (!company) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
+    }
+
+    // Récupérer les IDs de tous les utilisateurs de cette entreprise
+    const users = await User.findAll({ where: { company_id: companyId }, attributes: ['id'] });
+    const userIds = users.map(u => u.id);
+
+    const byCompany = { where: { company_id: companyId }, transaction: t };
+    const byUser = userIds.length > 0
+      ? { where: { user_id: { [Op.in]: userIds } }, transaction: t }
+      : null;
+
+    // Supprimer d'abord les sous-éléments (respect des FK)
+    try { await RestaurantOrderItem.destroy({ where: { order_id: { [Op.in]: (await RestaurantOrder.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(o => o.id) } }, transaction: t }); } catch (_) {}
+    try { await PurchaseItem.destroy({ where: { purchase_id: { [Op.in]: (await Purchase.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(p => p.id) } }, transaction: t }); } catch (_) {}
+    try { await DepotSaleItem.destroy({ where: { sale_id: { [Op.in]: (await DepotSale.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(d => d.id) } }, transaction: t }); } catch (_) {}
+    try { await TabItem.destroy({ where: { tab_id: { [Op.in]: (await CustomerTab.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(tb => tb.id) } }, transaction: t }); } catch (_) {}
+
+    // Supprimer les enregistrements par company_id
+    const modelsCompany = [
+      RestaurantOrder, Purchase, DepotSale, DepotClient, CustomerTab,
+      CarWash, PressingOrder, Receipt, Expense, Payroll,
+      CashRegister, CashShortage, AccountingEntry, Event, Quote, Incident, StockMovement
+    ];
+    for (const model of modelsCompany) {
+      try { await model.destroy(byCompany); } catch (_) {}
+    }
+
+    // Supprimer les enregistrements par user_id
+    if (byUser) {
+      const modelsUser = [Ticket, Subscription, Sale, Reservation];
+      for (const model of modelsUser) {
+        try { await model.destroy(byUser); } catch (_) {}
+      }
+    }
+
+    await t.commit();
+    res.json({ success: true, message: `Données de "${company.name}" réinitialisées — compteur remis à zéro` });
+  } catch (error) {
+    await t.rollback();
+    console.error('Reset company data error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la réinitialisation des données' });
+  }
+};
+
+/**
  * GET /api/companies/:id/stats
  * Statistiques d'une entreprise (super_admin)
  */
@@ -325,6 +418,8 @@ module.exports = {
   getCompany,
   updateCompany,
   deleteCompany,
+  permanentDeleteCompany,
+  resetCompanyData,
   getCompanyStats,
   bulkCreateUsers
 };
