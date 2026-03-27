@@ -342,7 +342,6 @@ const Superette: React.FC = () => {
     return result;
   };
   const groupedCaisseProducts = buildGroupedByCategory(caisseProducts);
-  const lowStockCount = (stats?.low_stock_alerts || 0);
 
   return (
     <Layout>
