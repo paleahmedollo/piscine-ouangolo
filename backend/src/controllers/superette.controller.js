@@ -130,32 +130,13 @@ const createSale = async (req, res) => {
       await StockMovement.create({
         product_id: item.product.id, type: 'OUT', quantity: item.quantity,
         unit_price: item.product.sell_price,
-        reason: payment_method === 'en_attente' ? 'Vente superette (ticket caisse)' : 'Vente superette',
+        reason: 'Vente superette',
         reference_type: 'sale',
         user_id: req.user?.id
       });
     }
 
-    // Si paiement en attente → créer un ticket Sale pour la caisse (status: ouvert)
-    if (payment_method === 'en_attente') {
-      const saleRecord = await Sale.create({
-        user_id: req.user.id,
-        items_json: saleItems,
-        subtotal: totalAmount,
-        tax: 0,
-        total: totalAmount,
-        payment_method: 'en_attente',
-        status: 'ouvert',
-        module: 'superette',
-        company_id: req.user.company_id
-      });
-      return res.json({
-        success: true,
-        message: `Ticket ouvert — en attente encaissement (${totalAmount.toLocaleString()} FCFA)`,
-        data: saleRecord
-      });
-    }
-
+    // Supérette : toujours paiement direct (status: ferme), jamais de ticket ouvert vers la Caisse
     // Paiement direct (especes / mobile_money / carte) → Sale fermé + écriture comptable
     const operatorLabel = payment_operator ? payment_operator.toUpperCase() : null;
     const saleRecord = await Sale.create({
@@ -164,7 +145,7 @@ const createSale = async (req, res) => {
       subtotal: totalAmount,
       tax: 0,
       total: totalAmount,
-      payment_method: payment_method || 'especes',
+      payment_method: (payment_method && payment_method !== 'en_attente') ? payment_method : 'especes',
       payment_operator: payment_operator || null,
       payment_reference: payment_reference || null,
       status: 'ferme',

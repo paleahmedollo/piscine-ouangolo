@@ -99,7 +99,7 @@ const statusLabels: Record<string, string> = {
 };
 
 // Modules qui ont un système de tickets en attente
-const TICKETED_MODULES: string[] = ['restaurant', 'lavage', 'pressing', 'maquis', 'superette', 'depot'];
+const TICKETED_MODULES: string[] = ['restaurant', 'lavage', 'pressing', 'maquis', 'depot'];
 
 const Caisse: React.FC = () => {
   const { hasPermission, user, canAccessModule } = useAuth();

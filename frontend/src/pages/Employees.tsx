@@ -177,6 +177,21 @@ const Employees: React.FC = () => {
   const [acctEntries, setAcctEntries] = useState<AccountingEntry[]>([]);
   const [acctFilter,  setAcctFilter]  = useState<string>('all');
   const [acctLoading, setAcctLoading] = useState(false);
+
+  // ── Trésorerie ───────────────────────────────────────────────
+  interface Treasury {
+    recettes_jour: number;
+    depenses_jour: number;
+    benefice_jour: number;
+    recettes_mois: number;
+    depenses_mois: number;
+    solde_global: number;
+    ventes_superette_jour: number;
+    achats_superette_jour: number;
+    benefice_superette_jour: number;
+  }
+  const [treasury, setTreasury] = useState<Treasury | null>(null);
+  const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -305,8 +320,24 @@ const Employees: React.FC = () => {
     setAcctLoading(false);
   };
 
+  const loadTreasury = async () => {
+    setTreasuryLoading(true);
+    try {
+      const res = await accountingApi.getTreasury();
+      setTreasury(res.data?.data || null);
+    } catch { /* silencieux */ }
+    setTreasuryLoading(false);
+  };
+
   useEffect(() => {
-    if (tabValue === 3 || tabValue === 4) loadAccounting(acctMonth, acctYear);
+    if (tabValue === 3 || tabValue === 4) {
+      loadAccounting(acctMonth, acctYear);
+    }
+    if (tabValue === 3) {
+      loadTreasury();
+      const interval = setInterval(loadTreasury, 60000);
+      return () => clearInterval(interval);
+    }
   }, [tabValue, acctMonth, acctYear]);
 
   // Employee handlers
@@ -925,6 +956,85 @@ ${payroll.notes ? `<div class="section">
                     ))}
                   </TextField>
                 </Box>
+              </Box>
+
+              {/* Trésorerie & Performance */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <TrendingUpIcon fontSize="small" color="primary" /> Trésorerie & Performance (Aujourd'hui)
+                </Typography>
+                {treasuryLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>
+                ) : treasury ? (
+                  <Grid container spacing={1.5}>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: `4px solid ${treasury.solde_global >= 0 ? '#4caf50' : '#f44336'}` }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Solde global</Typography>
+                          <Typography variant="h6" fontWeight={700} color={treasury.solde_global >= 0 ? 'success.main' : 'error.main'}>
+                            {formatCurrency(treasury.solde_global)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #4caf50' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Recettes du jour</Typography>
+                          <Typography variant="h6" fontWeight={700} color="success.main">{formatCurrency(treasury.recettes_jour)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #f44336' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Dépenses du jour</Typography>
+                          <Typography variant="h6" fontWeight={700} color="error.main">{formatCurrency(treasury.depenses_jour)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: `4px solid ${treasury.benefice_jour >= 0 ? '#2196f3' : '#f44336'}` }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Bénéfice du jour</Typography>
+                          <Typography variant="h6" fontWeight={700} color={treasury.benefice_jour >= 0 ? 'primary.main' : 'error.main'}>
+                            {formatCurrency(treasury.benefice_jour)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #ff9800' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Recettes du mois</Typography>
+                          <Typography variant="h6" fontWeight={700} color="#f57c00">{formatCurrency(treasury.recettes_mois)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #9c27b0' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Ventes Supérette (jour)</Typography>
+                          <Typography variant="h6" fontWeight={700} color="#7b1fa2">{formatCurrency(treasury.ventes_superette_jour)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    {treasury.benefice_superette_jour !== undefined && (
+                      <Grid item xs={6} sm={4} md>
+                        <Card sx={{ borderLeft: `4px solid ${treasury.benefice_superette_jour >= 0 ? '#009688' : '#f44336'}` }}>
+                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <Typography variant="caption" color="text.secondary">Bénéfice Supérette (jour)</Typography>
+                            <Typography variant="h6" fontWeight={700} color={treasury.benefice_superette_jour >= 0 ? '#00695c' : 'error.main'}>
+                              {formatCurrency(treasury.benefice_superette_jour)}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    )}
+                  </Grid>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">Données de trésorerie indisponibles</Typography>
+                )}
               </Box>
 
               {acctLoading ? (

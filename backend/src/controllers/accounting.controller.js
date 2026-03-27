@@ -143,4 +143,95 @@ const getAnnualReport = async (req, res) => {
   }
 };
 
-module.exports = { getReport, getEntries, getAccounts, getAnnualReport };
+// ─── Trésorerie globale & bénéfices ──────────────────────────────────────────
+const getTreasury = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const sumByType = (rows, types) => {
+      const arr = Array.isArray(rows) ? rows : [];
+      return arr
+        .filter(r => types.includes(r.entry_type))
+        .reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
+    };
+
+    // Recettes et dépenses du jour (type: vente vs achat+charge+salaire)
+    const dayRows = await sequelize.query(
+      `SELECT entry_type, COALESCE(SUM(amount), 0) as total
+       FROM accounting_entries
+       WHERE company_id = :company_id AND DATE(entry_date) = CURDATE()
+       GROUP BY entry_type`,
+      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
+    );
+
+    // Recettes et dépenses du mois
+    const monthRows = await sequelize.query(
+      `SELECT entry_type, COALESCE(SUM(amount), 0) as total
+       FROM accounting_entries
+       WHERE company_id = :company_id AND MONTH(entry_date) = :month AND YEAR(entry_date) = :year
+       GROUP BY entry_type`,
+      { replacements: { company_id, month, year }, type: sequelize.QueryTypes.SELECT }
+    );
+
+    // Solde global (depuis toujours)
+    const globalRows = await sequelize.query(
+      `SELECT entry_type, COALESCE(SUM(amount), 0) as total
+       FROM accounting_entries
+       WHERE company_id = :company_id
+       GROUP BY entry_type`,
+      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
+    );
+
+    // Ventes supérette du jour
+    const superetteDayRows = await sequelize.query(
+      `SELECT COALESCE(SUM(total), 0) as total
+       FROM sales
+       WHERE company_id = :company_id AND module = 'superette' AND status = 'ferme' AND DATE(created_at) = CURDATE()`,
+      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
+    );
+
+    const recettes_jour = sumByType(dayRows, ['vente']);
+    const depenses_jour = sumByType(dayRows, ['achat', 'charge', 'salaire']);
+    const recettes_mois = sumByType(monthRows, ['vente']);
+    const depenses_mois = sumByType(monthRows, ['achat', 'charge', 'salaire']);
+    const recettes_global = sumByType(globalRows, ['vente']);
+    const depenses_global = sumByType(globalRows, ['achat', 'charge', 'salaire']);
+    const solde_global = recettes_global - depenses_global;
+    const benefice_jour = recettes_jour - depenses_jour;
+
+    const ventes_superette_jour = parseFloat(superetteDayRows[0]?.total || '0') || 0;
+
+    // Achats superette du jour (entrées comptables type 'achat' source_module superette)
+    const superetteAchatRows = await sequelize.query(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM accounting_entries
+       WHERE company_id = :company_id AND entry_type = 'achat' AND source_module = 'superette' AND DATE(entry_date) = CURDATE()`,
+      { replacements: { company_id }, type: sequelize.QueryTypes.SELECT }
+    );
+    const achats_superette_jour = parseFloat(superetteAchatRows[0]?.total || '0') || 0;
+    const benefice_superette_jour = ventes_superette_jour - achats_superette_jour;
+
+    res.json({
+      success: true,
+      data: {
+        recettes_jour,
+        depenses_jour,
+        benefice_jour,
+        recettes_mois,
+        depenses_mois,
+        solde_global,
+        ventes_superette_jour,
+        achats_superette_jour,
+        benefice_superette_jour
+      }
+    });
+  } catch (err) {
+    console.error('getTreasury error:', err);
+    res.status(500).json({ success: false, message: 'Erreur trésorerie' });
+  }
+};
+
+module.exports = { getReport, getEntries, getAccounts, getAnnualReport, getTreasury };

@@ -11,7 +11,8 @@ const {
   permanentDeleteCompany,
   resetCompanyData,
   getCompanyStats,
-  bulkCreateUsers
+  bulkCreateUsers,
+  resetCompanyStock
 } = require('../controllers/companies.controller');
 
 // Upload en mémoire (pas de fichier sur disque)
@@ -45,5 +46,6 @@ router.delete('/:id/permanent', permanentDeleteCompany);
 router.post('/:id/reset-data', resetCompanyData);
 router.get('/:id/stats', getCompanyStats);
 router.post('/:id/bulk-users', upload.single('file'), bulkCreateUsers);
+router.post('/:id/reset-stock', resetCompanyStock);
 
 module.exports = router;

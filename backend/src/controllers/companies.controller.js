@@ -412,6 +412,38 @@ const bulkCreateUsers = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/companies/:id/reset-stock
+ * Réinitialise le stock à 0 pour tous les produits liés aux users de la company
+ */
+const resetCompanyStock = async (req, res) => {
+  try {
+    const companyId = parseInt(req.params.id);
+    const company = await Company.findByPk(companyId);
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
+    }
+
+    // Réinitialise via stock_movements: produits utilisés par les users de cette company
+    const [result] = await sequelize.query(
+      `UPDATE products SET current_stock = 0 WHERE id IN (
+        SELECT DISTINCT sm.product_id FROM stock_movements sm
+        INNER JOIN users u ON u.id = sm.user_id WHERE u.company_id = :companyId
+      )`,
+      { replacements: { companyId }, type: sequelize.QueryTypes.UPDATE }
+    );
+
+    res.json({
+      success: true,
+      message: `Stock réinitialisé à zéro pour l'entreprise "${company.name}"`,
+      data: { affected: result }
+    });
+  } catch (error) {
+    console.error('Reset stock error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la réinitialisation du stock' });
+  }
+};
+
 module.exports = {
   getCompanies,
   createCompany,
@@ -421,5 +453,6 @@ module.exports = {
   permanentDeleteCompany,
   resetCompanyData,
   getCompanyStats,
-  bulkCreateUsers
+  bulkCreateUsers,
+  resetCompanyStock
 };
