@@ -465,9 +465,6 @@ const Companies: React.FC = () => {
                     ? <Chip icon={<ActiveIcon />}   label="Active"   size="small" color="success" />
                     : <Chip icon={<InactiveIcon />} label="Inactive" size="small" color="error"   />}
                 </TableCell>
-                <TableCell>
-                  <Typography variant="caption">{new Date(company.created_at).toLocaleDateString('fr-FR')}</Typography>
-                </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Voir les détails">
                     <IconButton size="small" color="info" onClick={() => { setDetailsCompany(company); setOpenDetails(true); }}>

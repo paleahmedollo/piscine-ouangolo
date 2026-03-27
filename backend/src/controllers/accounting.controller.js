@@ -143,4 +143,85 @@ const getAnnualReport = async (req, res) => {
   }
 };
 
-module.exports = { getReport, getEntries, getAccounts, getAnnualReport };
+// ─── Trésorerie globale ───────────────────────────────────────────────────────
+const getTreasury = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+
+    // Cumul de toutes les écritures (depuis l'origine)
+    const allTime = await AccountingEntry.findAll({
+      where: { company_id },
+      attributes: [
+        'entry_type',
+        [sequelize.fn('SUM', sequelize.col('amount')), 'total']
+      ],
+      group: ['entry_type'],
+      raw: true
+    });
+
+    const totals = { vente: 0, achat: 0, charge: 0, salaire: 0 };
+    allTime.forEach(r => { totals[r.entry_type] = parseFloat(r.total) || 0; });
+
+    const totalEntrees  = totals.vente;
+    const totalSorties  = totals.achat + totals.charge + totals.salaire;
+    const solde         = totalEntrees - totalSorties;
+
+    // Données du mois en cours pour comparaison
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const startDate = `${y}-${String(m).padStart(2,'0')}-01`;
+    const endDate   = new Date(y, m, 0).toISOString().split('T')[0];
+
+    const monthRows = await AccountingEntry.findAll({
+      where: { company_id, entry_date: { [Op.between]: [startDate, endDate] } },
+      attributes: [
+        'entry_type',
+        [sequelize.fn('SUM', sequelize.col('amount')), 'total']
+      ],
+      group: ['entry_type'],
+      raw: true
+    });
+    const monthTotals = { vente: 0, achat: 0, charge: 0, salaire: 0 };
+    monthRows.forEach(r => { monthTotals[r.entry_type] = parseFloat(r.total) || 0; });
+
+    // Dernières écritures pour historique
+    const recentEntries = await AccountingEntry.findAll({
+      where: { company_id },
+      order: [['entry_date', 'DESC'], ['id', 'DESC']],
+      limit: 10,
+      raw: true
+    });
+
+    res.json({
+      success: true,
+      data: {
+        global: {
+          total_entrees:  totalEntrees,
+          total_sorties:  totalSorties,
+          solde,
+          detail: {
+            ventes:   totals.vente,
+            achats:   totals.achat,
+            charges:  totals.charge,
+            salaires: totals.salaire
+          }
+        },
+        this_month: {
+          period: { month: m, year: y, start: startDate, end: endDate },
+          ventes:   monthTotals.vente,
+          achats:   monthTotals.achat,
+          charges:  monthTotals.charge,
+          salaires: monthTotals.salaire,
+          benefice: monthTotals.vente - (monthTotals.achat + monthTotals.charge + monthTotals.salaire)
+        },
+        recent_entries: recentEntries
+      }
+    });
+  } catch (err) {
+    console.error('getTreasury error:', err);
+    res.status(500).json({ success: false, message: 'Erreur trésorerie' });
+  }
+};
+
+module.exports = { getReport, getEntries, getAccounts, getAnnualReport, getTreasury };

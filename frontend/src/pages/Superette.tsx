@@ -11,7 +11,7 @@ import {
   Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon,
   LocalShipping as SupplyIcon, Receipt as ReceiptIcon, Print as PrintIcon,
   Remove as RemoveIcon, AddCircle as AddCircleIcon, Search as SearchIcon,
-  Tune as AdjustIcon, CheckCircle as PaidIcon
+  Tune as AdjustIcon, CheckCircle as PaidIcon, Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import Layout from '../components/layout/Layout';
 import { superetteApi, tabsApi } from '../services/api';
@@ -324,21 +324,23 @@ const Superette: React.FC = () => {
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
 
-  // Grouper par première lettre pour les séparateurs alphabétiques
-  const buildGroupedProducts = (prods: Product[]) => {
-    const result: Array<{ type: 'letter'; letter: string } | { type: 'product'; product: Product }> = [];
-    let lastLetter = '';
+  // Grouper par catégorie pour la caisse (produits en stock uniquement)
+  const caisseProducts = filteredProducts.filter(p => p.current_stock > 0);
+  const buildGroupedByCategory = (prods: Product[]) => {
+    const byCat = new Map<string, Product[]>();
     prods.forEach(p => {
-      const letter = p.name.charAt(0).toUpperCase();
-      if (letter !== lastLetter) {
-        result.push({ type: 'letter', letter });
-        lastLetter = letter;
-      }
-      result.push({ type: 'product', product: p });
+      if (!byCat.has(p.category)) byCat.set(p.category, []);
+      byCat.get(p.category)!.push(p);
+    });
+    const result: Array<{ type: 'category'; category: string } | { type: 'product'; product: Product }> = [];
+    byCat.forEach((catProds, cat) => {
+      result.push({ type: 'category', category: cat });
+      catProds.forEach(p => result.push({ type: 'product', product: p }));
     });
     return result;
   };
-  const groupedProducts = buildGroupedProducts(filteredProducts);
+  const groupedCaisseProducts = buildGroupedByCategory(caisseProducts);
+  const lowStockCount = (stats?.low_stock_alerts || 0);
 
   return (
     <Layout>
@@ -352,9 +354,20 @@ const Superette: React.FC = () => {
             </Typography>
             <Typography variant="body2" color="text.secondary">Gestion caisse, stock, produits et approvisionnements</Typography>
           </Box>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll} disabled={loading}>
-            {loading ? <CircularProgress size={16} /> : 'Actualiser'}
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {lowStockCount > 0 && (
+              <Tooltip title={`${lowStockCount} produit(s) en rupture ou stock bas`}>
+                <Badge badgeContent={lowStockCount} color="error">
+                  <IconButton color="warning" onClick={() => setActiveTab(1)}>
+                    <NotificationsIcon />
+                  </IconButton>
+                </Badge>
+              </Tooltip>
+            )}
+            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll} disabled={loading}>
+              {loading ? <CircularProgress size={16} /> : 'Actualiser'}
+            </Button>
+          </Box>
         </Box>
 
         {/* Stats */}
@@ -401,22 +414,14 @@ const Superette: React.FC = () => {
                 </Select>
               </Stack>
               <Grid container spacing={1}>
-                {groupedProducts.map((item, idx) => {
-                  if (item.type === 'letter') {
+                {groupedCaisseProducts.map((item, idx) => {
+                  if (item.type === 'category') {
                     return (
-                      <Grid item xs={12} key={`letter-${item.letter}-${idx}`}>
-                        <Box sx={{
-                          display: 'flex', alignItems: 'center', gap: 1, my: 0.5
-                        }}>
-                          <Box sx={{
-                            bgcolor: '#1565c0', color: 'white', borderRadius: '50%',
-                            width: 28, height: 28, display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem',
-                            flexShrink: 0
-                          }}>
-                            {item.letter}
-                          </Box>
-                          <Box sx={{ flex: 1, height: '1px', bgcolor: '#1565c0', opacity: 0.3 }} />
+                      <Grid item xs={12} key={`cat-${item.category}-${idx}`}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 0.5 }}>
+                          <Chip label={item.category} size="small" color="primary" variant="filled"
+                            sx={{ fontWeight: 700, fontSize: '0.75rem' }} />
+                          <Box sx={{ flex: 1, height: '1px', bgcolor: 'primary.main', opacity: 0.2 }} />
                         </Box>
                       </Grid>
                     );
@@ -425,23 +430,24 @@ const Superette: React.FC = () => {
                   return (
                     <Grid item xs={6} sm={4} md={3} key={p.id}>
                       <Card variant="outlined"
-                        sx={{ cursor: p.current_stock > 0 ? 'pointer' : 'not-allowed', opacity: p.current_stock <= 0 ? 0.5 : 1, '&:hover': p.current_stock > 0 ? { borderColor: 'primary.main', bgcolor: '#e3f2fd' } : {} }}
-                        onClick={() => p.current_stock > 0 && addToCart(p)}>
+                        sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main', bgcolor: '#e3f2fd' } }}
+                        onClick={() => addToCart(p)}>
                         <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, textAlign: 'center' }}>
-                          <SuperetteIcon color={p.current_stock <= 0 ? 'disabled' : 'primary'} />
+                          <SuperetteIcon color="primary" />
                           <Typography variant="body2" fontWeight={600} noWrap title={p.name}>{p.name}</Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap>{p.category}</Typography>
                           <Typography fontWeight={700} color="primary">{fmt(p.sell_price)}</Typography>
                           <Chip label={`${p.current_stock} ${p.unit}`} size="small"
-                            color={p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'success'}
+                            color={p.current_stock <= p.min_stock ? 'warning' : 'success'}
                             sx={{ mt: 0.5, fontSize: '0.65rem' }} />
                         </CardContent>
                       </Card>
                     </Grid>
                   );
                 })}
-                {filteredProducts.length === 0 && (
-                  <Grid item xs={12}><Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>Aucun produit trouvé</Paper></Grid>
+                {caisseProducts.length === 0 && (
+                  <Grid item xs={12}><Paper sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                    {filteredProducts.length > 0 ? 'Tous les produits filtrés sont en rupture de stock' : 'Aucun produit en stock'}
+                  </Paper></Grid>
                 )}
               </Grid>
             </Grid>
@@ -512,7 +518,7 @@ const Superette: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {products.map(p => {
+                  {[...products].sort((a, b) => a.category.localeCompare(b.category, 'fr') || a.name.localeCompare(b.name, 'fr')).map(p => {
                     const pct = p.min_stock > 0 ? Math.min(100, (p.current_stock / p.min_stock) * 100) : 100;
                     const color: 'error' | 'warning' | 'success' = p.current_stock <= 0 ? 'error' : p.current_stock <= p.min_stock ? 'warning' : 'success';
                     return (
@@ -627,7 +633,7 @@ const Superette: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {products.map(p => (
+                  {[...products].sort((a, b) => a.category.localeCompare(b.category, 'fr') || a.name.localeCompare(b.name, 'fr')).map(p => (
                     <TableRow key={p.id} hover sx={{ bgcolor: p.current_stock <= p.min_stock ? '#fff8e1' : 'inherit' }}>
                       <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
                       <TableCell><Chip label={p.category} size="small" /></TableCell>
@@ -867,7 +873,6 @@ const Superette: React.FC = () => {
                     <MenuItem value="especes">💵 Espèces</MenuItem>
                     <MenuItem value="credit">📋 Crédit / Créance</MenuItem>
                     <MenuItem value="mobile_money">📱 Mobile Money</MenuItem>
-                    <MenuItem value="virement">🏦 Virement</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -1028,7 +1033,6 @@ const Superette: React.FC = () => {
                     onChange={e => setSupplierForm(f => ({ ...f, mode_paiement_habituel: e.target.value }))}>
                     <MenuItem value="especes">💵 Espèces</MenuItem>
                     <MenuItem value="mobile_money">📱 Mobile Money</MenuItem>
-                    <MenuItem value="virement">🏦 Virement bancaire</MenuItem>
                     <MenuItem value="credit">📋 Crédit / Créance</MenuItem>
                   </Select>
                 </FormControl>

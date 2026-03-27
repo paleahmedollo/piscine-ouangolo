@@ -695,5 +695,6 @@ export const accountingApi = {
     api.get('/accounting/entries', { params }),
   getAccounts: () => api.get('/accounting/accounts'),
   getAnnualReport: (year: number) =>
-    api.get('/accounting/annual', { params: { year } })
+    api.get('/accounting/annual', { params: { year } }),
+  getTreasury: () => api.get('/accounting/treasury')
 };
