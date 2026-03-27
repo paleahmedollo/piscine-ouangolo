@@ -322,6 +322,11 @@ const Employees: React.FC = () => {
 
   useEffect(() => {
     if (tabValue === 3 || tabValue === 4) loadAccounting(acctMonth, acctYear);
+    if (tabValue === 3) {
+      loadTreasury();
+      const interval = setInterval(loadTreasury, 60000);
+      return () => clearInterval(interval);
+    }
     if (tabValue === 5) loadTreasury();
   }, [tabValue, acctMonth, acctYear]);
 
@@ -942,6 +947,73 @@ ${payroll.notes ? `<div class="section">
                     ))}
                   </TextField>
                 </Box>
+              </Box>
+
+              {/* Trésorerie & Performance — temps réel */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <TrendingUpIcon fontSize="small" color="primary" /> Trésorerie & Performance (Temps réel)
+                </Typography>
+                {treasuryLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>
+                ) : treasury ? (
+                  <Grid container spacing={1.5}>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: `4px solid ${treasury.global.solde >= 0 ? '#4caf50' : '#f44336'}` }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Solde global</Typography>
+                          <Typography variant="h6" fontWeight={700} color={treasury.global.solde >= 0 ? 'success.main' : 'error.main'}>
+                            {formatCurrency(treasury.global.solde)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #4caf50' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Ventes totales</Typography>
+                          <Typography variant="h6" fontWeight={700} color="success.main">{formatCurrency(treasury.global.detail.ventes)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #f44336' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Achats totaux</Typography>
+                          <Typography variant="h6" fontWeight={700} color="error.main">{formatCurrency(treasury.global.detail.achats)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: `4px solid ${treasury.this_month.benefice >= 0 ? '#2196f3' : '#f44336'}` }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Bénéfice ce mois</Typography>
+                          <Typography variant="h6" fontWeight={700} color={treasury.this_month.benefice >= 0 ? 'primary.main' : 'error.main'}>
+                            {formatCurrency(treasury.this_month.benefice)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #ff9800' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Recettes ce mois</Typography>
+                          <Typography variant="h6" fontWeight={700} color="#f57c00">{formatCurrency(treasury.this_month.ventes)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md>
+                      <Card sx={{ borderLeft: '4px solid #9c27b0' }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Typography variant="caption" color="text.secondary">Charges ce mois</Typography>
+                          <Typography variant="h6" fontWeight={700} color="#7b1fa2">{formatCurrency(treasury.this_month.charges + treasury.this_month.salaires)}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">Données de trésorerie indisponibles</Typography>
+                )}
               </Box>
 
               {acctLoading ? (

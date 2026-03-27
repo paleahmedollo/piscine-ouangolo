@@ -4,7 +4,8 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
   Select, FormControl, InputLabel, Alert, IconButton, Tooltip, Badge,
-  Divider, Stack, CircularProgress, LinearProgress, InputAdornment, Autocomplete
+  Divider, Stack, CircularProgress, LinearProgress, InputAdornment, Autocomplete,
+  Popover
 } from '@mui/material';
 import {
   Add as AddIcon, StoreMallDirectory as SuperetteIcon, Refresh as RefreshIcon,
@@ -142,6 +143,7 @@ const Superette: React.FC = () => {
     tab_id: ''
   });
   const [adjustForm, setAdjustForm] = useState({ new_quantity: '', reason: 'Ajustement inventaire' });
+  const [alertAnchorEl, setAlertAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const showAlert = (type: 'success' | 'error', msg: string) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
 
@@ -355,20 +357,59 @@ const Superette: React.FC = () => {
             <Typography variant="body2" color="text.secondary">Gestion caisse, stock, produits et approvisionnements</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {lowStockCount > 0 && (
-              <Tooltip title={`${lowStockCount} produit(s) en rupture ou stock bas`}>
-                <Badge badgeContent={lowStockCount} color="error">
-                  <IconButton color="warning" onClick={() => setActiveTab(1)}>
-                    <NotificationsIcon />
-                  </IconButton>
+            <Tooltip title="Alertes stock">
+              <IconButton
+                color={products.filter(p => p.current_stock <= 0).length > 0 ? 'error' : products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).length > 0 ? 'warning' : 'default'}
+                onClick={e => setAlertAnchorEl(e.currentTarget)}
+              >
+                <Badge badgeContent={products.filter(p => p.current_stock <= 0 || (p.current_stock > 0 && p.current_stock <= p.min_stock)).length} color="error">
+                  <NotificationsIcon />
                 </Badge>
-              </Tooltip>
-            )}
+              </IconButton>
+            </Tooltip>
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll} disabled={loading}>
               {loading ? <CircularProgress size={16} /> : 'Actualiser'}
             </Button>
           </Box>
         </Box>
+
+        {/* Popover alertes stock */}
+        <Popover
+          open={Boolean(alertAnchorEl)}
+          anchorEl={alertAnchorEl}
+          onClose={() => setAlertAnchorEl(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Box sx={{ p: 2, minWidth: 280, maxWidth: 360, maxHeight: 400, overflow: 'auto' }}>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Alertes Stock</Typography>
+            {products.filter(p => p.current_stock <= 0).length > 0 && (
+              <>
+                <Typography variant="caption" color="error.main" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>Rupture de stock</Typography>
+                {products.filter(p => p.current_stock <= 0).map(p => (
+                  <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, px: 0.5, bgcolor: '#ffebee', borderRadius: 0.5, mb: 0.3 }}>
+                    <Typography variant="body2">{p.name}</Typography>
+                    <Chip label="0" size="small" color="error" sx={{ fontSize: '0.65rem', height: 18 }} />
+                  </Box>
+                ))}
+              </>
+            )}
+            {products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).length > 0 && (
+              <>
+                <Typography variant="caption" color="warning.main" fontWeight={700} sx={{ display: 'block', mb: 0.5, mt: 1 }}>Stock bas</Typography>
+                {products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).map(p => (
+                  <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, px: 0.5, bgcolor: '#fff8e1', borderRadius: 0.5, mb: 0.3 }}>
+                    <Typography variant="body2">{p.name}</Typography>
+                    <Chip label={`${p.current_stock} ${p.unit}`} size="small" color="warning" sx={{ fontSize: '0.65rem', height: 18 }} />
+                  </Box>
+                ))}
+              </>
+            )}
+            {products.filter(p => p.current_stock <= 0 || (p.current_stock > 0 && p.current_stock <= p.min_stock)).length === 0 && (
+              <Typography variant="body2" color="text.secondary">Aucune alerte stock</Typography>
+            )}
+          </Box>
+        </Popover>
 
         {/* Stats */}
         {stats && (
