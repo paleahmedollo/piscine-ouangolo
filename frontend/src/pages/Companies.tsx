@@ -996,7 +996,8 @@ const Companies: React.FC = () => {
       {/* ══════════════════════════════════════════════
           Dialog — Réinitialiser modules
       ══════════════════════════════════════════════ */}
-      <Dialog open={openResetMod} onClose={() => setOpenResetMod(false)} maxWidth="xs" fullWidth>
+      <Dialog open={openResetMod} onClose={() => setOpenResetMod(false)} maxWidth="xs" fullWidth
+        slotProps={{ backdrop: { sx: { backgroundColor: 'rgba(0,0,0,0.7)' } } }}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <ResetModulesIcon sx={{ color: 'warning.main' }} />
           Réinitialiser les modules
@@ -1023,7 +1024,8 @@ const Companies: React.FC = () => {
       {/* ══════════════════════════════════════════════
           Dialog — Réinitialiser données (compteur à 0)
       ══════════════════════════════════════════════ */}
-      <Dialog open={openResetData} onClose={() => setOpenResetData(false)} maxWidth="xs" fullWidth>
+      <Dialog open={openResetData} onClose={() => setOpenResetData(false)} maxWidth="xs" fullWidth
+        slotProps={{ backdrop: { sx: { backgroundColor: 'rgba(0,0,0,0.7)' } } }}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <ResetDataIcon sx={{ color: 'orange' }} />
           Réinitialisation des données
@@ -1053,7 +1055,8 @@ const Companies: React.FC = () => {
       {/* ══════════════════════════════════════════════
           Dialog — Suppression définitive
       ══════════════════════════════════════════════ */}
-      <Dialog open={openPermDel} onClose={() => setOpenPermDel(false)} maxWidth="xs" fullWidth>
+      <Dialog open={openPermDel} onClose={() => setOpenPermDel(false)} maxWidth="xs" fullWidth
+        slotProps={{ backdrop: { sx: { backgroundColor: 'rgba(0,0,0,0.7)' } } }}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <DeleteForeverIcon color="error" />
           Suppression définitive

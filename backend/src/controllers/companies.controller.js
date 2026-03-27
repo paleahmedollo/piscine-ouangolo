@@ -247,12 +247,10 @@ const permanentDeleteCompany = async (req, res) => {
  * (tickets, ventes, commandes, réservations, etc.) — les utilisateurs et la config sont conservés
  */
 const resetCompanyData = async (req, res) => {
-  const t = await sequelize.transaction();
   try {
     const companyId = parseInt(req.params.id);
     const company = await Company.findByPk(companyId);
     if (!company) {
-      await t.rollback();
       return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
     }
 
@@ -260,16 +258,31 @@ const resetCompanyData = async (req, res) => {
     const users = await User.findAll({ where: { company_id: companyId }, attributes: ['id'] });
     const userIds = users.map(u => u.id);
 
-    const byCompany = { where: { company_id: companyId }, transaction: t };
-    const byUser = userIds.length > 0
-      ? { where: { user_id: { [Op.in]: userIds } }, transaction: t }
-      : null;
+    // Supprimer d'abord les sous-éléments (respect des FK) — sans transaction unique
+    // (PostgreSQL: une erreur dans une transaction aborte toutes les opérations suivantes)
+    const restaurantOrders = await RestaurantOrder.findAll({ where: { company_id: companyId }, attributes: ['id'] });
+    if (restaurantOrders.length > 0) {
+      const orderIds = restaurantOrders.map(o => o.id);
+      try { await RestaurantOrderItem.destroy({ where: { order_id: { [Op.in]: orderIds } } }); } catch (_) {}
+    }
 
-    // Supprimer d'abord les sous-éléments (respect des FK)
-    try { await RestaurantOrderItem.destroy({ where: { order_id: { [Op.in]: (await RestaurantOrder.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(o => o.id) } }, transaction: t }); } catch (_) {}
-    try { await PurchaseItem.destroy({ where: { purchase_id: { [Op.in]: (await Purchase.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(p => p.id) } }, transaction: t }); } catch (_) {}
-    try { await DepotSaleItem.destroy({ where: { sale_id: { [Op.in]: (await DepotSale.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(d => d.id) } }, transaction: t }); } catch (_) {}
-    try { await TabItem.destroy({ where: { tab_id: { [Op.in]: (await CustomerTab.findAll({ where: { company_id: companyId }, attributes: ['id'] })).map(tb => tb.id) } }, transaction: t }); } catch (_) {}
+    const purchases = await Purchase.findAll({ where: { company_id: companyId }, attributes: ['id'] });
+    if (purchases.length > 0) {
+      const purchaseIds = purchases.map(p => p.id);
+      try { await PurchaseItem.destroy({ where: { purchase_id: { [Op.in]: purchaseIds } } }); } catch (_) {}
+    }
+
+    const depotSales = await DepotSale.findAll({ where: { company_id: companyId }, attributes: ['id'] });
+    if (depotSales.length > 0) {
+      const saleIds = depotSales.map(d => d.id);
+      try { await DepotSaleItem.destroy({ where: { sale_id: { [Op.in]: saleIds } } }); } catch (_) {}
+    }
+
+    const customerTabs = await CustomerTab.findAll({ where: { company_id: companyId }, attributes: ['id'] });
+    if (customerTabs.length > 0) {
+      const tabIds = customerTabs.map(tb => tb.id);
+      try { await TabItem.destroy({ where: { tab_id: { [Op.in]: tabIds } } }); } catch (_) {}
+    }
 
     // Supprimer les enregistrements par company_id
     const modelsCompany = [
@@ -278,21 +291,19 @@ const resetCompanyData = async (req, res) => {
       CashRegister, CashShortage, AccountingEntry, Event, Quote, Incident, StockMovement
     ];
     for (const model of modelsCompany) {
-      try { await model.destroy(byCompany); } catch (_) {}
+      try { await model.destroy({ where: { company_id: companyId } }); } catch (_) {}
     }
 
     // Supprimer les enregistrements par user_id
-    if (byUser) {
+    if (userIds.length > 0) {
       const modelsUser = [Ticket, Subscription, Sale, Reservation];
       for (const model of modelsUser) {
-        try { await model.destroy(byUser); } catch (_) {}
+        try { await model.destroy({ where: { user_id: { [Op.in]: userIds } } }); } catch (_) {}
       }
     }
 
-    await t.commit();
     res.json({ success: true, message: `Données de "${company.name}" réinitialisées — compteur remis à zéro` });
   } catch (error) {
-    await t.rollback();
     console.error('Reset company data error:', error);
     res.status(500).json({ success: false, message: 'Erreur lors de la réinitialisation des données' });
   }
