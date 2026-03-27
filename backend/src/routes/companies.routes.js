@@ -9,6 +9,7 @@ const {
   updateCompany,
   deleteCompany,
   permanentDeleteCompany,
+  resetCompanyData,
   getCompanyStats,
   bulkCreateUsers
 } = require('../controllers/companies.controller');
@@ -41,6 +42,7 @@ router.get('/:id', getCompany);
 router.put('/:id', updateCompany);
 router.delete('/:id', deleteCompany);
 router.delete('/:id/permanent', permanentDeleteCompany);
+router.post('/:id/reset-data', resetCompanyData);
 router.get('/:id/stats', getCompanyStats);
 router.post('/:id/bulk-users', upload.single('file'), bulkCreateUsers);
 

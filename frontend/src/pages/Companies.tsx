@@ -15,7 +15,9 @@ import {
   CheckCircleOutline as SuccessRowIcon, ErrorOutline as ErrorRowIcon,
   WarningAmber as SkipRowIcon, ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon, Tag as IdIcon,
-  Extension as ModuleIcon
+  Extension as ModuleIcon, Visibility as ViewIcon,
+  RestartAlt as ResetDataIcon, DeleteForever as DeleteForeverIcon,
+  LockReset as ResetModulesIcon
 } from '@mui/icons-material';
 import { companiesApi } from '../services/api';
 
@@ -118,6 +120,31 @@ const Companies: React.FC = () => {
   const [editCompany, setEditCompany]   = useState<Company | null>(null);
   const [editForm, setEditForm]         = useState<Partial<Company>>({});
   const [editModules, setEditModules]   = useState<string[]>(ALL_MODULE_KEYS);
+
+  /* Dialog Détails */
+  const [openDetails, setOpenDetails]       = useState(false);
+  const [detailsCompany, setDetailsCompany] = useState<Company | null>(null);
+
+  /* Dialog Réinitialiser modules */
+  const [openResetMod, setOpenResetMod]       = useState(false);
+  const [resetModCompany, setResetModCompany] = useState<Company | null>(null);
+  const [resetModPwd, setResetModPwd]         = useState('');
+  const [resetModError, setResetModError]     = useState('');
+  const [resetModLoading, setResetModLoading] = useState(false);
+
+  /* Dialog Réinitialiser données */
+  const [openResetData, setOpenResetData]       = useState(false);
+  const [resetDataCompany, setResetDataCompany] = useState<Company | null>(null);
+  const [resetDataPwd, setResetDataPwd]         = useState('');
+  const [resetDataError, setResetDataError]     = useState('');
+  const [resetDataLoading, setResetDataLoading] = useState(false);
+
+  /* Dialog Suppression définitive */
+  const [openPermDel, setOpenPermDel]       = useState(false);
+  const [permDelCompany, setPermDelCompany] = useState<Company | null>(null);
+  const [permDelPwd, setPermDelPwd]         = useState('');
+  const [permDelError, setPermDelError]     = useState('');
+  const [permDelLoading, setPermDelLoading] = useState(false);
 
   /* Dialog Bulk Upload */
   const [openBulk, setOpenBulk]             = useState(false);
@@ -248,6 +275,48 @@ const Companies: React.FC = () => {
     setFormError(''); setOpenEdit(true);
   };
 
+  /* ── Réinitialiser modules ── */
+  const handleResetModules = async () => {
+    if (resetModPwd !== 'Bonjour@2026#') { setResetModError('Mot de passe incorrect'); return; }
+    if (!resetModCompany) return;
+    setResetModLoading(true); setResetModError('');
+    try {
+      await companiesApi.updateCompany(resetModCompany.id, { modules: ALL_MODULE_KEYS });
+      setSuccess(`Modules de "${resetModCompany.name}" réinitialisés (tous actifs)`);
+      setOpenResetMod(false); setResetModCompany(null); setResetModPwd('');
+      loadCompanies();
+    } catch { setResetModError('Erreur lors de la réinitialisation'); }
+    finally { setResetModLoading(false); }
+  };
+
+  /* ── Réinitialiser données ── */
+  const handleResetData = async () => {
+    if (resetDataPwd !== 'Bonjour@2026#') { setResetDataError('Mot de passe incorrect'); return; }
+    if (!resetDataCompany) return;
+    setResetDataLoading(true); setResetDataError('');
+    try {
+      await companiesApi.resetCompanyData(resetDataCompany.id);
+      setSuccess(`Données de "${resetDataCompany.name}" réinitialisées — compteur à zéro`);
+      setOpenResetData(false); setResetDataCompany(null); setResetDataPwd('');
+      loadCompanies();
+    } catch { setResetDataError('Erreur lors de la réinitialisation des données'); }
+    finally { setResetDataLoading(false); }
+  };
+
+  /* ── Suppression définitive ── */
+  const handlePermDelete = async () => {
+    if (permDelPwd !== 'Bonjour@2026#') { setPermDelError('Mot de passe incorrect'); return; }
+    if (!permDelCompany) return;
+    setPermDelLoading(true); setPermDelError('');
+    try {
+      await companiesApi.permanentDeleteCompany(permDelCompany.id);
+      setSuccess(`Entreprise "${permDelCompany.name}" supprimée définitivement`);
+      setOpenPermDel(false); setPermDelCompany(null); setPermDelPwd('');
+      loadCompanies();
+    } catch { setPermDelError('Erreur lors de la suppression'); }
+    finally { setPermDelLoading(false); }
+  };
+
   /* ── Bulk Upload ── */
   const openBulkDialog = (companyId?: number) => {
     setBulkCompanyId(companyId ?? '');
@@ -321,41 +390,28 @@ const Companies: React.FC = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-              <TableCell><strong>ID</strong></TableCell>
               <TableCell><strong>Entreprise</strong></TableCell>
-              <TableCell><strong>Code</strong></TableCell>
               <TableCell><strong>Plan</strong></TableCell>
               <TableCell><strong>Modules</strong></TableCell>
               <TableCell><strong>Utilisateurs</strong></TableCell>
               <TableCell><strong>Statut</strong></TableCell>
-              <TableCell><strong>Créé le</strong></TableCell>
               <TableCell align="right"><strong>Actions</strong></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
             ) : companies.length === 0 ? (
-              <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+              <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                 <Typography color="text.secondary">Aucune entreprise</Typography>
               </TableCell></TableRow>
             ) : companies.map((company) => (
               <TableRow key={company.id} hover>
                 <TableCell>
-                  <Chip icon={<IdIcon />} label={`#${company.id}`} size="small" variant="outlined"
-                    sx={{ fontWeight: 'bold', fontFamily: 'monospace' }} />
-                </TableCell>
-                <TableCell>
                   <Typography variant="body2" fontWeight="bold">{company.name}</Typography>
-                  {company.manager_name && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>👤 {company.manager_name}</Typography>}
-                  {(company.locality || company.country) && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      📍 {[company.locality, company.country].filter(Boolean).join(', ')}
-                    </Typography>
-                  )}
-                  {company.phone && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>📞 {company.phone}</Typography>}
+                  <Typography variant="caption" color="text.secondary">#{company.id} · {company.code}</Typography>
+                  {company.locality && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>📍 {company.locality}</Typography>}
                 </TableCell>
-                <TableCell><Chip label={company.code} size="small" variant="outlined" /></TableCell>
                 <TableCell><Chip label={planLabel(company.plan)} size="small" color={planColor(company.plan)} /></TableCell>
                 <TableCell>
                   {/* Affichage des modules actifs */}
@@ -413,6 +469,11 @@ const Companies: React.FC = () => {
                   <Typography variant="caption">{new Date(company.created_at).toLocaleDateString('fr-FR')}</Typography>
                 </TableCell>
                 <TableCell align="right">
+                  <Tooltip title="Voir les détails">
+                    <IconButton size="small" color="info" onClick={() => { setDetailsCompany(company); setOpenDetails(true); }}>
+                      <ViewIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Importer des utilisateurs">
                     <IconButton size="small" color="primary" onClick={() => openBulkDialog(company.id)}>
                       <UploadIcon fontSize="small" />
@@ -425,6 +486,24 @@ const Companies: React.FC = () => {
                     <IconButton size="small" color={company.is_active ? 'error' : 'success'}
                       onClick={() => handleToggleActive(company)}>
                       {company.is_active ? <InactiveIcon fontSize="small" /> : <ActiveIcon fontSize="small" />}
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Réinitialiser modules (tous actifs)">
+                    <IconButton size="small" sx={{ color: 'warning.main' }}
+                      onClick={() => { setResetModCompany(company); setResetModPwd(''); setResetModError(''); setOpenResetMod(true); }}>
+                      <ResetModulesIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Réinitialiser données (compteur à zéro)">
+                    <IconButton size="small" sx={{ color: 'orange' }}
+                      onClick={() => { setResetDataCompany(company); setResetDataPwd(''); setResetDataError(''); setOpenResetData(true); }}>
+                      <ResetDataIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Suppression définitive">
+                    <IconButton size="small" sx={{ color: 'error.main' }}
+                      onClick={() => { setPermDelCompany(company); setPermDelPwd(''); setPermDelError(''); setOpenPermDel(true); }}>
+                      <DeleteForeverIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
@@ -859,6 +938,145 @@ const Companies: React.FC = () => {
             disabled={!bulkCompanyId || !bulkFile || bulkLoading}
             startIcon={bulkLoading ? <CircularProgress size={16} /> : <UploadIcon />}>
             Lancer l'import
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Détails entreprise
+      ══════════════════════════════════════════════ */}
+      <Dialog open={openDetails} onClose={() => setOpenDetails(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ViewIcon color="info" />
+          Détails de l'entreprise
+          {detailsCompany && <Chip label={`#${detailsCompany.id}`} size="small" sx={{ ml: 1, fontFamily: 'monospace' }} />}
+        </DialogTitle>
+        <DialogContent>
+          {detailsCompany && (
+            <Grid container spacing={1.5} sx={{ mt: 0 }}>
+              {[
+                { label: 'Nom',       value: detailsCompany.name },
+                { label: 'Code',      value: detailsCompany.code },
+                { label: 'Plan',      value: planLabel(detailsCompany.plan) },
+                { label: 'Fondateur', value: detailsCompany.manager_name || '—' },
+                { label: 'Ville',     value: detailsCompany.locality    || '—' },
+                { label: 'Pays',      value: detailsCompany.country     || '—' },
+                { label: 'Adresse',   value: detailsCompany.address     || '—' },
+                { label: 'Téléphone', value: detailsCompany.phone       || '—' },
+                { label: 'Email',     value: detailsCompany.email       || '—' },
+                { label: 'Utilisateurs actifs', value: String(detailsCompany.users_count ?? 0) },
+                { label: 'Créé le',   value: new Date(detailsCompany.created_at).toLocaleDateString('fr-FR') },
+                { label: 'Statut',    value: detailsCompany.is_active ? 'Active' : 'Inactive' },
+              ].map(({ label, value }) => (
+                <Grid item xs={6} key={label}>
+                  <Typography variant="caption" color="text.secondary">{label}</Typography>
+                  <Typography variant="body2" fontWeight="bold">{value}</Typography>
+                </Grid>
+              ))}
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">Modules activés</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                  {(() => {
+                    const mods = detailsCompany.modules === null || detailsCompany.modules === undefined
+                      ? ALL_MODULE_KEYS : detailsCompany.modules;
+                    return ALL_MODULES.map(m => (
+                      <Chip key={m.key} label={m.label} size="small"
+                        color={mods.includes(m.key) ? 'success' : 'default'}
+                        variant={mods.includes(m.key) ? 'filled' : 'outlined'}
+                        sx={{ opacity: mods.includes(m.key) ? 1 : 0.4 }} />
+                    ));
+                  })()}
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDetails(false)}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Réinitialiser modules
+      ══════════════════════════════════════════════ */}
+      <Dialog open={openResetMod} onClose={() => setOpenResetMod(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ResetModulesIcon sx={{ color: 'warning.main' }} />
+          Réinitialiser les modules
+        </DialogTitle>
+        <DialogContent>
+          {resetModError && <Alert severity="error" sx={{ mb: 2 }}>{resetModError}</Alert>}
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Tous les modules seront <strong>réactivés</strong> pour <strong>{resetModCompany?.name}</strong>.
+            L'entreprise aura accès à l'ensemble des fonctionnalités.
+          </Alert>
+          <TextField fullWidth label="Mot de passe de confirmation" type="password" size="small"
+            value={resetModPwd} onChange={(e) => setResetModPwd(e.target.value)}
+            placeholder="Bonjour@2026#" />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenResetMod(false)}>Annuler</Button>
+          <Button variant="contained" color="warning" onClick={handleResetModules}
+            disabled={resetModLoading} startIcon={resetModLoading ? <CircularProgress size={16} /> : <ResetModulesIcon />}>
+            Réinitialiser
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Réinitialiser données (compteur à 0)
+      ══════════════════════════════════════════════ */}
+      <Dialog open={openResetData} onClose={() => setOpenResetData(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ResetDataIcon sx={{ color: 'orange' }} />
+          Réinitialisation des données
+        </DialogTitle>
+        <DialogContent>
+          {resetDataError && <Alert severity="error" sx={{ mb: 2 }}>{resetDataError}</Alert>}
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography fontWeight="bold" sx={{ mb: 0.5 }}>⚠️ Action irréversible</Typography>
+            Toutes les données transactionnelles de <strong>{resetDataCompany?.name}</strong> seront
+            supprimées définitivement (tickets, ventes, commandes, réservations…).
+            Les utilisateurs et la configuration sont conservés.
+          </Alert>
+          <TextField fullWidth label="Mot de passe de confirmation" type="password" size="small"
+            value={resetDataPwd} onChange={(e) => setResetDataPwd(e.target.value)}
+            placeholder="Bonjour@2026#" />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenResetData(false)}>Annuler</Button>
+          <Button variant="contained" sx={{ backgroundColor: 'orange', '&:hover': { backgroundColor: '#e65100' } }}
+            onClick={handleResetData} disabled={resetDataLoading}
+            startIcon={resetDataLoading ? <CircularProgress size={16} /> : <ResetDataIcon />}>
+            Réinitialiser les données
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Suppression définitive
+      ══════════════════════════════════════════════ */}
+      <Dialog open={openPermDel} onClose={() => setOpenPermDel(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DeleteForeverIcon color="error" />
+          Suppression définitive
+        </DialogTitle>
+        <DialogContent>
+          {permDelError && <Alert severity="error" sx={{ mb: 2 }}>{permDelError}</Alert>}
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography fontWeight="bold" sx={{ mb: 0.5 }}>⛔ Action irréversible</Typography>
+            L'entreprise <strong>{permDelCompany?.name}</strong> et <strong>tous ses utilisateurs</strong> seront
+            supprimés définitivement de la base de données. Il n'y a aucun retour en arrière possible.
+          </Alert>
+          <TextField fullWidth label="Mot de passe de confirmation" type="password" size="small"
+            value={permDelPwd} onChange={(e) => setPermDelPwd(e.target.value)}
+            placeholder="Bonjour@2026#" />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPermDel(false)}>Annuler</Button>
+          <Button variant="contained" color="error" onClick={handlePermDelete}
+            disabled={permDelLoading} startIcon={permDelLoading ? <CircularProgress size={16} /> : <DeleteForeverIcon />}>
+            Supprimer définitivement
           </Button>
         </DialogActions>
       </Dialog>

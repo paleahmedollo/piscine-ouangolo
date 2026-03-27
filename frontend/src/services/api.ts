@@ -388,6 +388,7 @@ export const companiesApi = {
   updateCompany: (id: number, data: Record<string, unknown>) => api.put(`/companies/${id}`, data),
   deleteCompany: (id: number) => api.delete(`/companies/${id}`),
   permanentDeleteCompany: (id: number) => api.delete(`/companies/${id}/permanent`),
+  resetCompanyData: (id: number) => api.post(`/companies/${id}/reset-data`),
   getCompanyStats: (id: number) => api.get(`/companies/${id}/stats`),
   bulkCreateUsers: (companyId: number, file: File) => {
     const formData = new FormData();
