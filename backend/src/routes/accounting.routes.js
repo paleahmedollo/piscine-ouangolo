@@ -6,10 +6,10 @@ const { getReport, getEntries, getAccounts, getAnnualReport, getTreasury } = req
 
 router.use(authenticateToken);
 
-router.get('/report',  getReport);
-router.get('/entries', getEntries);
+router.get('/report',   getReport);
+router.get('/entries',  getEntries);
 router.get('/accounts', getAccounts);
-router.get('/annual',  getAnnualReport);
+router.get('/annual',   getAnnualReport);
 router.get('/treasury', getTreasury);
 
 module.exports = router;
