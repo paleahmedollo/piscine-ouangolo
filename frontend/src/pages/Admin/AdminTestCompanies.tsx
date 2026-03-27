@@ -16,7 +16,8 @@ import {
   WarningAmber as SkipRowIcon, ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon, Tag as IdIcon,
   Extension as ModuleIcon, Science as TestIcon,
-  MoveDown as MoveIcon,
+  MoveDown as MoveIcon, DeleteForever as DeleteForeverIcon,
+  RestartAlt as ResetIcon,
 } from '@mui/icons-material';
 import { companiesApi } from '../../services/api';
 
@@ -113,6 +114,22 @@ const AdminTestCompanies: React.FC = () => {
   const [moveTarget, setMoveTarget] = useState<Company | null>(null);
   const [moving, setMoving]         = useState(false);
 
+  /* Dialog Réinitialiser modules (toutes entreprises) */
+  const [openReset, setOpenReset]               = useState(false);
+  const [allCompanies, setAllCompanies]         = useState<Company[]>([]);
+  const [resetSelected, setResetSelected]       = useState<number[]>([]);
+  const [resetPwd, setResetPwd]                 = useState('');
+  const [resetPwdError, setResetPwdError]       = useState('');
+  const [resetLoading, setResetLoading]         = useState(false);
+  const [resetLoadingAll, setResetLoadingAll]   = useState(false);
+
+  /* Dialog Suppression définitive entreprise */
+  const [openPermDelete, setOpenPermDelete]     = useState(false);
+  const [permDeleteTarget, setPermDeleteTarget] = useState<Company | null>(null);
+  const [permDeletePwd, setPermDeletePwd]       = useState('');
+  const [permDeleteError, setPermDeleteError]   = useState('');
+  const [permDeleteLoading, setPermDeleteLoading] = useState(false);
+
   /* ── Chargement — uniquement les comptes test ── */
   const loadCompanies = useCallback(async () => {
     setLoading(true); setError('');
@@ -177,6 +194,54 @@ const AdminTestCompanies: React.FC = () => {
     setFormError(''); setOpenEdit(true);
   };
 
+  /* ── Réinitialiser modules ── */
+  const openResetDialog = async () => {
+    setResetPwd(''); setResetPwdError(''); setResetSelected([]);
+    setResetLoadingAll(true);
+    try {
+      const res = await companiesApi.getCompanies();
+      setAllCompanies(res.data.data || []);
+    } catch { setError('Impossible de charger toutes les entreprises'); return; }
+    finally { setResetLoadingAll(false); }
+    setOpenReset(true);
+  };
+
+  const handleResetModules = async () => {
+    if (resetPwd !== 'Bonjour@2026#') { setResetPwdError('Mot de passe incorrect'); return; }
+    if (resetSelected.length === 0) { setResetPwdError('Sélectionnez au moins une entreprise'); return; }
+    setResetLoading(true);
+    try {
+      await Promise.all(resetSelected.map(id => companiesApi.updateCompany(id, { modules: null })));
+      setSuccess(`Modules réinitialisés pour ${resetSelected.length} entreprise(s)`);
+      setOpenReset(false);
+      loadCompanies();
+    } catch { setError('Erreur lors de la réinitialisation'); }
+    finally { setResetLoading(false); }
+  };
+
+  const toggleResetSelect = (id: number) =>
+    setResetSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  /* ── Suppression définitive entreprise ── */
+  const openPermDeleteDialog = (company: Company) => {
+    setPermDeleteTarget(company); setPermDeletePwd(''); setPermDeleteError(''); setOpenPermDelete(true);
+  };
+
+  const handlePermDelete = async () => {
+    if (permDeletePwd !== 'Bonjour@2026#') { setPermDeleteError('Mot de passe incorrect'); return; }
+    if (!permDeleteTarget) return;
+    setPermDeleteLoading(true);
+    try {
+      await companiesApi.permanentDeleteCompany(permDeleteTarget.id);
+      setSuccess(`"${permDeleteTarget.name}" supprimée définitivement`);
+      setOpenPermDelete(false); setPermDeleteTarget(null);
+      loadCompanies();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setPermDeleteError(e.response?.data?.message || 'Erreur lors de la suppression');
+    } finally { setPermDeleteLoading(false); }
+  };
+
   /* ── Déplacer en production ── */
   const handleMoveToProduction = async () => {
     if (!moveTarget) return;
@@ -229,6 +294,9 @@ const AdminTestCompanies: React.FC = () => {
           <Tooltip title="Actualiser">
             <IconButton onClick={loadCompanies} disabled={loading}><RefreshIcon /></IconButton>
           </Tooltip>
+          <Button variant="outlined" color="warning" startIcon={<ResetIcon />} onClick={openResetDialog}>
+            Réinitialiser modules
+          </Button>
           <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => openBulkDialog()}>
             Import utilisateurs
           </Button>
@@ -382,6 +450,11 @@ const AdminTestCompanies: React.FC = () => {
                       {company.is_active ? <InactiveIcon fontSize="small" /> : <ActiveIcon fontSize="small" />}
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Supprimer définitivement">
+                    <IconButton size="small" sx={{ color: '#7b1fa2' }} onClick={() => openPermDeleteDialog(company)}>
+                      <DeleteForeverIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -508,6 +581,94 @@ const AdminTestCompanies: React.FC = () => {
           <Button variant="contained" color="success" onClick={handleMoveToProduction}
             disabled={moving} startIcon={moving ? <CircularProgress size={16} /> : <MoveIcon />}>
             Oui, déplacer en production
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Réinitialiser les modules
+      ══════════════════════════════════════════════ */}
+      <Dialog open={openReset} onClose={() => !resetLoading && setOpenReset(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#fff3e0' }}>
+          <ResetIcon color="warning" /> Réinitialiser les modules par entreprise
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+            Sélectionnez les entreprises dont vous souhaitez réinitialiser les modules (tous les modules seront réactivés).
+          </Alert>
+          {resetPwdError && <Alert severity="error" sx={{ mb: 2 }}>{resetPwdError}</Alert>}
+
+          {resetLoadingAll ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress /></Box>
+          ) : (
+            <Box sx={{ maxHeight: 280, overflow: 'auto', border: '1px solid #eee', borderRadius: 1, mb: 2 }}>
+              {allCompanies.map(c => (
+                <Box key={c.id} sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1,
+                  borderBottom: '1px solid #f5f5f5',
+                  bgcolor: resetSelected.includes(c.id) ? 'rgba(255,152,0,0.08)' : 'transparent',
+                  cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,152,0,0.05)' }
+                }} onClick={() => toggleResetSelect(c.id)}>
+                  <Checkbox size="small" checked={resetSelected.includes(c.id)} color="warning" />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" fontWeight={600}>{c.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {c.code} — {c.is_test ? 'Compte Test' : 'Production'} — {c.modules === null || c.modules === undefined ? 'Tous modules' : `${c.modules.length} module(s)`}
+                    </Typography>
+                  </Box>
+                  {c.is_test && <Chip label="Test" size="small" color="warning" variant="outlined" />}
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <Button size="small" onClick={() => setResetSelected(allCompanies.map(c => c.id))}>Tout sélectionner</Button>
+            <Button size="small" onClick={() => setResetSelected([])}>Tout désélectionner</Button>
+          </Box>
+
+          <TextField
+            fullWidth size="small" label="Mot de passe de confirmation" type="password"
+            value={resetPwd}
+            onChange={e => { setResetPwd(e.target.value); setResetPwdError(''); }}
+            placeholder="Entrez le mot de passe pour confirmer"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenReset(false)} disabled={resetLoading}>Annuler</Button>
+          <Button variant="contained" color="warning" onClick={handleResetModules}
+            disabled={resetSelected.length === 0 || !resetPwd || resetLoading}
+            startIcon={resetLoading ? <CircularProgress size={16} /> : <ResetIcon />}>
+            Réinitialiser ({resetSelected.length})
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Suppression définitive entreprise
+      ══════════════════════════════════════════════ */}
+      <Dialog open={openPermDelete} onClose={() => !permDeleteLoading && setOpenPermDelete(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#f3e5f5' }}>
+          <DeleteForeverIcon sx={{ color: '#7b1fa2' }} /> Suppression définitive
+        </DialogTitle>
+        <DialogContent>
+          {permDeleteError && <Alert severity="error" sx={{ mb: 2, mt: 1 }}>{permDeleteError}</Alert>}
+          <Alert severity="error" sx={{ mt: 1, mb: 2 }}>
+            <strong>Action irréversible !</strong> L'entreprise <strong>"{permDeleteTarget?.name}"</strong> et tous ses utilisateurs seront définitivement supprimés.
+          </Alert>
+          <TextField
+            fullWidth size="small" label="Mot de passe de confirmation" type="password"
+            value={permDeletePwd}
+            onChange={e => { setPermDeletePwd(e.target.value); setPermDeleteError(''); }}
+            placeholder="Entrez le mot de passe pour confirmer"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPermDelete(false)} disabled={permDeleteLoading}>Annuler</Button>
+          <Button variant="contained" sx={{ bgcolor: '#7b1fa2', '&:hover': { bgcolor: '#6a1b9a' } }}
+            onClick={handlePermDelete} disabled={!permDeletePwd || permDeleteLoading}
+            startIcon={permDeleteLoading ? <CircularProgress size={16} /> : <DeleteForeverIcon />}>
+            Supprimer définitivement
           </Button>
         </DialogActions>
       </Dialog>

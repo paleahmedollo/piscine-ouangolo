@@ -259,6 +259,21 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const permanentDeleteUser = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    if (user.role === 'super_admin') return res.status(403).json({ success: false, message: 'Impossible de supprimer un super administrateur' });
+
+    const username = user.username;
+    await user.destroy();
+    res.json({ success: true, message: `Utilisateur "${username}" supprimé définitivement` });
+  } catch (error) {
+    console.error('Permanent delete user error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la suppression définitive' });
+  }
+};
+
 // ═══════════════════════════════════════════════════════
 // 4. ABONNEMENTS — Gestion SaaS
 // ═══════════════════════════════════════════════════════
@@ -882,7 +897,7 @@ module.exports = {
   // Dashboard
   getDashboardStats,
   // Users
-  getAllUsers, createUser, updateUser, resetUserPassword, deleteUser,
+  getAllUsers, createUser, updateUser, resetUserPassword, deleteUser, permanentDeleteUser,
   // Subscriptions
   getSubscriptions, createSubscription, updateSubscription,
   // Billing

@@ -206,6 +206,35 @@ const deleteCompany = async (req, res) => {
 };
 
 /**
+ * DELETE /api/companies/:id/permanent
+ * Suppression définitive d'une entreprise et de tous ses utilisateurs
+ */
+const permanentDeleteCompany = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const company = await Company.findByPk(req.params.id);
+
+    if (!company) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Entreprise non trouvée' });
+    }
+
+    const companyName = company.name;
+    // Supprimer tous les utilisateurs de l'entreprise d'abord
+    await User.destroy({ where: { company_id: req.params.id }, transaction: t });
+    // Supprimer l'entreprise
+    await company.destroy({ transaction: t });
+    await t.commit();
+
+    res.json({ success: true, message: `Entreprise "${companyName}" et tous ses utilisateurs supprimés définitivement` });
+  } catch (error) {
+    await t.rollback();
+    console.error('Permanent delete company error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la suppression définitive' });
+  }
+};
+
+/**
  * GET /api/companies/:id/stats
  * Statistiques d'une entreprise (super_admin)
  */
@@ -325,6 +354,7 @@ module.exports = {
   getCompany,
   updateCompany,
   deleteCompany,
+  permanentDeleteCompany,
   getCompanyStats,
   bulkCreateUsers
 };

@@ -15,7 +15,8 @@ import {
   UploadFile as UploadIcon, Download as DownloadIcon,
   CheckCircleOutline as SuccessRowIcon, ErrorOutline as ErrorRowIcon,
   WarningAmber as SkipRowIcon, ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon, PersonAdd as PersonAddIcon
+  ExpandLess as ExpandLessIcon, PersonAdd as PersonAddIcon,
+  DeleteForever as DeleteForeverIcon
 } from '@mui/icons-material';
 import { superadminApi, companiesApi } from '../../services/api';
 
@@ -91,6 +92,13 @@ const AdminUsers: React.FC = () => {
   const [resetUser, setResetUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+
+  // ── Dialog Suppression définitive ────────────────────
+  const [openPermDelete, setOpenPermDelete] = useState(false);
+  const [permDeleteUser, setPermDeleteUser] = useState<User | null>(null);
+  const [permDeletePwd, setPermDeletePwd] = useState('');
+  const [permDeleteError, setPermDeleteError] = useState('');
+  const [permDeleteLoading, setPermDeleteLoading] = useState(false);
 
   // ── Dialog Import en masse ────────────────────────────
   const [openBulk, setOpenBulk] = useState(false);
@@ -193,6 +201,28 @@ const AdminUsers: React.FC = () => {
       const e = err as { response?: { data?: { message?: string } } };
       setError(e.response?.data?.message || 'Erreur');
     } finally { setResetLoading(false); }
+  };
+
+  // ── Suppression définitive ────────────────────────────
+  const openPermDeleteDialog = (u: User) => {
+    setPermDeleteUser(u); setPermDeletePwd(''); setPermDeleteError(''); setOpenPermDelete(true);
+  };
+
+  const handlePermDelete = async () => {
+    if (permDeletePwd !== 'Bonjour@2026#') {
+      setPermDeleteError('Mot de passe incorrect'); return;
+    }
+    if (!permDeleteUser) return;
+    setPermDeleteLoading(true);
+    try {
+      await superadminApi.permanentDeleteUser(permDeleteUser.id);
+      setSuccess(`Utilisateur "${permDeleteUser.username}" supprimé définitivement`);
+      setOpenPermDelete(false); setPermDeleteUser(null);
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setPermDeleteError(e.response?.data?.message || 'Erreur lors de la suppression');
+    } finally { setPermDeleteLoading(false); }
   };
 
   // ── Désactiver un utilisateur ─────────────────────────
@@ -354,6 +384,11 @@ const AdminUsers: React.FC = () => {
                   {u.is_active && (
                     <Tooltip title="Désactiver"><IconButton size="small" color="error" onClick={() => handleDeactivate(u)}><DeactivateIcon fontSize="small" /></IconButton></Tooltip>
                   )}
+                  <Tooltip title="Supprimer définitivement">
+                    <IconButton size="small" sx={{ color: '#7b1fa2' }} onClick={() => openPermDeleteDialog(u)}>
+                      <DeleteForeverIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -639,6 +674,35 @@ const AdminUsers: React.FC = () => {
           <Button onClick={() => setOpenEdit(false)}>Annuler</Button>
           <Button variant="contained" onClick={handleEdit} disabled={saving}
             startIcon={saving ? <CircularProgress size={16} /> : <EditIcon />}>Enregistrer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Dialog — Suppression définitive utilisateur
+      ══════════════════════════════════════════════ */}
+      <Dialog open={openPermDelete} onClose={() => !permDeleteLoading && setOpenPermDelete(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#f3e5f5' }}>
+          <DeleteForeverIcon sx={{ color: '#7b1fa2' }} /> Suppression définitive
+        </DialogTitle>
+        <DialogContent>
+          {permDeleteError && <Alert severity="error" sx={{ mb: 2, mt: 1 }}>{permDeleteError}</Alert>}
+          <Alert severity="error" sx={{ mt: 1, mb: 2 }}>
+            Cette action est <strong>irréversible</strong>. L'utilisateur <strong>@{permDeleteUser?.username}</strong> sera définitivement supprimé de la base de données.
+          </Alert>
+          <TextField
+            fullWidth size="small" label="Mot de passe de confirmation" type="password"
+            value={permDeletePwd}
+            onChange={e => { setPermDeletePwd(e.target.value); setPermDeleteError(''); }}
+            placeholder="Entrez le mot de passe pour confirmer"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPermDelete(false)} disabled={permDeleteLoading}>Annuler</Button>
+          <Button variant="contained" sx={{ bgcolor: '#7b1fa2', '&:hover': { bgcolor: '#6a1b9a' } }}
+            onClick={handlePermDelete} disabled={!permDeletePwd || permDeleteLoading}
+            startIcon={permDeleteLoading ? <CircularProgress size={16} /> : <DeleteForeverIcon />}>
+            Supprimer définitivement
+          </Button>
         </DialogActions>
       </Dialog>
 

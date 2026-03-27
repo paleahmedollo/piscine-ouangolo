@@ -5,7 +5,7 @@ const {
   // Dashboard
   getDashboardStats,
   // Users
-  getAllUsers, createUser, updateUser, resetUserPassword, deleteUser,
+  getAllUsers, createUser, updateUser, resetUserPassword, deleteUser, permanentDeleteUser,
   // Subscriptions
   getSubscriptions, createSubscription, updateSubscription,
   // Billing
@@ -35,6 +35,7 @@ router.post('/users', createUser);
 router.put('/users/:id', updateUser);
 router.put('/users/:id/reset-password', resetUserPassword);
 router.delete('/users/:id', deleteUser);
+router.delete('/users/:id/permanent', permanentDeleteUser);
 
 // ─── 4. Abonnements ────────────────────────────────────
 router.get('/subscriptions', getSubscriptions);

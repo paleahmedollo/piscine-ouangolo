@@ -387,6 +387,7 @@ export const companiesApi = {
   }) => api.post('/companies', data),
   updateCompany: (id: number, data: Record<string, unknown>) => api.put(`/companies/${id}`, data),
   deleteCompany: (id: number) => api.delete(`/companies/${id}`),
+  permanentDeleteCompany: (id: number) => api.delete(`/companies/${id}/permanent`),
   getCompanyStats: (id: number) => api.get(`/companies/${id}/stats`),
   bulkCreateUsers: (companyId: number, file: File) => {
     const formData = new FormData();
@@ -464,6 +465,7 @@ export const superadminApi = {
   updateUser: (id: number, data: Record<string, unknown>) => api.put(`/superadmin/users/${id}`, data),
   resetUserPassword: (id: number, password: string) => api.put(`/superadmin/users/${id}/reset-password`, { password }),
   deleteUser: (id: number) => api.delete(`/superadmin/users/${id}`),
+  permanentDeleteUser: (id: number) => api.delete(`/superadmin/users/${id}/permanent`),
 
   // 4. Abonnements
   getSubscriptions: (params?: Record<string, string>) => api.get('/superadmin/subscriptions', { params }),
