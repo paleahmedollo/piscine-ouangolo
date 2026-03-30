@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   FormControl, InputLabel, Select, MenuItem, Alert, CircularProgress,
   Grid, Tooltip, InputAdornment, Divider, List, ListItem,
-  ListItemText, ListItemIcon, Collapse
+  ListItemText, ListItemIcon, Collapse, Checkbox, FormControlLabel, FormGroup
 } from '@mui/material';
 import {
   People as PeopleIcon, Edit as EditIcon, Search as SearchIcon,
@@ -43,6 +43,22 @@ interface BulkResult {
 }
 
 const ROLES = ['admin', 'gerant', 'directeur', 'responsable', 'maire', 'maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events'];
+const ALL_MODULES = [
+  { key: 'piscine', label: 'Piscine' },
+  { key: 'restaurant', label: 'Restaurant' },
+  { key: 'hotel', label: 'Hôtel' },
+  { key: 'events', label: 'Événements' },
+  { key: 'lavage', label: 'Lavage Auto' },
+  { key: 'pressing', label: 'Pressing' },
+  { key: 'maquis', label: 'Maquis / Bar' },
+  { key: 'superette', label: 'Supérette' },
+  { key: 'depot', label: 'Dépôt' },
+  { key: 'caisse', label: 'Caisse' },
+  { key: 'employees', label: 'Employés & Paie' },
+  { key: 'expenses', label: 'Dépenses' },
+  { key: 'reports', label: 'Mes Rapports' },
+  { key: 'users', label: 'Utilisateurs' },
+];
 const roleColor = (r: string): 'default' | 'primary' | 'success' | 'warning' | 'error' =>
   r === 'admin' ? 'error' : r === 'gerant' ? 'primary' : r === 'directeur' ? 'success' : 'default';
 
@@ -76,6 +92,7 @@ const AdminUsers: React.FC = () => {
   const [createForm, setCreateForm] = useState({
     full_name: '', username: '', password: '', role: 'gerant', company_id: ''
   });
+  const [createModules, setCreateModules] = useState<string[]>([]);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -149,11 +166,13 @@ const AdminUsers: React.FC = () => {
         username: createForm.username,
         password: createForm.password,
         role: createForm.role,
-        company_id: createForm.company_id ? parseInt(createForm.company_id) : null
+        company_id: createForm.company_id ? parseInt(createForm.company_id) : null,
+        modules: createModules.length > 0 ? createModules : null
       });
       setSuccess(`✅ Utilisateur "${createForm.username}" créé avec succès`);
       setOpenCreate(false);
       setCreateForm({ full_name: '', username: '', password: '', role: 'gerant', company_id: '' });
+      setCreateModules([]);
       loadData();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
@@ -464,6 +483,30 @@ const AdminUsers: React.FC = () => {
               </FormControl>
             </Grid>
           </Grid>
+
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Modules accessibles
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+            Laisser vide = accès à tous les modules de l'entreprise. Cocher pour restreindre.
+          </Typography>
+          <FormGroup row>
+            {ALL_MODULES.map(m => (
+              <FormControlLabel key={m.key} sx={{ width: '50%' }}
+                control={
+                  <Checkbox size="small"
+                    checked={createModules.includes(m.key)}
+                    onChange={e => setCreateModules(prev =>
+                      e.target.checked ? [...prev, m.key] : prev.filter(k => k !== m.key)
+                    )}
+                  />
+                }
+                label={<Typography variant="caption">{m.label}</Typography>}
+              />
+            ))}
+          </FormGroup>
+
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenCreate(false)}>Annuler</Button>

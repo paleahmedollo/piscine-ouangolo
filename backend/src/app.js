@@ -313,6 +313,107 @@ const ensureHotelLuxembourg = async () => {
       );
       console.log(`✅ Hôtel Le Luxembourg existe déjà (ID: ${companyId})`);
     }
+
+    if (!companyId) return;
+
+    // ── Comptes opérationnels ───────────────────────────────────────────────────
+    const staffAccounts = [
+      { username: 'serveur.luxembourg',        full_name: 'Serveur Restaurant Luxembourg',    role: 'serveur',        password: 'Serveur@2026',  modules: JSON.stringify(['restaurant']) },
+      { username: 'receptionniste.luxembourg', full_name: 'Réceptionniste Hôtel Luxembourg',  role: 'receptionniste', password: 'Recep@2026',    modules: JSON.stringify(['hotel']) },
+      { username: 'caissier.luxembourg',       full_name: 'Caissier Hôtel Luxembourg',        role: 'caissier',       password: 'Caisse@2026',   modules: JSON.stringify(['caisse','restaurant']) },
+      { username: 'comptable.luxembourg',      full_name: 'Comptable Hôtel Luxembourg',       role: 'gerant',         password: 'Compta@2026',   modules: JSON.stringify(['caisse','expenses','reports']) },
+    ];
+    for (const s of staffAccounts) {
+      const hash = await bcrypt.hash(s.password, 10);
+      await sequelize.query(
+        `INSERT INTO users (username, password_hash, full_name, role, is_active, company_id, modules, created_at, updated_at)
+         VALUES (:username, :hash, :full_name, :role, true, :company_id, :modules::jsonb, NOW(), NOW())
+         ON CONFLICT (username) DO UPDATE SET modules = :modules::jsonb`,
+        { replacements: { username: s.username, hash, full_name: s.full_name, role: s.role, company_id: companyId, modules: s.modules } }
+      );
+    }
+    console.log('✅ Comptes staff Luxembourg créés/mis à jour');
+
+    // ── Chambres ───────────────────────────────────────────────────────────────
+    const rooms = [
+      { number: '101', type: 'Simple',               capacity: 1, price: 15000, amenities: 'Lit simple, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '102', type: 'Simple',               capacity: 1, price: 15000, amenities: 'Lit simple, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '103', type: 'Simple',               capacity: 1, price: 15000, amenities: 'Lit simple, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '104', type: 'Simple',               capacity: 1, price: 15000, amenities: 'Lit simple, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '105', type: 'Simple',               capacity: 1, price: 15000, amenities: 'Lit simple, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '201', type: 'Double',               capacity: 2, price: 25000, amenities: 'Grand lit double, climatisation, TV, salle de bain privée, WiFi, bureau' },
+      { number: '202', type: 'Double',               capacity: 2, price: 25000, amenities: 'Grand lit double, climatisation, TV, salle de bain privée, WiFi, bureau' },
+      { number: '203', type: 'Double',               capacity: 2, price: 25000, amenities: 'Grand lit double, climatisation, TV, salle de bain privée, WiFi, bureau' },
+      { number: '204', type: 'Double',               capacity: 2, price: 25000, amenities: 'Grand lit double, climatisation, TV, salle de bain privée, WiFi, bureau' },
+      { number: '205', type: 'Double',               capacity: 2, price: 25000, amenities: 'Grand lit double, climatisation, TV, salle de bain privée, WiFi, bureau' },
+      { number: '301', type: 'Twin',                 capacity: 2, price: 28000, amenities: '2 lits simples, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '302', type: 'Twin',                 capacity: 2, price: 28000, amenities: '2 lits simples, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '303', type: 'Twin',                 capacity: 2, price: 28000, amenities: '2 lits simples, climatisation, TV, salle de bain privée, WiFi' },
+      { number: '401', type: 'Suite',                capacity: 3, price: 45000, amenities: 'Suite spacieuse, lit king-size, salon, climatisation, TV écran plat, minibar, jacuzzi, WiFi, vue jardin' },
+      { number: '402', type: 'Suite',                capacity: 3, price: 45000, amenities: 'Suite spacieuse, lit king-size, salon, climatisation, TV écran plat, minibar, jacuzzi, WiFi, vue jardin' },
+      { number: '501', type: 'Suite Présidentielle', capacity: 4, price: 75000, amenities: 'Suite présidentielle, 2 chambres, salon VIP, cuisine équipée, climatisation, TV 55p, minibar premium, jacuzzi, WiFi fibre, terrasse privée' },
+    ];
+    for (const r of rooms) {
+      await sequelize.query(
+        `INSERT INTO rooms (number, type, capacity, price_per_night, amenities, status, company_id, created_at, updated_at)
+         VALUES (:number, :type, :capacity, :price, :amenities, 'disponible', :company_id, NOW(), NOW())
+         ON CONFLICT ON CONSTRAINT rooms_number_company_unique DO NOTHING`,
+        { replacements: { ...r, company_id: companyId } }
+      );
+    }
+    console.log('✅ Chambres Luxembourg créées (si absentes)');
+
+    // ── Menu restaurant ────────────────────────────────────────────────────────
+    const menuItems = [
+      { name: 'Salade verte',                           category: 'Entrées',             price: 1500,  description: null },
+      { name: 'Salade mixte (tomate, concombre, avocat)',category: 'Entrées',             price: 2000,  description: null },
+      { name: 'Soupe de poisson',                       category: 'Entrées',             price: 2500,  description: null },
+      { name: 'Velouté de légumes',                     category: 'Entrées',             price: 2000,  description: null },
+      { name: 'Attiéké poisson grillé',                 category: 'Plats locaux',        price: 3500,  description: null },
+      { name: 'Attiéké poulet braisé',                  category: 'Plats locaux',        price: 3500,  description: null },
+      { name: 'Riz sauce graine',                       category: 'Plats locaux',        price: 3000,  description: null },
+      { name: 'Riz sauce arachide',                     category: 'Plats locaux',        price: 3000,  description: null },
+      { name: 'Foutou banane sauce légumes',             category: 'Plats locaux',        price: 3000,  description: null },
+      { name: 'Placali sauce graine',                   category: 'Plats locaux',        price: 2500,  description: null },
+      { name: 'Kedjenou de poulet + attiéké',           category: 'Plats locaux',        price: 4500,  description: null },
+      { name: 'Aloko poulet',                           category: 'Plats locaux',        price: 3500,  description: null },
+      { name: 'Garba (thon + attiéké)',                 category: 'Plats locaux',        price: 2000,  description: null },
+      { name: 'Poulet rôti + frites',                   category: 'Plats continentaux',  price: 5000,  description: null },
+      { name: 'Steak de boeuf + frites',                category: 'Plats continentaux',  price: 6500,  description: null },
+      { name: 'Poisson braisé + riz',                   category: 'Plats continentaux',  price: 5500,  description: null },
+      { name: 'Côte de porc + légumes',                 category: 'Plats continentaux',  price: 5500,  description: null },
+      { name: 'Omelette au fromage',                    category: 'Plats continentaux',  price: 2500,  description: null },
+      { name: 'Spaghetti bolognaise',                   category: 'Plats continentaux',  price: 4000,  description: null },
+      { name: 'Brochettes de boeuf (6 pcs)',             category: 'Grillades',           price: 3000,  description: null },
+      { name: 'Poulet entier grillé',                   category: 'Grillades',           price: 8000,  description: null },
+      { name: 'Crevettes grillées',                     category: 'Grillades',           price: 7000,  description: null },
+      { name: 'Capitaine grillé',                       category: 'Grillades',           price: 6500,  description: null },
+      { name: 'Tilapia grillé',                         category: 'Grillades',           price: 4500,  description: null },
+      { name: 'Frites maison',                          category: 'Accompagnements',     price: 1500,  description: null },
+      { name: 'Riz blanc',                              category: 'Accompagnements',     price: 1000,  description: null },
+      { name: 'Attiéké seul',                           category: 'Accompagnements',     price: 1000,  description: null },
+      { name: 'Légumes sautés',                         category: 'Accompagnements',     price: 1500,  description: null },
+      { name: 'Aloko (banane plantain frite)',           category: 'Accompagnements',     price: 1500,  description: null },
+      { name: 'Petit-déjeuner continental',             category: 'Petit-déjeuner',      price: 3000,  description: 'Pain, beurre, confiture, café ou thé' },
+      { name: 'Petit-déjeuner complet',                 category: 'Petit-déjeuner',      price: 4500,  description: 'Oeufs, pain, jus, café' },
+      { name: 'Bouille de maïs + pain',                 category: 'Petit-déjeuner',      price: 1500,  description: null },
+      { name: 'Eau minérale 50cl',                      category: 'Boissons',            price: 500,   description: null },
+      { name: 'Jus naturel (bissap, gingembre, baobab)',category: 'Boissons',            price: 1000,  description: null },
+      { name: 'Jus industriel',                         category: 'Boissons',            price: 1000,  description: null },
+      { name: 'Bière 33cl',                             category: 'Boissons',            price: 1500,  description: null },
+      { name: 'Coca-Cola / Fanta / Sprite',             category: 'Boissons',            price: 1000,  description: null },
+      { name: 'Café / Thé',                             category: 'Boissons',            price: 500,   description: null },
+    ];
+    for (const item of menuItems) {
+      await sequelize.query(
+        `INSERT INTO menu_items (name, category, price, description, is_available, company_id, created_at, updated_at)
+         VALUES (:name, :category, :price, :description, true, :company_id, NOW(), NOW())
+         ON CONFLICT DO NOTHING`,
+        { replacements: { ...item, company_id: companyId } }
+      );
+    }
+    console.log('✅ Menu restaurant Luxembourg créé (si absent)');
+
   } catch (error) {
     console.error('Erreur ensureHotelLuxembourg:', error.message);
   }
@@ -643,7 +744,12 @@ const runMigrations = async () => {
       // Compte de démonstration / test (superadmin — onglet Comptes Test)
       `ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT false`,
       // Garantir accès total pour superadmin (sa_permissions = NULL)
-      `UPDATE users SET sa_permissions = NULL WHERE username = 'superadmin' AND role = 'super_admin' AND sa_permissions IS NOT NULL`
+      `UPDATE users SET sa_permissions = NULL WHERE username = 'superadmin' AND role = 'super_admin' AND sa_permissions IS NOT NULL`,
+      // Modules par utilisateur : null = hérité de l'entreprise, [...] = sélectif
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS modules JSONB DEFAULT NULL`,
+      // Supprimer les anciens index uniques sur rooms.number (bloquaient multi-entreprises)
+      `ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_number_key`,
+      `ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_number_key1`
     ];
     for (const sql of migrations) {
       try {

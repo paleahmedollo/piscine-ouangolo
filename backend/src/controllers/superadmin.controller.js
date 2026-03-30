@@ -167,7 +167,7 @@ const getAllUsers = async (req, res) => {
 const createUser = async (req, res) => {
   try {
     const bcrypt = require('bcryptjs');
-    const { username, full_name, password, role, company_id } = req.body;
+    const { username, full_name, password, role, company_id, modules } = req.body;
 
     if (!username || !full_name || !password || !role) {
       return res.status(400).json({ success: false, message: 'Champs requis : username, full_name, password, role' });
@@ -188,6 +188,7 @@ const createUser = async (req, res) => {
       password_hash,
       role,
       company_id: company_id || null,
+      modules: Array.isArray(modules) && modules.length > 0 ? modules : null,
       is_active: true
     }, { hooks: false }); // hooks: false pour éviter le double-hash (beforeCreate)
 
@@ -205,12 +206,13 @@ const updateUser = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
     if (user.role === 'super_admin') return res.status(403).json({ success: false, message: 'Impossible de modifier le super administrateur' });
 
-    const { full_name, role, is_active, company_id } = req.body;
+    const { full_name, role, is_active, company_id, modules } = req.body;
     await user.update({
       ...(full_name && { full_name }),
       ...(role && { role }),
       ...(is_active !== undefined && { is_active }),
-      ...(company_id !== undefined && { company_id: company_id || null })
+      ...(company_id !== undefined && { company_id: company_id || null }),
+      ...(modules !== undefined && { modules: Array.isArray(modules) && modules.length > 0 ? modules : null })
     });
 
     await logAction(req, 'UPDATE_USER', 'users', 'user', user.id, { username: user.username });

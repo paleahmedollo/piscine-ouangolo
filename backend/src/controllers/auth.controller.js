@@ -115,6 +115,7 @@ const login = async (req, res) => {
           role: user.role,
           company_id: user.company_id || null,
           company: company ? company.toJSON() : null,
+          modules: user.modules || null,
           sa_permissions: user.sa_permissions || null
         }
       }
