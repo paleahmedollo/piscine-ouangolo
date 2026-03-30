@@ -322,6 +322,7 @@ const ensureHotelLuxembourg = async () => {
       { username: 'receptionniste.luxembourg', full_name: 'Réceptionniste Hôtel Luxembourg',  role: 'receptionniste', password: 'Recep@2026',    modules: JSON.stringify(['hotel']) },
       { username: 'caissier.luxembourg',       full_name: 'Caissier Hôtel Luxembourg',        role: 'caissier',       password: 'Caisse@2026',   modules: JSON.stringify(['caisse','restaurant']) },
       { username: 'comptable.luxembourg',      full_name: 'Comptable Hôtel Luxembourg',       role: 'gerant',         password: 'Compta@2026',   modules: JSON.stringify(['caisse','expenses','reports']) },
+      { username: 'cuisinier.luxembourg',      full_name: 'Cuisinier Hôtel Luxembourg',       role: 'cuisinier',      password: 'Cuisine@2026',  modules: JSON.stringify(['restaurant','cuisine']) },
     ];
     for (const s of staffAccounts) {
       const hash = await bcrypt.hash(s.password, 10);
