@@ -70,7 +70,7 @@ interface Props {
 
 // ─── HTML du reçu pour l'impression ─────────────────────────────────────────
 
-const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateStr: string, companyName: string): string => {
+const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateStr: string, companyName: string, companyLogo?: string, companyPhone?: string, companyAddress?: string): string => {
   const css = `
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:10px}
@@ -84,7 +84,10 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
   `;
 
   let body = `
+    ${companyLogo ? `<div class="center"><img src="${companyLogo}" alt="logo" style="max-height:60px;max-width:140px;object-fit:contain;margin-bottom:4px"/></div>` : ''}
     <div class="title">${companyName}</div>
+    ${companyAddress ? `<div class="center" style="font-size:10px">${companyAddress}</div>` : ''}
+    ${companyPhone ? `<div class="center" style="font-size:10px">Tél: ${companyPhone}</div>` : ''}
     <div class="center" style="font-size:10px">Reçu client</div>
     <div class="sep"></div>
     <div class="center bold">REÇU CLIENT</div>
@@ -194,7 +197,11 @@ const buildReceiptHtml = (data: ClientReceiptData, receiptNumber: string, dateSt
 
 const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
   const { user } = useAuth();
-  const companyName = (user?.company?.name || 'Mon Entreprise').toUpperCase();
+  const company = user?.company as { name?: string; logo_url?: string; phone?: string; address?: string; locality?: string } | null;
+  const companyName = (company?.name || 'Mon Entreprise').toUpperCase();
+  const companyLogo = company?.logo_url || undefined;
+  const companyPhone = company?.phone || undefined;
+  const companyAddress = company?.address || (company?.locality ? company.locality : undefined);
 
   if (!data) return null;
 
@@ -203,7 +210,7 @@ const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
   const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const handlePrint = () => {
-    const html = buildReceiptHtml(data, receiptNumber, dateStr, companyName);
+    const html = buildReceiptHtml(data, receiptNumber, dateStr, companyName, companyLogo, companyPhone, companyAddress);
     const win = window.open('', '_blank', 'width=400,height=600');
     if (!win) return;
     win.document.write(html);
@@ -227,9 +234,16 @@ const ClientReceiptDialog: React.FC<Props> = ({ open, onClose, data }) => {
           border: '1px dashed #999', borderRadius: 1, p: 2,
           fontFamily: 'Courier New, monospace', fontSize: '12px', backgroundColor: '#fafafa'
         }}>
+          {companyLogo && (
+            <Box sx={{ textAlign: 'center', mb: 0.5 }}>
+              <img src={companyLogo} alt="logo" style={{ maxHeight: 50, maxWidth: 120, objectFit: 'contain' }} />
+            </Box>
+          )}
           <Typography align="center" fontWeight="bold" sx={{ fontFamily: 'inherit', fontSize: '14px' }}>
             {companyName}
           </Typography>
+          {companyAddress && <Typography align="center" variant="caption" sx={{ fontFamily: 'inherit', display: 'block' }}>{companyAddress}</Typography>}
+          {companyPhone && <Typography align="center" variant="caption" sx={{ fontFamily: 'inherit', display: 'block' }}>Tél: {companyPhone}</Typography>}
           <Typography align="center" variant="caption" sx={{ fontFamily: 'inherit', display: 'block', mb: 1 }}>
             REÇU CLIENT
           </Typography>

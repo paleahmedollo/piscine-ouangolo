@@ -404,6 +404,7 @@ const Caisse: React.FC = () => {
         companyName: company?.name || 'Ollentra',
         companyPhone: company?.phone,
         companyAddress: company?.address,
+        companyLogo: company?.logo_url,
         module,
         moduleLabel: moduleLabels[module as CashRegisterModule] || module.toUpperCase(),
         receiptNumber: '',

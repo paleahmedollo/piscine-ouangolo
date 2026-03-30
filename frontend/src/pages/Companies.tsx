@@ -17,7 +17,7 @@ import {
   ExpandLess as ExpandLessIcon, Tag as IdIcon,
   Extension as ModuleIcon, Visibility as ViewIcon,
   RestartAlt as ResetDataIcon, DeleteForever as DeleteForeverIcon,
-  LockReset as ResetModulesIcon
+  LockReset as ResetModulesIcon, Image as ImageIcon
 } from '@mui/icons-material';
 import { companiesApi } from '../services/api';
 
@@ -29,6 +29,7 @@ interface Company {
   address?: string;
   phone?: string;
   email?: string;
+  logo_url?: string;
   plan: string;
   is_active: boolean;
   created_at: string;
@@ -69,13 +70,13 @@ interface BulkResult {
 interface CreateCompanyForm {
   name: string; code: string; address: string; phone: string; email: string;
   plan: string; admin_username: string; admin_password: string; admin_full_name: string;
-  founder_name: string; city: string; country: string;
+  founder_name: string; city: string; country: string; logo_url: string;
 }
 
 const defaultForm: CreateCompanyForm = {
   name: '', code: '', address: '', phone: '', email: '',
   plan: 'standard', admin_username: '', admin_password: '', admin_full_name: '',
-  founder_name: '', city: '', country: "Côte d'Ivoire"
+  founder_name: '', city: '', country: "Côte d'Ivoire", logo_url: ''
 };
 
 const planLabel = (p: string) => ({ basic: 'Basique', standard: 'Standard', premium: 'Premium' }[p] || p);
@@ -155,6 +156,8 @@ const Companies: React.FC = () => {
   const [bulkError, setBulkError]           = useState('');
   const [showDetails, setShowDetails]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const editLogoInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Chargement — uniquement les entreprises production (is_test=false) ── */
   const loadCompanies = useCallback(async () => {
@@ -183,7 +186,7 @@ const Companies: React.FC = () => {
     }
     setSaving(true);
     try {
-      const res     = await companiesApi.createCompany({ ...formData, modules: createModules });
+      const res     = await companiesApi.createCompany({ ...formData, logo_url: formData.logo_url || null, modules: createModules });
       const created = res.data.data?.company;
       setNewCompanyId(created?.id ?? null);
       setNewCompanyName(formData.name);
@@ -221,6 +224,21 @@ const Companies: React.FC = () => {
     }
   };
 
+  /* ── Upload logo ── */
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'create' | 'edit') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 600 * 1024) { setFormError('Le logo ne doit pas dépasser 600 Ko'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      if (target === 'create') setFormData(prev => ({ ...prev, logo_url: result }));
+      else setEditForm(prev => ({ ...prev, logo_url: result }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const toggleCreateModule = (key: string) => {
     setCreateModules(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
@@ -238,6 +256,7 @@ const Companies: React.FC = () => {
         ...editForm,
         founder_name: editForm.manager_name,
         city: editForm.locality,
+        logo_url: editForm.logo_url ?? null,
         modules: editModules
       });
       setSuccess('Entreprise mise à jour'); setOpenEdit(false); setEditCompany(null); loadCompanies();
@@ -261,6 +280,7 @@ const Companies: React.FC = () => {
       address: company.address || '',
       phone: company.phone || '',
       email: company.email || '',
+      logo_url: company.logo_url || '',
       plan: company.plan,
       manager_name: company.manager_name || '',
       locality: company.locality || '',
@@ -408,9 +428,20 @@ const Companies: React.FC = () => {
             ) : companies.map((company) => (
               <TableRow key={company.id} hover>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="bold">{company.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">#{company.id} · {company.code}</Typography>
-                  {company.locality && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>📍 {company.locality}</Typography>}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    {company.logo_url ? (
+                      <img src={company.logo_url} alt="logo" style={{ height: 36, width: 36, objectFit: 'contain', borderRadius: 4, border: '1px solid #eee' }} />
+                    ) : (
+                      <Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <BusinessIcon sx={{ fontSize: 20, color: '#ccc' }} />
+                      </Box>
+                    )}
+                    <Box>
+                      <Typography variant="body2" fontWeight="bold">{company.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">#{company.id} · {company.code}</Typography>
+                      {company.locality && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>📍 {company.locality}</Typography>}
+                    </Box>
+                  </Box>
                 </TableCell>
                 <TableCell><Chip label={planLabel(company.plan)} size="small" color={planColor(company.plan)} /></TableCell>
                 <TableCell>
@@ -600,6 +631,36 @@ const Companies: React.FC = () => {
               <TextField fullWidth label="Email" type="email" size="small"
                 value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
             </Grid>
+            {/* Logo */}
+            <Grid item xs={12}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Logo de l'entreprise (optionnel — apparaîtra sur les reçus)
+              </Typography>
+              <Box
+                onClick={() => logoInputRef.current?.click()}
+                sx={{
+                  border: '2px dashed',
+                  borderColor: formData.logo_url ? 'success.main' : 'primary.light',
+                  borderRadius: 2, p: 1.5, textAlign: 'center', cursor: 'pointer',
+                  '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(25,118,210,0.03)' }
+                }}
+              >
+                {formData.logo_url ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <img src={formData.logo_url} alt="Logo" style={{ maxHeight: 60, maxWidth: 120, objectFit: 'contain' }} />
+                    <Typography variant="caption" color="success.main">Logo chargé — cliquez pour remplacer</Typography>
+                    <Button size="small" color="error" onClick={(e) => { e.stopPropagation(); setFormData(p => ({ ...p, logo_url: '' })); }}>Supprimer</Button>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+                    <ImageIcon color="disabled" />
+                    <Typography variant="caption" color="text.secondary">Glissez le logo ou cliquez (PNG, JPG, SVG — max 600 Ko)</Typography>
+                  </Box>
+                )}
+              </Box>
+              <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={(e) => handleLogoUpload(e, 'create')} />
+            </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth size="small">
                 <InputLabel>Plan</InputLabel>
@@ -726,6 +787,36 @@ const Companies: React.FC = () => {
             <Grid item xs={6}>
               <TextField fullWidth label="Email" type="email" size="small"
                 value={editForm.email || ''} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+            </Grid>
+            {/* Logo */}
+            <Grid item xs={12}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Logo de l'entreprise (apparaîtra sur les reçus)
+              </Typography>
+              <Box
+                onClick={() => editLogoInputRef.current?.click()}
+                sx={{
+                  border: '2px dashed',
+                  borderColor: editForm.logo_url ? 'success.main' : 'primary.light',
+                  borderRadius: 2, p: 1.5, textAlign: 'center', cursor: 'pointer',
+                  '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(25,118,210,0.03)' }
+                }}
+              >
+                {editForm.logo_url ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <img src={editForm.logo_url} alt="Logo" style={{ maxHeight: 60, maxWidth: 120, objectFit: 'contain' }} />
+                    <Typography variant="caption" color="success.main">Logo chargé — cliquez pour remplacer</Typography>
+                    <Button size="small" color="error" onClick={(e) => { e.stopPropagation(); setEditForm(p => ({ ...p, logo_url: '' })); }}>Supprimer</Button>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+                    <ImageIcon color="disabled" />
+                    <Typography variant="caption" color="text.secondary">Glissez le logo ou cliquez (PNG, JPG, SVG — max 600 Ko)</Typography>
+                  </Box>
+                )}
+              </Box>
+              <input ref={editLogoInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={(e) => handleLogoUpload(e, 'edit')} />
             </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth size="small">

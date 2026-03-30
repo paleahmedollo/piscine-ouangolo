@@ -11,6 +11,7 @@ export interface ThermalReceiptData {
   companyName: string;
   companyPhone?: string;
   companyAddress?: string;
+  companyLogo?: string;
   module: string;
   moduleLabel: string;
   receiptNumber: string;
@@ -72,6 +73,11 @@ const ThermalReceipt: React.FC<{ data: ThermalReceiptData }> = ({ data }) => {
       }}
     >
       {/* En-tête */}
+      {data.companyLogo && (
+        <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+          <img src={data.companyLogo} alt="logo" style={{ maxHeight: '50px', maxWidth: '120px', objectFit: 'contain' }} />
+        </div>
+      )}
       <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
         {data.companyName}
       </div>
@@ -188,6 +194,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
       </style>
     </head>
     <body>
+      ${fullData.companyLogo ? `<div class="center"><img src="${fullData.companyLogo}" alt="logo" style="max-height:60px;max-width:140px;object-fit:contain;margin-bottom:4px"/></div>` : ''}
       <div class="center bold big">${fullData.companyName}</div>
       ${fullData.companyAddress ? `<div class="center">${fullData.companyAddress}</div>` : ''}
       ${fullData.companyPhone ? `<div class="center">Tél: ${fullData.companyPhone}</div>` : ''}

@@ -250,6 +250,74 @@ const ensureDefaultAccounts = async () => {
   }
 };
 
+// ─── Création Hôtel Le Luxembourg ─────────────────────────────────────────────
+const ensureHotelLuxembourg = async () => {
+  const bcrypt = require('bcryptjs');
+  try {
+    // Logo HL en SVG (étoile avec lettres HL à l'intérieur)
+    const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><polygon points="40,3 75,26 62,67 18,67 5,26" fill="none" stroke="#2c3e8c" stroke-width="3"/><polygon points="40,10 68,30 57,62 23,62 12,30" fill="none" stroke="#2c3e8c" stroke-width="1.5"/><line x1="18" y1="23" x2="18" y2="57" stroke="#2c3e8c" stroke-width="4.5" stroke-linecap="round"/><line x1="27" y1="23" x2="27" y2="57" stroke="#2c3e8c" stroke-width="4.5" stroke-linecap="round"/><line x1="18" y1="40" x2="41" y2="40" stroke="#2c3e8c" stroke-width="3.5" stroke-linecap="round"/><line x1="41" y1="23" x2="41" y2="57" stroke="#2c3e8c" stroke-width="4.5" stroke-linecap="round"/><line x1="41" y1="57" x2="62" y2="57" stroke="#2c3e8c" stroke-width="4.5" stroke-linecap="round"/></svg>`;
+    const logoUrl = `data:image/svg+xml;base64,${Buffer.from(logoSvg).toString('base64')}`;
+
+    // Modules activés
+    const modules = ['restaurant', 'hotel', 'events', 'reports', 'users', 'employees', 'expenses'];
+
+    // Créer la société si elle n'existe pas (code unique: luxembourg)
+    const existing = await sequelize.query(
+      `SELECT id FROM companies WHERE code = 'luxembourg' LIMIT 1`,
+      { type: 'SELECT' }
+    );
+
+    let companyId;
+    if (!existing[0]) {
+      const result = await sequelize.query(
+        `INSERT INTO companies (name, code, address, phone, email, logo_url, plan, modules, is_active, is_test, locality, country, manager_name, created_at, updated_at)
+         VALUES (:name, :code, :address, :phone, :email, :logo_url, :plan, :modules::jsonb, true, false, :locality, :country, :manager_name, NOW(), NOW())
+         RETURNING id`,
+        {
+          replacements: {
+            name: 'Hôtel Le Luxembourg',
+            code: 'luxembourg',
+            address: 'à côté du Monument, face Lycée d\'Atakpamé (LYATA)',
+            phone: '+228 92 89 80 25',
+            email: 'luxembourgh075@gmail.com',
+            logo_url: logoUrl,
+            plan: 'premium',
+            modules: JSON.stringify(modules),
+            locality: 'Atakpamé',
+            country: 'Togo',
+            manager_name: 'Directeur Général'
+          },
+          type: 'SELECT'
+        }
+      );
+      companyId = result[0]?.id;
+      console.log(`✅ Hôtel Le Luxembourg créé (ID: ${companyId})`);
+
+      // Créer le compte admin de l'hôtel
+      if (companyId) {
+        const hash = await bcrypt.hash('Luxembourg@2026', 10);
+        await sequelize.query(
+          `INSERT INTO users (username, password_hash, full_name, role, is_active, company_id, created_at, updated_at)
+           VALUES ('admin.luxembourg', :hash, 'Administrateur Hôtel Le Luxembourg', 'admin', true, :company_id, NOW(), NOW())
+           ON CONFLICT (username) DO NOTHING`,
+          { replacements: { hash, company_id: companyId } }
+        );
+        console.log('✅ Compte admin.luxembourg créé (mot de passe: Luxembourg@2026)');
+      }
+    } else {
+      companyId = existing[0].id;
+      // Mettre à jour le logo si manquant
+      await sequelize.query(
+        `UPDATE companies SET logo_url = :logo_url WHERE id = :id AND (logo_url IS NULL OR logo_url = '')`,
+        { replacements: { logo_url: logoUrl, id: companyId } }
+      );
+      console.log(`✅ Hôtel Le Luxembourg existe déjà (ID: ${companyId})`);
+    }
+  } catch (error) {
+    console.error('Erreur ensureHotelLuxembourg:', error.message);
+  }
+};
+
 // Alias conservés pour compatibilité (appellent tous ensureDefaultAccounts)
 const createDefaultSuperAdmin = ensureDefaultAccounts;
 const noop = async () => {};
@@ -824,6 +892,7 @@ const startServer = async () => {
     console.log('✅ Database models synchronized (tables créées si manquantes)');
     await runMigrations();
     await ensureDefaultAccounts();  // Crée/réactive tous les comptes par défaut
+    await ensureHotelLuxembourg();  // Crée Hôtel Le Luxembourg si absent
     await seedDefaultData();
 
     app.listen(PORT, () => {

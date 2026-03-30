@@ -57,7 +57,7 @@ const createCompany = async (req, res) => {
   try {
     const {
       name, code, address, phone, email, plan,
-      founder_name, city, country,
+      founder_name, city, country, logo_url,
       admin_username, admin_password, admin_full_name, modules, is_test
     } = req.body;
 
@@ -81,6 +81,7 @@ const createCompany = async (req, res) => {
       address,
       phone,
       email,
+      logo_url: logo_url || null,
       plan: plan || 'basic',
       modules: modulesValue,
       manager_name: founder_name || null,   // fondateur → manager_name en DB

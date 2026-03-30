@@ -63,7 +63,9 @@ const formatCurrency = (amount: number): string => {
 
 const ReceiptPrint: React.FC<ReceiptPrintProps> = ({ open, onClose, receiptId }) => {
   const { user } = useAuth();
-  const companyName = (user?.company?.name || 'Mon Entreprise').toUpperCase();
+  const company = user?.company as { name?: string; logo_url?: string; phone?: string; address?: string } | null;
+  const companyName = (company?.name || 'Mon Entreprise').toUpperCase();
+  const companyLogo = company?.logo_url || null;
 
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -201,7 +203,7 @@ const ReceiptPrint: React.FC<ReceiptPrintProps> = ({ open, onClose, receiptId })
           </style>
         </head>
         <body>
-          ${printContent.innerHTML}
+          ${printContent.innerHTML.replace('src="', 'src="')}
         </body>
       </html>
     `);
@@ -249,6 +251,11 @@ const ReceiptPrint: React.FC<ReceiptPrintProps> = ({ open, onClose, receiptId })
             }}>
               {/* Header */}
               <Box className="header" sx={{ textAlign: 'center', borderBottom: '1px dashed #000', pb: 1, mb: 1 }}>
+                {companyLogo && (
+                  <Box sx={{ mb: 0.5 }}>
+                    <img src={companyLogo} alt="logo" style={{ maxHeight: 50, maxWidth: 130, objectFit: 'contain' }} />
+                  </Box>
+                )}
                 <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '16px' }}>
                   {companyName}
                 </Typography>
