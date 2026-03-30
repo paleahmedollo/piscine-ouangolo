@@ -403,12 +403,14 @@ const deleteUser = async (req, res) => {
 const getRoles = async (req, res) => {
   let rolesList = [
     { id: 'admin', name: 'Administrateur', description: 'Super admin - Accès complet à tout, y compris la paie' },
+    { id: 'gerant', name: 'Gérant', description: 'Administration du système (sans la paie)' },
     { id: 'maitre_nageur', name: 'Maître-nageur', description: 'Gestion de la piscine' },
     { id: 'serveuse', name: 'Serveuse', description: 'Gestion du restaurant (femme)' },
     { id: 'serveur', name: 'Serveur', description: 'Gestion du restaurant (homme)' },
+    { id: 'cuisinier', name: 'Cuisinier', description: 'Cuisine — suivi commandes, tickets, tables' },
+    { id: 'caissier', name: 'Caissier', description: 'Caisse + restaurant' },
     { id: 'receptionniste', name: 'Réceptionniste', description: 'Gestion de l\'hôtel' },
     { id: 'gestionnaire_events', name: 'Gestionnaire événements', description: 'Gestion des événements' },
-    { id: 'gerant', name: 'Gérant', description: 'Administration du système (sans la paie)' },
     { id: 'responsable', name: 'Responsable', description: 'Supervision et rapports' },
     { id: 'directeur', name: 'Directeur', description: 'Lecture seule sur tous les modules' },
     { id: 'maire', name: 'Maire', description: 'Consultation uniquement' }

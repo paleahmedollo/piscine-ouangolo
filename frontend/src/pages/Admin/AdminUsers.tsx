@@ -42,10 +42,11 @@ interface BulkResult {
   message: string;
 }
 
-const ROLES = ['admin', 'gerant', 'directeur', 'responsable', 'maire', 'maitre_nageur', 'serveuse', 'serveur', 'receptionniste', 'gestionnaire_events'];
+const ROLES = ['admin', 'gerant', 'directeur', 'responsable', 'maire', 'maitre_nageur', 'serveuse', 'serveur', 'cuisinier', 'receptionniste', 'gestionnaire_events', 'caissier'];
 const ALL_MODULES = [
   { key: 'piscine', label: 'Piscine' },
   { key: 'restaurant', label: 'Restaurant' },
+  { key: 'cuisine', label: 'Cuisine' },
   { key: 'hotel', label: 'Hôtel' },
   { key: 'events', label: 'Événements' },
   { key: 'lavage', label: 'Lavage Auto' },
@@ -59,6 +60,21 @@ const ALL_MODULES = [
   { key: 'reports', label: 'Mes Rapports' },
   { key: 'users', label: 'Utilisateurs' },
 ];
+// Modules par défaut selon le rôle (null = tous les modules de l'entreprise)
+const ROLE_DEFAULT_MODULES: Record<string, string[] | null> = {
+  admin:                null,
+  gerant:               null,
+  directeur:            null,
+  responsable:          null,
+  maire:                null,
+  maitre_nageur:        ['piscine', 'caisse'],
+  serveuse:             ['restaurant'],
+  serveur:              ['restaurant'],
+  cuisinier:            ['restaurant', 'cuisine'],
+  receptionniste:       ['hotel'],
+  gestionnaire_events:  ['events', 'caisse'],
+  caissier:             ['caisse', 'restaurant'],
+};
 const roleColor = (r: string): 'default' | 'primary' | 'success' | 'warning' | 'error' =>
   r === 'admin' ? 'error' : r === 'gerant' ? 'primary' : r === 'directeur' ? 'success' : 'default';
 
@@ -460,7 +476,11 @@ const AdminUsers: React.FC = () => {
               <FormControl fullWidth size="small">
                 <InputLabel>Rôle *</InputLabel>
                 <Select value={createForm.role} label="Rôle *"
-                  onChange={e => setCreateForm({ ...createForm, role: e.target.value })}>
+                  onChange={e => {
+                    const role = e.target.value;
+                    setCreateForm({ ...createForm, role });
+                    setCreateModules(ROLE_DEFAULT_MODULES[role] || []);
+                  }}>
                   {ROLES.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
                 </Select>
               </FormControl>
